@@ -60,18 +60,8 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  // 3. Handle Redirects
-  useEffect(() => {
-    // Only redirect if we know both states (isLive and user)
-    if (isLive === true && user === null) {
-      // Store is OPEN but user is NOT logged in -> Go to Login
-      // Ensure we don't redirect if already on login/signup (but this wrapper is for (shop) layout, does it wrap login/signup?)
-      // Check if current path is NOT login/signup
-      if (!pathname.includes("/login") && !pathname.includes("/signup")) {
-        router.push("/login");
-      }
-    }
-  }, [isLive, user, pathname, router]);
+  // 3. Handle Redirects - REMOVED GUEST BLOCK. Guests allowed.
+  // We only care if store is CLOSED (isLive === false), which is handled by conditional rendering below.
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -92,11 +82,6 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   // We should allow rendering if pathname is login/signup.
   const isAuthPage =
     pathname.includes("/login") || pathname.includes("/signup");
-
-  // Prevent flicker: If isLive is true and user is null (not logged in) but we are NOT on auth page, show nothing (redirecting)
-  if (isLive === true && user === null && !isAuthPage) {
-    return null; // or <div className="h-screen bg-black" />
-  }
 
   // Prevent flicker: If user is logged in but on auth page, show nothing (redirecting)
   if (user && isAuthPage) {

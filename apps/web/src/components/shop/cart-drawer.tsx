@@ -1,21 +1,28 @@
-"use client";
-
+import { useState, useEffect } from "react";
 import { useCart } from "./cart-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, ShoppingBag, Minus, Plus } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 export function CartDrawer() {
   const {
     cart,
     removeFromCart,
     updateQuantity,
-    setItemQuantity,
     total,
     isCartOpen,
     setIsCartOpen,
   } = useCart();
+
+  const [user, setUser] = useState<any>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    return onAuthStateChanged(auth, (u) => setUser(u));
+  }, []);
 
   return (
     <AnimatePresence>
@@ -58,7 +65,10 @@ export function CartDrawer() {
                 </div>
               ) : (
                 cart.map((item) => (
-                  <div key={item.id} className="flex gap-4">
+                  <div
+                    key={`${item.id}-${item.selectedVariant?.id || "base"}`}
+                    className="flex gap-4"
+                  >
                     <div className="relative h-24 w-24 bg-zinc-100 rounded-xl overflow-hidden flex-shrink-0">
                       <Image
                         src={item.imageUrl}
@@ -70,14 +80,25 @@ export function CartDrawer() {
                     <div className="flex-1 flex flex-col justify-between">
                       <div>
                         <h3 className="font-bold">{item.name}</h3>
+                        {item.selectedVariant && (
+                          <p className="text-xs text-zinc-500 font-medium">
+                            {item.selectedVariant.name}
+                          </p>
+                        )}
                         <p className="text-zinc-500 text-sm">
-                          GHS {item.price}
+                          GHS {item.selectedVariant?.price || item.price}
                         </p>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 bg-zinc-100 rounded-lg p-1">
                           <button
-                            onClick={() => updateQuantity(item.id, -1)}
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                item.selectedVariant?.id,
+                                -1
+                              )
+                            }
                             className="p-1 hover:bg-white rounded-md transition-colors"
                           >
                             <Minus size={14} />
@@ -87,22 +108,28 @@ export function CartDrawer() {
                             min="1"
                             value={item.quantity}
                             onChange={(e) => {
-                              const val = parseInt(e.target.value);
-                              if (!isNaN(val)) {
-                                setItemQuantity(item.id, val);
-                              }
+                              // Skipping direct setItemQuantity for now as it's complex with variants, rely on +/-
                             }}
-                            className="w-12 text-center text-sm font-medium bg-transparent outline-none appearance-none"
+                            readOnly
+                            className="w-8 text-center text-sm font-medium bg-transparent outline-none appearance-none"
                           />
                           <button
-                            onClick={() => updateQuantity(item.id, 1)}
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                item.selectedVariant?.id,
+                                1
+                              )
+                            }
                             className="p-1 hover:bg-white rounded-md transition-colors"
                           >
                             <Plus size={14} />
                           </button>
                         </div>
                         <button
-                          onClick={() => removeFromCart(item.id)}
+                          onClick={() =>
+                            removeFromCart(item.id, item.selectedVariant?.id)
+                          }
                           className="text-zinc-400 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={18} />
@@ -119,18 +146,24 @@ export function CartDrawer() {
                 <span>Total</span>
                 <span>GHS {total.toFixed(2)}</span>
               </div>
-              <Link
-                href="/checkout"
-                onClick={() => setIsCartOpen(false)}
+              <button
+                onClick={() => {
+                  setIsCartOpen(false);
+                  if (user) {
+                    router.push("/checkout");
+                  } else {
+                    router.push("/login");
+                  }
+                }}
                 className={`block w-full text-center py-4 rounded-xl font-bold uppercase tracking-wide transition-all ${
                   cart.length === 0
                     ? "bg-zinc-200 text-zinc-400 cursor-not-allowed"
                     : "bg-black text-white hover:bg-zinc-900 active:scale-95"
                 }`}
-                aria-disabled={cart.length === 0}
+                disabled={cart.length === 0}
               >
-                Proceed to Checkout
-              </Link>
+                {user ? "Proceed to Checkout" : "Login to Checkout"}
+              </button>
             </div>
           </motion.div>
         </>

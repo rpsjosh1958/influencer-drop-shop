@@ -212,7 +212,7 @@ export function AdminOrderModal({
                     Items ({order.items.length})
                   </h4>
                   <div className="space-y-3">
-                    {order.items.map((item, idx) => (
+                    {order.items.map((item: any, idx) => (
                       <div
                         key={idx}
                         className="flex items-center gap-4 p-3 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors"
@@ -234,13 +234,25 @@ export function AdminOrderModal({
                           <p className="font-bold text-black text-sm line-clamp-1">
                             {item.name}
                           </p>
+                          {item.selectedVariant && (
+                            <p className="text-xs text-zinc-500 font-medium">
+                              {item.selectedVariant.name}
+                            </p>
+                          )}
                           <p className="text-xs text-zinc-500">
-                            Qty: {item.quantity} × GHS {item.price}
+                            Qty: {item.quantity} × GHS{" "}
+                            {item.selectedVariant?.price || item.price}
                           </p>
                         </div>
-                        <p className="font-bold text-black text-sm">
-                          GHS {(item.price * item.quantity).toFixed(2)}
-                        </p>
+                        <div className="text-right">
+                          <p className="font-bold text-black text-sm">
+                            GHS{" "}
+                            {(
+                              (item.selectedVariant?.price || item.price) *
+                              item.quantity
+                            ).toFixed(2)}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>

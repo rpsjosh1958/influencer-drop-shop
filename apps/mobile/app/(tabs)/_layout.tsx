@@ -1,35 +1,98 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from "expo-router";
+import { View, Pressable } from "react-native";
+import { MotiView, MotiText } from "moti";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+const TAB_Config = [
+  { name: "index", label: "Home", icon: "home" },
+  { name: "orders", label: "Orders", icon: "receipt" },
+  { name: "profile", label: "Profile", icon: "person" },
+];
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+function TabBar({ state, descriptors, navigation }: any) {
+  const insets = useSafeAreaInsets();
 
   return (
+    <View
+      className="flex-row bg-white border-t border-zinc-100 items-center justify-around absolute bottom-0 left-0 right-0 shadow-lg rounded-t-3xl"
+      style={{
+        paddingBottom: insets.bottom + 10,
+        paddingTop: 15,
+        height: 60 + insets.bottom,
+        shadowColor: "#000",
+        shadowOffset: {
+          width: 0,
+          height: -3,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 10,
+      }}
+    >
+      {state.routes.map((route: any, index: number) => {
+        const { options } = descriptors[route.key];
+        const isFocused = state.index === index;
+        const config =
+          TAB_Config.find((c) => c.name === route.name) || TAB_Config[0];
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: "tabPress",
+            target: route.key,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
+        return (
+          <Pressable
+            key={index}
+            onPress={onPress}
+            className="items-center justify-center"
+          >
+            <MotiView
+              animate={{
+                scale: isFocused ? 1 : 0.9,
+                translateY: isFocused ? -5 : 0,
+              }}
+              transition={{ type: "spring", damping: 15 }}
+              className="items-center"
+            >
+              <Ionicons
+                name={
+                  isFocused
+                    ? (config.icon as any)
+                    : (`${config.icon}-outline` as any)
+                }
+                size={24}
+                color={isFocused ? "black" : "#a1a1aa"}
+              />
+              {isFocused && (
+                <MotiView
+                  from={{ opacity: 0, scale: 0 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="h-1 w-1 bg-black rounded-full mt-1"
+                />
+              )}
+            </MotiView>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+export default function TabLayout() {
+  return (
     <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+      tabBar={(props) => <TabBar {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name="index" />
+      <Tabs.Screen name="orders" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }

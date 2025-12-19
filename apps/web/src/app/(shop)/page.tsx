@@ -38,7 +38,8 @@ export default function ShopHome() {
 
   const handleLogout = async () => {
     await signOut(auth);
-    router.replace("/login");
+    // No redirect needed, state update will show guest view
+    window.location.reload(); // Hard reload to clear any lingering client state/cache if needed, nice for "fresh" guest feel
   };
 
   useEffect(() => {
@@ -79,52 +80,57 @@ export default function ShopHome() {
         </div>
         <div className="flex items-center gap-4">
           {user && (
-            <>
-              <button
-                onClick={() => setIsOrdersOpen(true)}
-                className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500 hover:text-black"
-                title="Your Orders"
-              >
-                <Package size={20} />
-              </button>
-
-              <div className="relative">
-                <button
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500 hover:text-black flex items-center gap-2"
-                >
-                  <User size={20} />
-                </button>
-
-                <AnimatePresence>
-                  {isDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                      className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden z-50 py-1"
-                    >
-                      <button
-                        onClick={() => {
-                          setIsDropdownOpen(false);
-                          setIsProfileOpen(true);
-                        }}
-                        className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-50 flex items-center gap-2"
-                      >
-                        <User size={16} /> Profile
-                      </button>
-                      <button
-                        onClick={handleLogout}
-                        className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-50 text-red-500 flex items-center gap-2"
-                      >
-                        <LogOut size={16} /> Sign Out
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </>
+            <button
+              onClick={() => setIsOrdersOpen(true)}
+              className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500 hover:text-black"
+              title="Your Orders"
+            >
+              <Package size={20} />
+            </button>
           )}
+
+          <div className="relative">
+            <button
+              // Simplify: If not user, go to login. If user, toggle dropdown.
+              onClick={() => {
+                if (!user) {
+                  router.push("/login");
+                } else {
+                  setIsDropdownOpen(!isDropdownOpen);
+                }
+              }}
+              className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500 hover:text-black flex items-center gap-2"
+            >
+              <User size={20} />
+            </button>
+
+            <AnimatePresence>
+              {isDropdownOpen && user && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden z-50 py-1"
+                >
+                  <button
+                    onClick={() => {
+                      setIsDropdownOpen(false);
+                      setIsProfileOpen(true);
+                    }}
+                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-50 flex items-center gap-2"
+                  >
+                    <User size={16} /> Profile
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-50 text-red-500 flex items-center gap-2"
+                  >
+                    <LogOut size={16} /> Sign Out
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
           <button
             onClick={() => setIsCartOpen(true)}
             className="relative p-2 hover:bg-zinc-100 rounded-full transition-colors"

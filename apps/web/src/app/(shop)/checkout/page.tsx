@@ -154,18 +154,63 @@ export default function CheckoutPage() {
           if (!snapshot.exists()) {
             throw new Error(`Product ${item.name} no longer exists.`);
           }
-          const currentStock = snapshot.data()?.stock ?? 0;
-          if (currentStock < item.quantity) {
-            throw new Error(
-              `Not enough stock for ${item.name}. Only ${currentStock} left.`
+
+          const productData = snapshot.data();
+
+          if (item.selectedVariant) {
+            // Variant Logic
+            const variants = productData.variants || [];
+            const variant = variants.find(
+              (v: any) => v.id === item.selectedVariant!.id
             );
+
+            if (!variant) {
+              throw new Error(
+                `Variant ${item.selectedVariant.name} of ${item.name} no longer exists.`
+              );
+            }
+
+            if (variant.stock < item.quantity) {
+              throw new Error(
+                `Not enough stock for ${item.name} (${item.selectedVariant.name}). Only ${variant.stock} left.`
+              );
+            }
+          } else {
+            // Simple Product Logic
+            const currentStock = productData.stock ?? 0;
+            if (currentStock < item.quantity) {
+              throw new Error(
+                `Not enough stock for ${item.name}. Only ${currentStock} left.`
+              );
+            }
           }
         }
 
         // 3. Write updates (deduct stock)
         for (const { ref, snapshot, item } of productReads) {
-          const newStock = (snapshot.data()?.stock ?? 0) - item.quantity;
-          transaction.update(ref, { stock: newStock });
+          const productData = snapshot.data();
+          if (!productData) continue; // Should not happen given step 2
+
+          if (item.selectedVariant) {
+            const variants = productData.variants || [];
+            const updatedVariants = variants.map((v: any) => {
+              if (v.id === item.selectedVariant!.id) {
+                return { ...v, stock: v.stock - item.quantity };
+              }
+              return v;
+            });
+
+            // Also decrease total stock for convenience
+            const newTotalStock = (productData.stock ?? 0) - item.quantity;
+
+            transaction.update(ref, {
+              variants: updatedVariants,
+              stock: newTotalStock,
+            });
+          } else {
+            const newStock = (productData.stock ?? 0) - item.quantity;
+            transaction.update(ref, { stock: newStock });
+          }
         }
       });
       return true;
@@ -178,15 +223,39 @@ export default function CheckoutPage() {
 
   const restoreStock = async () => {
     // Best effort restoration
+    // Using transaction to properly update variant arrays
     try {
-      const batch = writeBatch(db);
-      cart.forEach((item) => {
-        const ref = doc(db, "products", item.id);
-        batch.update(ref, {
-          stock: increment(item.quantity),
+      await runTransaction(db, async (transaction) => {
+        const reads = await Promise.all(
+          cart.map((item) => transaction.get(doc(db, "products", item.id)))
+        );
+
+        reads.forEach((snap, idx) => {
+          if (!snap.exists()) return;
+          const item = cart[idx];
+          const data = snap.data();
+          if (!data) return;
+
+          const ref = doc(db, "products", item.id);
+
+          if (item.selectedVariant) {
+            const variants = data.variants || [];
+            const updated = variants.map((v: any) =>
+              v.id === item.selectedVariant!.id
+                ? { ...v, stock: v.stock + item.quantity }
+                : v
+            );
+            transaction.update(ref, {
+              variants: updated,
+              stock: (data.stock || 0) + item.quantity,
+            });
+          } else {
+            transaction.update(ref, {
+              stock: increment(item.quantity),
+            });
+          }
         });
       });
-      await batch.commit();
       console.log("Stock restored after cancellation");
     } catch (err) {
       console.error("Failed to restore stock:", err);
@@ -296,14 +365,21 @@ export default function CheckoutPage() {
           <div className="bg-white p-6 rounded-2xl shadow-sm space-y-4">
             {cart.map((item) => (
               <div
-                key={item.id}
+                key={`${item.id}-${item.selectedVariant?.id || 'base'}`}
                 className="flex justify-between items-center text-sm"
               >
                 <div className="flex items-center gap-3">
                   <span className="font-bold bg-zinc-100 w-6 h-6 flex items-center justify-center rounded-full text-xs">
                     {item.quantity}
                   </span>
-                  <span>{item.name}</span>
+                  <div className="flex flex-col">
+                    <span className="font-bold">{item.name}</span>
+                    {item.selectedVariant && (
+                      <span className="text-xs text-zinc-500 font-medium">
+                        {item.selectedVariant.name}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <span className="font-medium">
                   GHS {(item.price * item.quantity).toFixed(2)}
@@ -506,7 +582,7 @@ export default function CheckoutPage() {
           </form>
         </div>
       </div>
-      
+
       {/* Success Modal */}
       <AnimatePresence>
         {showSuccess && (

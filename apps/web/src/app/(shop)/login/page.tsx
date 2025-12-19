@@ -90,12 +90,23 @@ export default function ShopLogin() {
           </button>
         </form>
 
-        <p className="text-center text-zinc-500 text-sm">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-black font-bold hover:underline">
-            Join the movement
+        <div className="text-center space-y-4 pt-4">
+          <p className="text-zinc-500 text-sm">
+            Don't have an account?{" "}
+            <Link
+              href="/signup"
+              className="text-black font-bold hover:underline"
+            >
+              Join the movement
+            </Link>
+          </p>
+          <Link
+            href="/"
+            className="inline-block text-xs font-bold text-zinc-400 hover:text-black uppercase tracking-widest transition-colors"
+          >
+            Continue as Guest
           </Link>
-        </p>
+        </div>
       </motion.div>
     </div>
   );
