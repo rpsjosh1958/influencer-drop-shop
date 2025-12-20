@@ -22,6 +22,7 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface Address {
   id: string;
@@ -50,6 +51,8 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
   const [activeTab, setActiveTab] = useState("personal");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+
+  useBodyScrollLock(isOpen);
 
   // Personal Info State
   const [name, setName] = useState(user?.displayName || "");

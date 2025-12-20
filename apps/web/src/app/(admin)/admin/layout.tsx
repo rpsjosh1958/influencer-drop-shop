@@ -11,12 +11,14 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { BroadcastModal } from "@/components/admin/broadcast-modal";
 
 export default function AdminLayout({
   children,
@@ -26,6 +28,7 @@ export default function AdminLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [showBroadcast, setShowBroadcast] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -155,6 +158,17 @@ export default function AdminLayout({
             </nav>
 
             <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+              <button
+                onClick={() => setShowBroadcast(true)}
+                className={cn(
+                  "flex items-center gap-2 px-2 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors",
+                  collapsed && "justify-center"
+                )}
+              >
+                <Megaphone size={20} className="w-5 h-5" />
+                {!collapsed && <span>Broadcast</span>}
+              </button>
+              
               <div
                 className={cn(
                   "flex items-center justify-between",
@@ -172,7 +186,14 @@ export default function AdminLayout({
                   {!collapsed && <span>Logout</span>}
                 </button>
               </div>
+
+              
             </div>
+            
+            <BroadcastModal 
+              isOpen={showBroadcast} 
+              onClose={() => setShowBroadcast(false)} 
+            />
           </aside>
 
           {/* Main Content */}

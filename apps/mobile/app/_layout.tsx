@@ -24,7 +24,6 @@ export const unstable_settings = {
 
 import { CartProvider } from "@/context/cart-context";
 
-// ... existing imports
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

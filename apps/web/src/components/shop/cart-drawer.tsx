@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 export function CartDrawer() {
   const {
@@ -16,6 +17,8 @@ export function CartDrawer() {
     isCartOpen,
     setIsCartOpen,
   } = useCart();
+
+  useBodyScrollLock(isCartOpen);
 
   const [user, setUser] = useState<any>(null);
   const router = useRouter();

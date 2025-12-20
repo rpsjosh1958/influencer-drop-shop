@@ -6,6 +6,8 @@ import { Package, X, Loader2, ShoppingBag } from "lucide-react";
 import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { User } from "firebase/auth";
+import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import { useShopUI } from "@/context/shop-ui-context";
 
 interface Order {
   id: string;
@@ -33,6 +35,9 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
   // console.log("OrdersDropdown Rendered. isOpen:", isOpen, "User:", user?.uid);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const { openOrderDetails } = useShopUI();
+
+  useBodyScrollLock(isOpen);
 
   useEffect(() => {
     async function fetchOrders() {
@@ -128,7 +133,11 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                 orders.map((order) => (
                   <div
                     key={order.id}
-                    className="group p-4 rounded-xl border border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50 transition-all cursor-default"
+                    onClick={() => {
+                      onClose();
+                      openOrderDetails(order.id);
+                    }}
+                    className="group p-4 rounded-xl border border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50 transition-all cursor-pointer"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>

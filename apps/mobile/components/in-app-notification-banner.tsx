@@ -61,7 +61,7 @@ export function InAppNotificationBanner() {
       <MotiView
         from={{ translateY: -100, opacity: 0 }}
         animate={{ translateY: 0, opacity: 1 }}
-        exit={{ translateY: -100, opacity: 0 }}
+        exit={{ translateY: -200, opacity: 0 }}
         transition={{ type: "timing", duration: 400 }}
         style={{
           position: "absolute",
@@ -76,7 +76,8 @@ export function InAppNotificationBanner() {
           className="bg-zinc-900 rounded-2xl p-4 shadow-xl border border-zinc-800 flex-row gap-3 items-center"
         >
           <View className="h-10 w-10 rounded-full bg-zinc-800 items-center justify-center border border-zinc-700">
-            {currentNotif.type === "drop" ? (
+            {currentNotif.type === "drop" ||
+            currentNotif.type === "broadcast" ? (
               <Zap size={18} color="#fbbf24" fill="#fbbf24" />
             ) : (
               <ShoppingBag size={18} color="white" />
@@ -90,7 +91,6 @@ export function InAppNotificationBanner() {
               {currentNotif.message}
             </P>
           </View>
-          <View className="h-1 w-8 bg-zinc-700 rounded-full absolute bottom-1 right-[40%] opacity-50" />
         </Pressable>
       </MotiView>
     </GestureDetector>

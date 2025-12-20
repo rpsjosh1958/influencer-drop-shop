@@ -5,9 +5,8 @@ import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { LogOut, ShoppingCart, Star, User, Zap } from "lucide-react";
+import { LogOut, ShoppingCart, User, Zap, Package, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import Image from "next/image";
 import { Product } from "@/types";
 import { useRouter } from "next/navigation";
 
@@ -16,7 +15,9 @@ import { ProductCard } from "@/components/shop/product-card";
 
 import { ProfileModal } from "@/components/shop/profile-modal";
 import { OrdersDropdown } from "@/components/shop/orders-dropdown";
-import { Package } from "lucide-react";
+import { HeaderSearch } from "@/components/shop/header-search";
+import { NotificationDropdown } from "@/components/shop/notification-dropdown";
+import { useNotifications } from "@/context/notification-context";
 
 export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -25,6 +26,7 @@ export default function ShopHome() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const router = useRouter();
   const { addToCart, cart, setIsCartOpen } = useCart();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -38,8 +40,7 @@ export default function ShopHome() {
 
   const handleLogout = async () => {
     await signOut(auth);
-    // No redirect needed, state update will show guest view
-    window.location.reload(); // Hard reload to clear any lingering client state/cache if needed, nice for "fresh" guest feel
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -58,11 +59,6 @@ export default function ShopHome() {
         setProducts(items);
       } catch (error: any) {
         console.error("Failed to fetch products", error);
-        if (error.code === "permission-denied") {
-          console.error(
-            "PERMISSION DENIED: Update Firestore Rules for 'products' collection."
-          );
-        }
       } finally {
         setLoading(false);
       }
@@ -79,6 +75,23 @@ export default function ShopHome() {
           <span className="font-black tracking-tighter text-xl">DROP.</span>
         </div>
         <div className="flex items-center gap-4">
+          <HeaderSearch onAddToCart={addToCart} />
+
+          {user && (
+            <div className="relative">
+              <button
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="p-2 hover:bg-zinc-100 rounded-full transition-colors text-zinc-500 hover:text-black relative"
+              >
+                <Bell size={20} />
+                <NotificationBadge />
+              </button>
+              <NotificationDropdown
+                isOpen={isNotificationsOpen}
+                onClose={() => setIsNotificationsOpen(false)}
+              />
+            </div>
+          )}
           {user && (
             <button
               onClick={() => setIsOrdersOpen(true)}
@@ -91,7 +104,6 @@ export default function ShopHome() {
 
           <div className="relative">
             <button
-              // Simplify: If not user, go to login. If user, toggle dropdown.
               onClick={() => {
                 if (!user) {
                   router.push("/login");
@@ -212,4 +224,16 @@ export default function ShopHome() {
       />
     </div>
   );
+}
+
+function NotificationBadge() {
+  try {
+    const { unreadCount } = useNotifications();
+    if (unreadCount === 0) return null;
+    return (
+      <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
+    );
+  } catch (e) {
+    return null;
+  }
 }

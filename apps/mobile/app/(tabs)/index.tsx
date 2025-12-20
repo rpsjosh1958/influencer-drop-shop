@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import { collection, query, orderBy, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Product, ProductCard } from "@/components/shop/product-card";
 import { ProductDetailsModal } from "@/components/shop/product-details-modal";
@@ -17,7 +17,14 @@ import { SwipeableNotificationRow } from "@/components/swipeable-notification-ro
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/context/cart-context";
 import { MotiView } from "moti";
-import { Bell, ShoppingCart, Zap, X } from "lucide-react-native";
+import {
+  Bell,
+  ShoppingCart,
+  Zap,
+  X,
+  Search,
+  ChevronRight,
+} from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import Animated, {
   useSharedValue,
@@ -28,12 +35,15 @@ import Animated, {
   runOnJS,
   withTiming,
   Easing,
+  useAnimatedReaction,
 } from "react-native-reanimated";
 import {
   Gesture,
   GestureDetector,
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
+import { TextInput, TouchableWithoutFeedback, Keyboard } from "react-native";
+import { BlurView } from "expo-blur";
 
 const { width } = Dimensions.get("window");
 
@@ -46,6 +56,15 @@ export default function ShopHome() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  // Search State
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Notification State
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read">(
     "all"
@@ -141,6 +160,101 @@ export default function ShopHome() {
     fetchProducts();
   }, []);
 
+  // Search Logic
+  const searchWidth = useSharedValue(0);
+  const searchOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      searchWidth.value = withTiming(width - 48, { duration: 300 }); // ample width
+      searchOpacity.value = withTiming(1, { duration: 300 });
+    } else {
+      searchWidth.value = withTiming(0, { duration: 300 });
+      searchOpacity.value = withTiming(0, { duration: 200 });
+      Keyboard.dismiss();
+      setSearchQuery("");
+      setSuggestions([]);
+      if (searchResults.length > 0) {
+        // Reset to show all products if we were showing search results
+        setSearchResults([]);
+        setIsSearching(false);
+      }
+    }
+  }, [isSearchOpen]);
+
+  const searchStyle = useAnimatedStyle(() => {
+    return {
+      width: searchWidth.value,
+      opacity: searchOpacity.value,
+    };
+  });
+
+  const handleSearchTextChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.length > 1) {
+      // Client-side suggestions from currently loaded products
+      const textLower = text.toLowerCase();
+      const matched = products.filter((p) =>
+        p.name.toLowerCase().includes(textLower)
+      );
+      setSuggestions(matched.slice(0, 5));
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const performSearch = async () => {
+    if (!searchQuery.trim()) return;
+
+    setIsSearching(true);
+    setLoading(true);
+    setSuggestions([]); // hide suggestions
+    Keyboard.dismiss();
+
+    try {
+      // Firestore Search (Prefix match)
+      // Note: Firestore is case-sensitive.
+      // Ideally, we'd have a 'keywords' array or normalized 'name_lower' field on the document.
+      // For now, attempting exact Case match or relying on client-side full list backup.
+
+      const q = query(
+        collection(db, "products"),
+        where("name", ">=", searchQuery),
+        where("name", "<=", searchQuery + "\uf8ff")
+      );
+
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        const results = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Product[];
+        setSearchResults(results);
+      } else {
+        // Fallback: If endpoint returns nothing (likely due to case sensitivity),
+        // assume we already have most products loaded and filter locally.
+        const textLower = searchQuery.toLowerCase();
+        const localResults = products.filter((p) =>
+          p.name.toLowerCase().includes(textLower)
+        );
+        setSearchResults(localResults);
+      }
+    } catch (e) {
+      console.error("Search failed:", e);
+      // Fallback to local filter on error
+      const textLower = searchQuery.toLowerCase();
+      const localResults = products.filter((p) =>
+        p.name.toLowerCase().includes(textLower)
+      );
+      setSearchResults(localResults);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const displayedProducts = isSearching ? searchResults : products;
+
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchProducts();
@@ -214,13 +328,11 @@ export default function ShopHome() {
                           }
                         }}
                         className={`bg-zinc-900 p-5 rounded-3xl border ${
-                          item.read
-                            ? "border-zinc-800"
-                            : ""
+                          item.read ? "border-zinc-800" : ""
                         } flex-row gap-4 w-full`}
                       >
                         <View className="h-12 w-12 bg-zinc-800 rounded-full items-center justify-center">
-                          {item.type === "drop" ? (
+                          {item.type === "drop" || item.type === "broadcast" ? (
                             <Zap size={20} color="#fbbf24" fill="#fbbf24" />
                           ) : (
                             <ShoppingCart size={20} color="white" />
@@ -275,25 +387,116 @@ export default function ShopHome() {
           >
             <SafeAreaView className="flex-1">
               {/* Header */}
-              <View className="flex-row items-center justify-between px-6 py-4">
-                <View className="flex-row items-center gap-2">
-                  <View className="h-4 w-4 bg-black rounded-full" />
-                  <H1 className="text-xl tracking-tighter">DROP.</H1>
-                </View>
+              <View className="flex-row items-center justify-between px-6 py-4 z-50">
+                {/* Logo Area - Hide when searching */}
+                {!isSearchOpen && (
+                  <MotiView
+                    from={{ opacity: 0, translateX: -20 }}
+                    animate={{ opacity: 1, translateX: 0 }}
+                    exit={{ opacity: 0, translateX: -20 }}
+                    className="flex-row items-center gap-2"
+                  >
+                    <View className="h-4 w-4 bg-black rounded-full" />
+                    <H1 className="text-xl tracking-tighter">DROP.</H1>
+                  </MotiView>
+                )}
 
-                <Pressable
-                  onPress={() => setIsNotificationOpen(!isNotificationOpen)}
-                >
-                  <Bell color="black" size={24} />
-                  {unreadCount > 0 && (
-                    <View className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full items-center justify-center border border-white">
-                      <P className="text-[8px] text-white font-bold">
-                        {unreadCount > 9 ? "9+" : unreadCount}
-                      </P>
-                    </View>
+                <View className="flex-row items-center gap-4">
+                  {/* Search Bar */}
+                  {isSearchOpen ? (
+                    <Animated.View
+                      style={[
+                        searchStyle,
+                        {
+                          overflow: "hidden",
+                          backgroundColor: "#f4f4f5",
+                          borderRadius: 12,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          paddingHorizontal: 12,
+                          height: 44,
+                        },
+                      ]}
+                    >
+                      <Search size={18} color="#a1a1aa" />
+                      <TextInput
+                        autoFocus
+                        value={searchQuery}
+                        onChangeText={handleSearchTextChange}
+                        onSubmitEditing={performSearch}
+                        returnKeyType="search"
+                        placeholder="Search drops..."
+                        className="flex-1 ml-2 font-medium text-black h-full"
+                        placeholderTextColor="#a1a1aa"
+                      />
+                      <Pressable onPress={() => setIsSearchOpen(false)}>
+                        <X size={18} color="#71717a" />
+                      </Pressable>
+                    </Animated.View>
+                  ) : (
+                    <Pressable
+                      onPress={() => setIsSearchOpen(true)}
+                      className="p-1"
+                    >
+                      <Search color="black" size={24} />
+                    </Pressable>
                   )}
-                </Pressable>
+
+                  {/* Notification Bell - Hide when searching to give space */}
+                  {!isSearchOpen && (
+                    <Pressable
+                      onPress={() => setIsNotificationOpen(!isNotificationOpen)}
+                    >
+                      <Bell color="black" size={24} />
+                      {unreadCount > 0 && (
+                        <View className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full items-center justify-center border border-white">
+                          <P className="text-[8px] text-white font-bold">
+                            {unreadCount > 9 ? "9+" : unreadCount}
+                          </P>
+                        </View>
+                      )}
+                    </Pressable>
+                  )}
+                </View>
               </View>
+
+              {/* Blur Overlay */}
+              {isSearchOpen && suggestions.length > 0 && (
+                <BlurView
+                  intensity={20}
+                  tint="light"
+                  className="absolute inset-0 z-40"
+                  style={{ top: 80 }} // Start below header approx
+                />
+              )}
+
+              {/* Suggestions Dropdown */}
+              {isSearchOpen && suggestions.length > 0 && (
+                <View className="absolute top-[109px] left-6 right-6 bg-zinc-50 rounded-2xl shadow-xl z-50 border border-zinc-100 overflow-hidden">
+                  {suggestions.map((item, index) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => {
+                        setSearchQuery(item.name);
+                        setSuggestions([]);
+                        Keyboard.dismiss();
+                        setIsSearching(true);
+                        setSearchResults([item]);
+                      }}
+                      className={`p-4 flex-row items-center justify-between ${
+                        index !== suggestions.length - 1
+                          ? "border-b border-zinc-50"
+                          : ""
+                      }`}
+                    >
+                      <View className="flex-row items-center gap-3">
+                        <Search size={14} color="#d4d4d8" />
+                        <P className="text-zinc-700 font-bold">{item.name}</P>
+                      </View>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
 
               {/* Scrolling Content */}
               <ScrollView
@@ -305,32 +508,43 @@ export default function ShopHome() {
                     tintColor="black"
                   />
                 }
+                scrollEnabled={!isSearchOpen || suggestions.length === 0} // Disable scroll if suggestions might block? Optional.
               >
-                <View className="px-6 pt-4 pb-6">
-                  <MotiView
-                    from={{ opacity: 0, translateY: 30 }}
-                    animate={{ opacity: 1, translateY: 0 }}
-                    transition={{ delay: 200 }}
-                  >
-                    <View className="flex-row items-center gap-2 mb-4 bg-black self-center px-3 py-1.5 rounded-full">
-                      <Zap size={12} color="#fbbf24" fill="#fbbf24" />
-                      <P className="text-white text-[10px] font-bold uppercase tracking-widest">
-                        Live Drop Now Active
+                {!isSearching && (
+                  <View className="px-6 pt-4 pb-6">
+                    <MotiView
+                      from={{ opacity: 0, translateY: 30 }}
+                      animate={{ opacity: 1, translateY: 0 }}
+                      transition={{ delay: 200 }}
+                    >
+                      <View className="flex-row items-center gap-2 mb-4 bg-black self-center px-3 py-1.5 rounded-full">
+                        <Zap size={12} color="#fbbf24" fill="#fbbf24" />
+                        <P className="text-white text-[10px] font-bold uppercase tracking-widest">
+                          Live Drop Now Active
+                        </P>
+                      </View>
+                      <H1 className="text-6xl font-black text-center tracking-tighter leading-none mb-4">
+                        SECURE THE BAG.
+                      </H1>
+                      <P className="text-lg text-center text-zinc-500">
+                        Limited edition drops. Once they're gone, they're gone
+                        forever. Don't lack.
                       </P>
-                    </View>
-                    <H1 className="text-6xl font-black text-center tracking-tighter leading-none mb-4">
-                      SECURE THE BAG.
+                    </MotiView>
+                  </View>
+                )}
+
+                {isSearching && (
+                  <View className="px-6 py-4">
+                    <H1 className="text-2xl font-black uppercase mb-4">
+                      {searchResults.length} Results
                     </H1>
-                    <P className="text-lg text-center text-zinc-500">
-                      Limited edition drops. Once they're gone, they're gone
-                      forever. Don't lack.
-                    </P>
-                  </MotiView>
-                </View>
+                  </View>
+                )}
 
                 <View className="px-4">
                   {loading ? (
-                    <View className="flex-row flex-wrap justify-between">
+                    <View className="flex-row flex-wrap justify-center align-center">
                       {[1, 2, 3, 4].map((i) => (
                         <View key={i} className="w-[48%] mb-6 space-y-3">
                           <Skeleton width="100%" height={256} radius={20} />
@@ -340,8 +554,8 @@ export default function ShopHome() {
                       ))}
                     </View>
                   ) : (
-                    <View className="flex-row flex-wrap justify-between">
-                      {products.map((product, i) => (
+                    <View className="flex-row flex-wrap justify-center align-center">
+                      {displayedProducts.map((product, i) => (
                         <View key={product.id} className="w-[48%]">
                           <ProductCard
                             product={product}
@@ -350,6 +564,13 @@ export default function ShopHome() {
                           />
                         </View>
                       ))}
+                      {isSearching && searchResults.length === 0 && (
+                        <View className="w-full py-10 items-center">
+                          <P className="text-zinc-400">
+                            No drops found matching "{searchQuery}"
+                          </P>
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>

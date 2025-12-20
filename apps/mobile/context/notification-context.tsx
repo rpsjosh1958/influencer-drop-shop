@@ -4,7 +4,12 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useRef,
 } from "react";
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
+import Constants from "expo-constants";
+import { Platform } from "react-native";
 import {
   collection,
   query,
@@ -18,9 +23,19 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
+// Configure Global Handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 export interface Notification {
   id: string;
-  type: "order_update" | "drop" | "info";
+  type: "order_update" | "drop" | "info" | "broadcast";
   title: string;
   message: string;
   read: boolean;
@@ -48,6 +63,98 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [latestNotification, setLatestNotification] =
     useState<Notification | null>(null);
 
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
+
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(async (token) => {
+      if (token && user) {
+        await savePushToken(user.uid, token);
+      }
+    });
+
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        // Handle foreground notification if needed manually, though Handler does usually enough
+        // console.log("Foreground Notification:", notification);
+      });
+
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        // Handle tap on notification
+        const data = response.notification.request.content.data;
+        // console.log("Notification Tapped:", data);
+        // Could navigate here if we had access to router, or emit event
+      });
+
+    return () => {
+      notificationListener.current && notificationListener.current.remove();
+      responseListener.current && responseListener.current.remove();
+    };
+  }, [user]);
+
+  const savePushToken = async (uid: string, token: string) => {
+    try {
+      await updateDoc(doc(db, "users", uid), {
+        expoPushToken: token,
+      });
+    } catch (e) {
+      // If doc doesn't exist, we might need setDoc or handle error.
+      // Allowing fail silently for 'users' collection assumption
+      console.log("Error saving push token:", e);
+    }
+  };
+
+  async function registerForPushNotificationsAsync() {
+    let token;
+
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("default", {
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#FF231F7C",
+      });
+    }
+
+    if (Device.isDevice) {
+      const { status: existingStatus } =
+        await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      if (existingStatus !== "granted") {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      if (finalStatus !== "granted") {
+        console.log("Failed to get push token for push notification!");
+        return;
+      }
+
+      // Learn more about projectId:
+      // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
+      // For now, getting token without explicit projectId often works if configured in app.json
+      // or using development build, but explicitly passing it is safer if using EAS.
+      try {
+        const projectId =
+          Constants?.expoConfig?.extra?.eas?.projectId ??
+          Constants?.easConfig?.projectId;
+        if (!projectId) {
+          console.log(
+            "No Project ID found. Skipping Push Token generation. Run 'eas init' to configure."
+          );
+          return;
+        }
+        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+        console.log("Expo Push Token:", token);
+      } catch (e) {
+        console.log("Error fetching token:", e);
+      }
+    } else {
+      console.log("Must use physical device for Push Notifications");
+    }
+
+    return token;
+  }
   useEffect(() => {
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -65,7 +172,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     // Listen to notifications
     const q = query(
       collection(db, "notifications"),
-      where("userId", "==", user.uid),
+      where("userId", "in", [user.uid, "all"]),
       orderBy("createdAt", "desc"),
       limit(50)
     );

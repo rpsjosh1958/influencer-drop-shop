@@ -7,6 +7,7 @@ import {
   Image,
   Text,
   RefreshControl,
+  ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -31,7 +32,7 @@ export default function OrdersScreen() {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
 
-  const FILTERS = ["all", "paid", "sent-out", "delivered"];
+  const FILTERS = ["all", "paid", "packaged", "sent-out", "delivered"];
 
   const fetchOrders = async (userId: string) => {
     try {
@@ -133,6 +134,8 @@ export default function OrdersScreen() {
         return "bg-green-50 border-green-100";
       case "sent-out":
         return "bg-blue-50 border-blue-100";
+      case "packaged":
+        return "bg-purple-50 border-purple-100";
       default:
         return "bg-yellow-50 border-yellow-100";
     }
@@ -146,6 +149,8 @@ export default function OrdersScreen() {
         return "text-green-600";
       case "sent-out":
         return "text-blue-600";
+      case "packaged":
+        return "text-purple-600";
       default:
         return "text-yellow-600";
     }
@@ -164,7 +169,12 @@ export default function OrdersScreen() {
           </P>
 
           {/* Filters */}
-          <View className="flex-row gap-2">
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: 8, paddingRight: 24 }}
+            className="flex-row"
+          >
             {FILTERS.map((filter) => (
               <Pressable
                 key={filter}
@@ -184,7 +194,7 @@ export default function OrdersScreen() {
                 </P>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {orders.length === 0 ? (
@@ -210,14 +220,43 @@ export default function OrdersScreen() {
                 onPress={() => openDetails(item)}
                 className="bg-white border border-zinc-100 rounded-2xl p-4 active:bg-zinc-50 transition-colors shadow-sm"
               >
-                {/* Row 1: ID, Status, Price */}
-                <View className="flex-row justify-between items-center">
-                  <View className="flex-row items-center gap-2">
-                    <P className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600 overflow-hidden">
-                      #{item.id.slice(0, 6).toUpperCase()}
-                    </P>
+                {/* Header: ID, Price */}
+                <View className="flex-row justify-between items-center mb-4">
+                  <P className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600 overflow-hidden">
+                    #{item.id.slice(0, 6).toUpperCase()}
+                  </P>
+                  <H1 className="text-lg font-black">
+                    {typeof item.total === "number"
+                      ? `GHS ${item.total.toFixed(2)}`
+                      : "GHS 0.00"}
+                  </H1>
+                </View>
+
+                {/* Content: Image Left, Status & Date Right */}
+                <View className="flex-row items-center justify-between">
+                  {/* Image */}
+                  <View>
+                    {item.items && item.items.length > 0 ? (
+                      <Image
+                        source={{
+                          uri:
+                            item.items[0].imageUrl ||
+                            item.items[0].image ||
+                            item.items[0].images?.[0],
+                        }}
+                        className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100"
+                      />
+                    ) : (
+                      <View className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100 items-center justify-center">
+                        <ShoppingBag size={24} color="#e4e4e7" />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Details */}
+                  <View className="items-end">
                     <View
-                      className={`px-2 py-0.5 rounded-full border ${getStatusColor(
+                      className={`px-2 py-0.5 rounded-full border mb-2 ${getStatusColor(
                         item.status
                       )}`}
                     >
@@ -229,39 +268,18 @@ export default function OrdersScreen() {
                         {item.status}
                       </P>
                     </View>
+
+                    <View className="flex-row items-center gap-1">
+                      <Clock size={14} color="#a1a1aa" />
+                      <P className="text-xs text-zinc-400 font-bold uppercase">
+                        {item.createdAt
+                          ? new Date(
+                              item.createdAt.seconds * 1000
+                            ).toLocaleDateString("en-GB")
+                          : ""}
+                      </P>
+                    </View>
                   </View>
-                  <H1 className="text-lg font-black">
-                    {typeof item.total === "number"
-                      ? `GHS ${item.total.toFixed(2)}`
-                      : "GHS 0.00"}
-                  </H1>
-                </View>
-
-                {/* Row 2: Date */}
-                <View className="flex-row items-center gap-1 mt-3">
-                  <Clock size={14} color="#a1a1aa" />
-                  <P className="text-xs text-zinc-400 font-bold uppercase">
-                    {item.createdAt
-                      ? new Date(
-                          item.createdAt.seconds * 1000
-                        ).toLocaleDateString("en-GB")
-                      : ""}
-                  </P>
-                </View>
-
-                {/* Row 3: Product Image */}
-                <View className="mt-4">
-                  {item.items && item.items.length > 0 && (
-                    <Image
-                      source={{
-                        uri:
-                          item.items[0].imageUrl ||
-                          item.items[0].image ||
-                          item.items[0].images?.[0],
-                      }}
-                      className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100"
-                    />
-                  )}
                 </View>
               </Pressable>
             )}

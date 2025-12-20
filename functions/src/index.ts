@@ -1,32 +1,121 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
+import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
+import { Expo, ExpoPushMessage } from "expo-server-sdk";
+import * as admin from "firebase-admin";
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+admin.initializeApp();
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+const expo = new Expo();
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+export const onNotificationCreated = onDocumentCreated(
+  "notifications/{notificationId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) {
+      logger.error("No data associated with the event");
+      return;
+    }
+
+    const data = snapshot.data();
+    const userId = data.userId;
+    const title = data.title;
+    const message = data.message;
+    const orderId = data.orderId;
+
+    if (!userId || !title || !message) {
+      logger.warn("Missing required fields for notification");
+      return;
+    }
+
+    if (userId === "all") {
+      try {
+        const usersSnapshot = await admin.firestore().collection("users").get();
+        const messages: ExpoPushMessage[] = [];
+
+        usersSnapshot.forEach((doc) => {
+          const userData = doc.data();
+          if (
+            userData.expoPushToken &&
+            Expo.isExpoPushToken(userData.expoPushToken)
+          ) {
+            messages.push({
+              to: userData.expoPushToken,
+              sound: "default",
+              title: title,
+              body: message,
+              data: { orderId: orderId },
+            });
+          }
+        });
+
+        if (messages.length === 0) {
+          logger.info("No users with valid tokens found for broadcast");
+          return;
+        }
+
+        const chunks = expo.chunkPushNotifications(messages);
+        const tickets = [];
+
+        for (const chunk of chunks) {
+          try {
+            const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            tickets.push(...ticketChunk);
+          } catch (error) {
+            logger.error("Error sending push notifications chunk", error);
+          }
+        }
+        logger.info(`Broadcast notification sent to ${messages.length} users`);
+        return;
+      } catch (error) {
+        logger.error("Error broadcasting notification", error);
+        return;
+      }
+    }
+
+    try {
+      const userDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(userId)
+        .get();
+      const user = userDoc.data();
+
+      if (!user || !user.expoPushToken) {
+        logger.info(`No Expo Push Token found for user ${userId}`);
+        return;
+      }
+
+      const pushToken = user.expoPushToken;
+
+      if (!Expo.isExpoPushToken(pushToken)) {
+        logger.error(`Push token ${pushToken} is not a valid Expo push token`);
+        return;
+      }
+
+      const messages: ExpoPushMessage[] = [];
+      messages.push({
+        to: pushToken,
+        sound: "default",
+        title: title,
+        body: message,
+        data: { orderId: orderId },
+      });
+
+      const chunks = expo.chunkPushNotifications(messages);
+      const tickets = [];
+
+      for (const chunk of chunks) {
+        try {
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          tickets.push(...ticketChunk);
+        } catch (error) {
+          logger.error("Error sending push notifications", error);
+        }
+      }
+
+      logger.info(`Notification sent to ${userId}`);
+    } catch (error) {
+      logger.error("Error fetching user or sending notification", error);
+    }
+  }
+);
