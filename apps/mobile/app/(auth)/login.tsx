@@ -39,15 +39,27 @@ export default function Login() {
       // Router replacement is handled by root layout listener, but we can do it here too for safety/speed
       // router.replace("/(tabs)");
     } catch (err: any) {
+      console.log("Login error:", err);
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        // Cast to any to bypass strict checks, valid at runtime
-        (err as any).errors.forEach((e: any) => {
+        // Use issues or errors, safe cast, and default to empty array to prevent crash
+        const issues = (err as any).errors || (err as any).issues || [];
+        issues.forEach((e: any) => {
           if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
         });
         setErrors(fieldErrors);
       } else {
-        alert(err.message || "Login failed");
+        // Firebase Errors
+        const message = err.message || "Login failed";
+        if (
+          err.code === "auth/invalid-credential" ||
+          err.code === "auth/user-not-found" ||
+          err.code === "auth/wrong-password"
+        ) {
+          alert("Invalid email or password");
+        } else {
+          alert(message);
+        }
       }
     } finally {
       setLoading(false);
@@ -65,13 +77,13 @@ export default function Login() {
           <View className="space-y-8">
             <View>
               <H1>WELCOME BACK.</H1>
-              <P className="mt-2 text-lg">Sign in to access your drops.</P>
+              <P className="mt-2 text-center mb-3 text-lg">Sign in to access your drops.</P>
             </View>
 
-            <View className="space-y-4">
+            <View className="space-y-6">
               <Input
                 label="Email"
-                placeholder="Ex. hypebeast@drop.com"
+                placeholder="Email"
                 value={form.email}
                 onChangeText={(t) => setForm((prev) => ({ ...prev, email: t }))}
                 autoCapitalize="none"
@@ -80,7 +92,7 @@ export default function Login() {
               />
               <Input
                 label="Password"
-                placeholder="••••••••"
+                placeholder="Password"
                 value={form.password}
                 onChangeText={(t) =>
                   setForm((prev) => ({ ...prev, password: t }))
@@ -90,21 +102,22 @@ export default function Login() {
               />
             </View>
 
-            <View className="space-y-4 pt-4">
+            <View className="space-y-4 pt-1 pb-6">
               <Button
                 title={loading ? "SIGNING IN..." : "SIGN IN"}
                 onPress={handleLogin}
                 loading={loading}
               />
 
+            </View>
+
+            <View className="items-center pt-1">
               <Button
                 title="Don't have an account? Join."
                 variant="ghost"
                 onPress={() => router.push("/(auth)/signup")}
               />
-            </View>
-
-            <View className="items-center pt-8">
+              
               <Button
                 title="CONTINUE AS GUEST"
                 variant="ghost"

@@ -3,11 +3,18 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Package, Truck, CheckCircle2, Circle } from "lucide-react";
-import { doc, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  updateDoc,
+  addDoc,
+  collection,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 interface Order {
   id: string;
+  userId?: string; // Added for notifications
   customerName?: string;
   customerEmail: string;
   total: number;
@@ -89,6 +96,22 @@ export function AdminOrderModal({
     try {
       const ref = doc(db, "orders", order.id);
       await updateDoc(ref, { status: newStatus });
+
+      // Create Notification
+      if (order.userId) {
+        // Ensure we have the user ID
+        await addDoc(collection(db, "notifications"), {
+          userId: order.userId,
+          type: "order_update",
+          title: `Order ${newStatus.replace("-", " ")} 📦`,
+          message: `Your order #${order.id
+            .slice(0, 8)
+            .toUpperCase()} is now ${newStatus.replace("-", " ")}.`,
+          read: false,
+          orderId: order.id,
+          createdAt: serverTimestamp(),
+        });
+      }
     } catch (error) {
       console.error("Failed to update status", error);
       // Revert if failed

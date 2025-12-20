@@ -116,18 +116,17 @@ export default function Signup() {
         <ScrollView contentContainerClassName="flex-grow p-8">
           <View className="space-y-8 pb-10">
             <View>
-              <H1>JOIN THE DROP.</H1>
-              <P className="mt-2 text-lg">Secure your spot in line.</P>
+              <H1 className="text-center">JOIN THE DROP.</H1>
+              <P className="text-center text-lg mb-5">Create an account to secure your bag.</P>
             </View>
 
             {/* Identity */}
-            <View className="space-y-4">
-              <P className="text-xs font-bold uppercase text-zinc-400">
+            <View className="space-y-6">
+              <P className="text-xs mb-2 font-bold uppercase text-zinc-400">
                 Identity
               </P>
               <Input
-                label="Full Name"
-                placeholder="Hype Beast"
+                placeholder="Full Name"
                 value={form.fullName}
                 onChangeText={(t) =>
                   setForm((prev) => ({ ...prev, fullName: t }))
@@ -135,16 +134,14 @@ export default function Signup() {
                 error={errors.fullName}
               />
               <Input
-                label="Phone"
-                placeholder="+233 55 555 5555"
-                keyboardType="phone-pad"
+                placeholder="Phone"
+                keyboardType="decimal-pad"
                 value={form.phone}
                 onChangeText={(t) => setForm((prev) => ({ ...prev, phone: t }))}
                 error={errors.phone}
               />
               <Input
-                label="Email"
-                placeholder="Ex. hypebeast@drop.com"
+                placeholder="Email"
                 value={form.email}
                 onChangeText={(t) => setForm((prev) => ({ ...prev, email: t }))}
                 autoCapitalize="none"
@@ -152,8 +149,7 @@ export default function Signup() {
                 error={errors.email}
               />
               <Input
-                label="Password"
-                placeholder="••••••••"
+                placeholder="Password"
                 value={form.password}
                 onChangeText={(t) =>
                   setForm((prev) => ({ ...prev, password: t }))
@@ -164,13 +160,13 @@ export default function Signup() {
             </View>
 
             {/* Shipping */}
-            <View className="space-y-4 pt-4 border-t border-zinc-100">
-              <P className="text-xs font-bold uppercase text-zinc-400">
+            <View className="space-y-6 pt-4 border-t border-zinc-100">
+              <P className="text-xs mb-2 font-bold uppercase text-zinc-400">
                 Shipping Address
               </P>
 
               <Input
-                label="Country (Tap to cycle)"
+                placeholder="Country (Tap to cycle)"
                 value={form.country}
                 editable={false}
                 onPressIn={() => {
@@ -185,7 +181,7 @@ export default function Signup() {
               />
 
               <Input
-                label="City (Tap to cycle)"
+                placeholder="City (Tap to cycle)"
                 value={form.city}
                 editable={false}
                 onPressIn={() => {
@@ -197,8 +193,7 @@ export default function Signup() {
               />
 
               <Input
-                label="Street Address"
-                placeholder="123 Hype St"
+                placeholder="Street Address"
                 value={form.street}
                 onChangeText={(t) =>
                   setForm((prev) => ({ ...prev, street: t }))
@@ -206,8 +201,7 @@ export default function Signup() {
                 error={errors.street}
               />
               <Input
-                label="Zip / Digital Address (Optional)"
-                placeholder="GA-123-4567"
+                placeholder="Zip / Digital Address (Optional)"
                 value={form.zip}
                 onChangeText={(t) => setForm((prev) => ({ ...prev, zip: t }))}
                 error={errors.zip}

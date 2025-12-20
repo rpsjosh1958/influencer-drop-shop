@@ -5,6 +5,7 @@ import { MotiView, MotiImage } from "moti";
 import { Button } from "@/components/ui/button";
 import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const { width } = Dimensions.get("window");
 
@@ -39,12 +40,17 @@ export default function Onboarding() {
 
   console.log("Onboarding: Rendering...");
 
+  const finishOnboarding = async () => {
+    await AsyncStorage.setItem("hasSeenOnboarding", "true");
+    // Redirect to main shop instead of login to allow Guest browsing immediately
+    router.replace("/(tabs)");
+  };
+
   const handleNext = () => {
     if (currentIndex < SLIDES.length - 1) {
-      // Logic to scroll would go here if using ref, but for simple MVP just routing at end
-      // For now, let's just assume user swipes or clicks next
+      // Logic to scroll...
     } else {
-      router.replace("/(auth)/login");
+      finishOnboarding();
     }
   };
 
@@ -110,7 +116,7 @@ export default function Onboarding() {
               ? "GET STARTED"
               : "SWIPE TO CONTINUE"
           }
-          onPress={() => router.replace("/(auth)/login")}
+          onPress={finishOnboarding}
         />
       </View>
     </SafeAreaView>

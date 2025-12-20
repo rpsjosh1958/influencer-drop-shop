@@ -1,5 +1,11 @@
-import { useState, useEffect } from "react";
-import { View, ScrollView, Pressable, Dimensions } from "react-native";
+import { useState, useEffect, useCallback } from "react";
+import {
+  View,
+  ScrollView,
+  Pressable,
+  Dimensions,
+  RefreshControl,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
@@ -7,6 +13,8 @@ import { db } from "@/lib/firebase";
 import { Product, ProductCard } from "@/components/shop/product-card";
 import { ProductDetailsModal } from "@/components/shop/product-details-modal";
 import { FloatingCart } from "@/components/shop/floating-cart";
+import { SwipeableNotificationRow } from "@/components/swipeable-notification-row";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/context/cart-context";
 import { MotiView } from "moti";
 import { Bell, ShoppingCart, Zap, X } from "lucide-react-native";
@@ -29,11 +37,28 @@ import {
 
 const { width } = Dimensions.get("window");
 
+import { useNotifications } from "@/context/notification-context";
+import { useRouter } from "expo-router";
+
 export default function ShopHome() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read">(
+    "all"
+  );
+
+  const { notifications, unreadCount, markAsRead } = useNotifications();
+
+  // Filter Logic
+  const filteredNotifications = notifications.filter((n) => {
+    if (notifFilter === "unread") return !n.read;
+    if (notifFilter === "read") return n.read;
+    return true;
+  });
 
   const { addToCart, cart } = useCart();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -90,47 +115,34 @@ export default function ShopHome() {
     });
 
   const rStyle = useAnimatedStyle(() => {
-    // Only scale slightly or not at all if user wants "just slide"
-    // User said "bounce like effect after slide... just let slide happen"
-    // Scaling contributed to "bounce" feel if not linear with spring.
-    // I'll keep slight scale but withTiming will make it rigid/smooth without wobble.
-    const scale = interpolate(
-      translateX.value,
-      [0, -width],
-      [1, 1], // Removed scale effect as requested "just let slide happen" implies simplicity? "scale: 1" in previous request for full screen.
-      // Actually user said "slide back... bounce like effect".
-      // Spring causes bounce. Scale is fine. I will set scale to 1 to be safe and simple.
-      Extrapolation.CLAMP
-    );
-
     return {
-      transform: [
-        { translateX: translateX.value },
-        // { scale }
-      ],
-      // borderRadius: 0 // Remove border radius change for clean slide
+      transform: [{ translateX: translateX.value }],
     };
   });
 
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const q = query(
-          collection(db, "products"),
-          orderBy("createdAt", "desc")
-        );
-        const snapshot = await getDocs(q);
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Product[];
-        setProducts(items);
-      } catch (error) {
-        console.log("Error fetching products:", error);
-      } finally {
-        setLoading(false);
-      }
+  const fetchProducts = async () => {
+    try {
+      const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+      const snapshot = await getDocs(q);
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Product[];
+      setProducts(items);
+    } catch (error) {
+      console.log("Error fetching products:", error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
     fetchProducts();
   }, []);
 
@@ -143,7 +155,7 @@ export default function ShopHome() {
           {/* Notification Screen (Behind) */}
           <View className="absolute inset-0 bg-black z-0">
             <SafeAreaView className="flex-1 px-6">
-              <View className="flex-row items-center justify-between py-4 border-b border-zinc-800 mb-6">
+              <View className="flex-row items-center justify-between py-4 border-b border-zinc-800 mb-4">
                 <H1 className="text-white text-3xl font-black tracking-tighter">
                   NOTIFICATIONS
                 </H1>
@@ -155,67 +167,102 @@ export default function ShopHome() {
                 </Pressable>
               </View>
 
+              {/* Filter Tabs */}
+              <View className="flex-row gap-2 mb-6">
+                {["all", "unread", "read"].map((f) => (
+                  <Pressable
+                    key={f}
+                    onPress={() => setNotifFilter(f as any)}
+                    className={`px-4 py-2 rounded-full border ${
+                      notifFilter === f
+                        ? "bg-white border-white"
+                        : "bg-transparent border-zinc-700"
+                    }`}
+                  >
+                    <P
+                      className={`text-xs font-bold uppercase ${
+                        notifFilter === f ? "text-black" : "text-zinc-500"
+                      }`}
+                    >
+                      {f}
+                    </P>
+                  </Pressable>
+                ))}
+              </View>
+
               <ScrollView
+                className="flex-1"
                 contentContainerStyle={{ paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
               >
-                <View className="space-y-4 gap-6">
-                  {/* Notification Items */}
-                  <View className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex-row gap-4">
-                    <View className="h-12 w-12 bg-zinc-800 rounded-full items-center justify-center">
-                      <Zap size={20} color="#fbbf24" fill="#fbbf24" />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row justify-between items-start">
-                        <P className="text-white font-bold text-lg">
-                          New Drop Live
-                        </P>
-                        <P className="text-zinc-500 text-xs">2m ago</P>
-                      </View>
-                      <P className="text-zinc-400 mt-1 leading-relaxed">
-                        The Essentials Collection is now available.
-                      </P>
-                    </View>
-                  </View>
-                  <View className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex-row gap-4">
-                    <View className="h-12 w-12 bg-zinc-800 rounded-full items-center justify-center">
-                      <ShoppingCart size={20} color="white" />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row justify-between items-start">
-                        <P className="text-white font-bold text-lg">
-                          Order Shipped
-                        </P>
-                        <P className="text-zinc-500 text-xs">1d ago</P>
-                      </View>
-                      <P className="text-zinc-400 mt-1 leading-relaxed">
-                        Your order #10234 is on the way. Track your package now.
-                      </P>
-                    </View>
-                  </View>
-                  {/* Duplicate items to test scrolling if needed */}
-                  <View className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 flex-row gap-4">
-                    <View className="h-12 w-12 bg-zinc-800 rounded-full items-center justify-center">
-                      <Zap size={20} color="#fbbf24" fill="#fbbf24" />
-                    </View>
-                    <View className="flex-1">
-                      <View className="flex-row justify-between items-start">
-                        <P className="text-white font-bold text-lg">
-                          Restock Alert
-                        </P>
-                        <P className="text-zinc-500 text-xs">1h ago</P>
-                      </View>
-                      <P className="text-zinc-400 mt-1 leading-relaxed">
-                        The oversized hoodie is back in stock.
-                      </P>
-                    </View>
-                  </View>
+                <View className="space-y-4 gap-4">
+                  {filteredNotifications.map((item, index) => (
+                    <SwipeableNotificationRow
+                      key={item.id}
+                      onDismiss={() => markAsRead(item.id)}
+                      hint={index === 0 && isNotificationOpen}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          if (!item.read) markAsRead(item.id);
+                          setIsNotificationOpen(false); // Close drawer
+                          if (item.type === "order_update") {
+                            router.push({
+                              pathname: "/(tabs)/orders",
+                              params: { orderId: item.orderId },
+                            });
+                          }
+                        }}
+                        className={`bg-zinc-900 p-5 rounded-3xl border ${
+                          item.read
+                            ? "border-zinc-800"
+                            : ""
+                        } flex-row gap-4 w-full`}
+                      >
+                        <View className="h-12 w-12 bg-zinc-800 rounded-full items-center justify-center">
+                          {item.type === "drop" ? (
+                            <Zap size={20} color="#fbbf24" fill="#fbbf24" />
+                          ) : (
+                            <ShoppingCart size={20} color="white" />
+                          )}
+                        </View>
+                        <View className="flex-1">
+                          <View className="flex-row justify-between items-start">
+                            <P className="text-white font-bold text-lg">
+                              {item.title}
+                            </P>
+                            <P className="text-zinc-500 text-xs">
+                              {item.createdAt?.seconds
+                                ? new Date(
+                                    item.createdAt.seconds * 1000
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })
+                                : "Now"}
+                            </P>
+                          </View>
+                          <P className="text-zinc-400 mt-1 leading-relaxed">
+                            {item.message}
+                          </P>
+                        </View>
+                        {!item.read && (
+                          <View className="h-2 w-2 rounded-full bg-cyan-400 absolute top-3 left-3" />
+                        )}
+                      </Pressable>
+                    </SwipeableNotificationRow>
+                  ))}
+                  {filteredNotifications.length === 0 && (
+                    <P className="text-zinc-500 text-center mt-10">
+                      No notifications found
+                    </P>
+                  )}
                 </View>
               </ScrollView>
 
               <View className="py-4 justify-end opacity-50">
                 <P className="text-zinc-500 text-center text-xs uppercase tracking-widest">
-                  Swipe right to close
+                  Swipe right to close • Swipe items to read
                 </P>
               </View>
             </SafeAreaView>
@@ -238,28 +285,43 @@ export default function ShopHome() {
                   onPress={() => setIsNotificationOpen(!isNotificationOpen)}
                 >
                   <Bell color="black" size={24} />
-                  <View className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full" />
+                  {unreadCount > 0 && (
+                    <View className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full items-center justify-center border border-white">
+                      <P className="text-[8px] text-white font-bold">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </P>
+                    </View>
+                  )}
                 </Pressable>
               </View>
 
               {/* Scrolling Content */}
-              <ScrollView contentContainerStyle={{ paddingBottom: 150 }}>
-                <View className="px-6 pt-8 pb-12">
+              <ScrollView
+                contentContainerStyle={{ paddingBottom: 150 }}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="black"
+                  />
+                }
+              >
+                <View className="px-6 pt-4 pb-6">
                   <MotiView
                     from={{ opacity: 0, translateY: 30 }}
                     animate={{ opacity: 1, translateY: 0 }}
                     transition={{ delay: 200 }}
                   >
-                    <View className="flex-row items-center gap-2 mb-4 bg-black self-start px-3 py-1.5 rounded-full">
+                    <View className="flex-row items-center gap-2 mb-4 bg-black self-center px-3 py-1.5 rounded-full">
                       <Zap size={12} color="#fbbf24" fill="#fbbf24" />
                       <P className="text-white text-[10px] font-bold uppercase tracking-widest">
-                        Live Drop Active
+                        Live Drop Now Active
                       </P>
                     </View>
-                    <H1 className="text-6xl font-black tracking-tighter leading-none mb-4">
-                      SECURE{"\n"}THE BAG.
+                    <H1 className="text-6xl font-black text-center tracking-tighter leading-none mb-4">
+                      SECURE THE BAG.
                     </H1>
-                    <P className="text-lg text-zinc-500 max-w-xs">
+                    <P className="text-lg text-center text-zinc-500">
                       Limited edition drops. Once they're gone, they're gone
                       forever. Don't lack.
                     </P>
@@ -270,10 +332,11 @@ export default function ShopHome() {
                   {loading ? (
                     <View className="flex-row flex-wrap justify-between">
                       {[1, 2, 3, 4].map((i) => (
-                        <View
-                          key={i}
-                          className="w-[48%] aspect-[4/5] bg-zinc-100 rounded-2xl mb-4 animate-pulse"
-                        />
+                        <View key={i} className="w-[48%] mb-6 space-y-3">
+                          <Skeleton width="100%" height={256} radius={20} />
+                          <Skeleton width="60%" height={24} radius={4} />
+                          <Skeleton width="40%" height={16} radius={4} />
+                        </View>
                       ))}
                     </View>
                   ) : (
@@ -291,7 +354,6 @@ export default function ShopHome() {
                   )}
                 </View>
               </ScrollView>
-
             </SafeAreaView>
           </Animated.View>
         </View>

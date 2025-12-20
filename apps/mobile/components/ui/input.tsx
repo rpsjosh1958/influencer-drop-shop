@@ -23,7 +23,7 @@ export function Input({ label, error, className, ...props }: InputProps) {
       <TextInput
         placeholderTextColor="#a1a1aa"
         className={cn(
-          "w-full bg-zinc-50 border border-zinc-200 p-4 rounded-xl text-black font-medium",
+          "w-full bg-zinc-50 border mb-5 border-zinc-200 p-4 rounded-xl text-black font-medium",
           error && "border-red-500 bg-red-50 text-red-900",
           className
         )}

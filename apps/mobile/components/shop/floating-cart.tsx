@@ -254,8 +254,8 @@ export function FloatingCart() {
     const borderRadius = interpolate(expansion.value, [0, 1], [30, 0]);
 
     const right = interpolate(expansion.value, [0, 1], [BUTTON_RIGHT, 0]);
-    // Animate bottom from floated position (36) to 0
-    const bottom = interpolate(expansion.value, [0, 1], [134, 0]); // 36 * 4 approx 144 but lets use safe manual px
+    // Animate bottom from floated position (20) to 0
+    const bottom = interpolate(expansion.value, [0, 1], [100, 0]); // Lowered from 134 to 100
 
     return {
       width,
@@ -366,8 +366,7 @@ export function FloatingCart() {
                 ))}
               </ScrollView>
 
-              {/* Footer */}
-              <View className="px-6 pt-3 pb-32 border-t border-zinc-100 bg-zinc-50">
+              <View className="px-6 pt-3 pb-24 border-t border-zinc-100 bg-zinc-50">
                 <View className="flex-row justify-between mb-4">
                   <P className="text-zinc-500 font-medium tracking-wide">
                     TOTAL

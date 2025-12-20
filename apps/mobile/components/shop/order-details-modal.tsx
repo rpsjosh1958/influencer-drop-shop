@@ -1,0 +1,182 @@
+import { View, ScrollView, Modal, Pressable, Image } from "react-native";
+import { X, Package, MapPin, Calendar, CreditCard } from "lucide-react-native";
+import { H1, P } from "@/components/ui/text";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+interface OrderDetailsModalProps {
+  order: any;
+  visible: boolean;
+  onClose: () => void;
+}
+
+export function OrderDetailsModal({
+  order,
+  visible,
+  onClose,
+}: OrderDetailsModalProps) {
+  if (!order) return null;
+
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return "";
+    return new Date(timestamp.seconds * 1000).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "paid":
+      case "delivered":
+      case "completed":
+        return "bg-green-50 text-green-600 border-green-100";
+      case "sent-out":
+        return "bg-blue-50 text-blue-600 border-blue-100";
+      default:
+        return "bg-yellow-50 text-yellow-600 border-yellow-100";
+    }
+  };
+
+  return (
+    <Modal
+      animationType="slide"
+      transparent
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View className="flex-1 bg-black/50">
+        <Pressable className="flex-1" onPress={onClose} />
+        <View className="bg-white h-[85%] rounded-t-3xl overflow-hidden">
+          <SafeAreaView edges={["bottom"]} className="flex-1">
+            {/* Header */}
+            <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between">
+              <View>
+                <H1 className="text-xl font-black uppercase">Order Details</H1>
+                <P className="text-zinc-400 text-xs font-bold tracking-wider">
+                  #{order.id.slice(0, 8).toUpperCase()}
+                </P>
+              </View>
+              <Pressable
+                onPress={onClose}
+                className="h-10 w-10 bg-zinc-100 rounded-full items-center justify-center active:scale-95 transition-transform"
+              >
+                <X size={20} color="black" />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              className="flex-1"
+              contentContainerStyle={{ padding: 24 }}
+            >
+              {/* Status Section */}
+              <View className="flex-row items-center justify-between mb-8">
+                <View className="flex-row items-center gap-3">
+                  <View className="h-12 w-12 bg-zinc-50 rounded-full items-center justify-center border border-zinc-100">
+                    <Package size={24} color="black" />
+                  </View>
+                  <View>
+                    <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
+                      Status
+                    </P>
+                    <View
+                      className={`px-3 py-1 rounded-full border self-start ${getStatusColor(
+                        order.status
+                      )}`}
+                    >
+                      {/* Note: Native doesn't cascade text color from parent class seamlessly like specific text color classes, but we can try generic logic or explicit styles. 
+                           For simplicity in nativewind, specific text colors are safer. */}
+                      <P
+                        className={`text-xs font-bold uppercase ${
+                          order.status === "paid" ||
+                          order.status === "delivered" ||
+                          order.status === "completed"
+                            ? "text-green-600"
+                            : order.status === "sent-out"
+                            ? "text-blue-600"
+                            : "text-yellow-600"
+                        }`}
+                      >
+                        {order.status}
+                      </P>
+                    </View>
+                  </View>
+                </View>
+                <View className="items-end">
+                  <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
+                    Total
+                  </P>
+                  <H1 className="text-2xl font-black">
+                    GHS {order.total.toFixed(2)}
+                  </H1>
+                </View>
+              </View>
+
+              {/* Info Grid */}
+              <View className="bg-zinc-50 p-5 rounded-2xl space-y-4 mb-8">
+                <View className="flex-row items-center gap-3">
+                  <Calendar size={18} color="#a1a1aa" />
+                  <View>
+                    <P className="text-xs text-zinc-400 font-bold uppercase">
+                      Date Placed
+                    </P>
+                    <P className="font-semibold">
+                      {formatDate(order.createdAt)}
+                    </P>
+                  </View>
+                </View>
+                {order.address && (
+                  <View className="flex-row items-center gap-3 pt-4 border-t border-zinc-200">
+                    <MapPin size={18} color="#a1a1aa" />
+                    <View className="flex-1">
+                      <P className="text-xs text-zinc-400 font-bold uppercase">
+                        Shipping Address
+                      </P>
+                      <P className="font-semibold">
+                        {order.address.city}, {order.address.country}
+                      </P>
+                      <P className="text-zinc-500 text-sm">
+                        {order.address.street}
+                      </P>
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {/* Items List */}
+              <H1 className="text-lg font-bold mb-4">
+                Items ({order.items.length})
+              </H1>
+              <View className="space-y-4">
+                {order.items.map((item: any, i: number) => (
+                  <View key={i} className="flex-row gap-4">
+                    <Image
+                      source={{
+                        uri: item.imageUrl || item.image || item.images?.[0],
+                      }}
+                      className="w-20 h-20 bg-zinc-100 rounded-xl"
+                      resizeMode="cover"
+                    />
+                    <View className="flex-1 justify-center space-y-1">
+                      <P className="font-bold text-base" numberOfLines={1}>
+                        {item.name}
+                      </P>
+                      <P className="text-zinc-500 text-sm">
+                        Qty: {item.quantity}
+                      </P>
+                      <P className="font-semibold text-sm">
+                        GHS {item.price.toFixed(2)}
+                      </P>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
