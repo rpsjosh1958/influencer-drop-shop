@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Megaphone,
+  Tag,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers";
@@ -80,6 +81,7 @@ export default function AdminLayout({
   const navItems = [
     { name: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     { name: "Products", href: "/admin/products", icon: Package },
+    { name: "Categories", href: "/admin/categories", icon: Tag },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
   ];
 
@@ -168,7 +170,7 @@ export default function AdminLayout({
                 <Megaphone size={20} className="w-5 h-5" />
                 {!collapsed && <span>Broadcast</span>}
               </button>
-              
+
               <div
                 className={cn(
                   "flex items-center justify-between",
@@ -186,13 +188,11 @@ export default function AdminLayout({
                   {!collapsed && <span>Logout</span>}
                 </button>
               </div>
-
-              
             </div>
-            
-            <BroadcastModal 
-              isOpen={showBroadcast} 
-              onClose={() => setShowBroadcast(false)} 
+
+            <BroadcastModal
+              isOpen={showBroadcast}
+              onClose={() => setShowBroadcast(false)}
             />
           </aside>
 

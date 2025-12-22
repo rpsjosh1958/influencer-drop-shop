@@ -12,6 +12,7 @@ export type Product = {
   stock?: number;
   hasVariants?: boolean;
   variants?: any[];
+  category?: string;
 };
 
 interface ProductCardProps {

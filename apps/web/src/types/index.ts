@@ -26,4 +26,12 @@ export interface Product {
   // Stock (Total stock if variants exist)
   stock: number;
   createdAt: number;
+  category?: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: any;
 }

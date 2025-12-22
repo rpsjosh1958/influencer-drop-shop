@@ -7,11 +7,14 @@ import {
   serverTimestamp,
   updateDoc,
   doc,
+  orderBy,
+  query,
+  onSnapshot,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { Loader2, Upload, X } from "lucide-react";
-import { Product } from "@/types";
+import { Product, Category } from "@/types";
 
 interface ProductFormProps {
   onClose: () => void;
@@ -122,6 +125,34 @@ export function ProductForm({
     setVariants((prev) => prev.filter((v) => v.id !== id));
   };
 
+  // Categories
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    // Fetch categories
+    const q = query(collection(db, "categories"), orderBy("name", "asc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Category[];
+      setCategories(items);
+    });
+    return () => unsub();
+  }, []);
+
+  const categoryRef = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (initialData && categoryRef.current) {
+      // Wait for categories to load? Or just set value.
+      // If we set value before options render, it might be lost.
+      // But React handles controlled/uncontrolled well.
+      // Let's use controlled state for category to be safe, or just ref.
+      categoryRef.current.value = initialData.category || "";
+    }
+  }, [initialData, categories]); // Re-run when categories load
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (previewUrls.length === 0)
@@ -161,6 +192,7 @@ export function ProductForm({
         price: parseFloat(priceRef.current?.value || "0"),
         description: descRef.current?.value,
         stock: totalStock,
+        category: categoryRef.current?.value || "",
 
         // New Fields
         images: imageUrls,
@@ -270,6 +302,22 @@ export function ProductForm({
                 className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
                 placeholder="0.00"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1">
+                Category (Optional)
+              </label>
+              <select
+                ref={categoryRef}
+                className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black appearance-none"
+              >
+                <option value="">No Category</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </div>
             {!hasVariants && (
               <div>

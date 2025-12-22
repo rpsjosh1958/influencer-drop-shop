@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -11,13 +11,20 @@ import {
   Trash2,
   Check,
   Loader2,
+  MoreVertical,
+  Edit2,
+  Star,
 } from "lucide-react";
 import { auth, db } from "@/lib/firebase";
-import { updateProfile, updatePassword, updateEmail } from "firebase/auth";
+import {
+  updateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from "firebase/auth";
 import {
   doc,
   getDoc,
-  updateDoc,
   setDoc,
   arrayUnion,
   arrayRemove,
@@ -63,6 +70,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
   const [activeTab, setActiveTab] = useState("personal");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   useBodyScrollLock(isOpen);
 
@@ -73,15 +81,34 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
   // Addresses State
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addingAddress, setAddingAddress] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [newAddress, setNewAddress] = useState<Partial<Address>>({
     country: "Ghana",
     city: "Accra",
     zip: "",
     street: "",
   });
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Security State
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+
+  // Refs for click outside
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Click outside to close menu
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setActiveMenuId(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   // Fetch User Data
   useEffect(() => {
@@ -108,6 +135,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+    setError("");
     try {
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName: name });
@@ -124,45 +152,105 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
       }
     } catch (err) {
       console.error(err);
-      setMessage("Failed to update profile.");
+      setError("Failed to update profile.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddAddress = async (e: React.FormEvent) => {
+  const activeAddressFormTitle = editingAddressId
+    ? "Edit Address"
+    : "Add Address";
+  const activeAddressFormButton = editingAddressId
+    ? "Update Address"
+    : "Save Address";
+
+  const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
     try {
-      const addressToAdd: Address = {
-        id: Date.now().toString(),
-        country: newAddress.country || "Ghana",
-        city: newAddress.city || "Accra",
-        zip: newAddress.zip || "",
-        street: newAddress.street || "",
-        isDefault: addresses.length === 0, // First address is default
-      };
+      let updatedAddresses = [...addresses];
+
+      if (editingAddressId) {
+        // Edit existing address
+        updatedAddresses = addresses.map((addr) =>
+          addr.id === editingAddressId
+            ? { ...addr, ...newAddress } // Update only changed fields
+            : addr
+        ) as Address[];
+      } else {
+        // Add new address
+        const addressToAdd: Address = {
+          id: Date.now().toString(),
+          country: newAddress.country || "Ghana",
+          city: newAddress.city || "Accra",
+          zip: newAddress.zip || "",
+          street: newAddress.street || "",
+          isDefault: addresses.length === 0, // First address is default
+        };
+        updatedAddresses.push(addressToAdd);
+      }
 
       await setDoc(
         doc(db, "users", user.uid),
         {
-          addresses: arrayUnion(addressToAdd),
+          addresses: updatedAddresses,
         },
         { merge: true }
       );
 
-      setAddresses([...addresses, addressToAdd]);
+      setAddresses(updatedAddresses);
       setAddingAddress(false);
+      setEditingAddressId(null);
       setNewAddress({ country: "Ghana", city: "Accra", zip: "", street: "" });
     } catch (err) {
       console.error(err);
-      setMessage("Failed to add address");
+      setError("Failed to save address");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditAddress = (addr: Address) => {
+    setNewAddress({
+      country: addr.country,
+      city: addr.city,
+      zip: addr.zip,
+      street: addr.street,
+    });
+    setEditingAddressId(addr.id);
+    setAddingAddress(true);
+    setActiveMenuId(null);
+  };
+
+  const handleSetDefaultAddress = async (addrId: string) => {
+    setLoading(true);
+    try {
+      const updatedAddresses = addresses.map((addr) => ({
+        ...addr,
+        isDefault: addr.id === addrId,
+      }));
+
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          addresses: updatedAddresses,
+        },
+        { merge: true }
+      );
+      setAddresses(updatedAddresses);
+      setActiveMenuId(null);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to set default address");
     } finally {
       setLoading(false);
     }
   };
 
   const handleRemoveAddress = async (addr: Address) => {
+    if (!confirm("Are you sure you want to remove this address?")) return;
     try {
       await setDoc(
         doc(db, "users", user.uid),
@@ -172,6 +260,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
         { merge: true }
       );
       setAddresses(addresses.filter((a) => a.id !== addr.id));
+      setActiveMenuId(null);
     } catch (err) {
       console.error(err);
     }
@@ -181,21 +270,41 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
     e.preventDefault();
     setLoading(true);
     setMessage("");
+    setError("");
+
+    if (!auth.currentUser || !auth.currentUser.email) return;
+
     try {
-      if (auth.currentUser) {
-        await updatePassword(auth.currentUser, newPassword);
-        setMessage("Password changed successfully.");
-        setNewPassword("");
-      }
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(
+        auth.currentUser.email,
+        oldPassword
+      );
+      await reauthenticateWithCredential(auth.currentUser, credential);
+
+      // If successful, update password
+      await updatePassword(auth.currentUser, newPassword);
+      setMessage("Password changed successfully.");
+      setNewPassword("");
+      setOldPassword("");
     } catch (err: any) {
-      if (err.code === "auth/requires-recent-login") {
-        setMessage("Please log out and log in again to change password.");
+      console.error(err);
+      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
+        setError("The current password you entered is incorrect. Please try again.");
+      } else if (err.code === "auth/requires-recent-login") {
+        setError("Please log out and log in again to change password.");
       } else {
-        setMessage("Failed to change password: " + err.message);
+        setError("Failed to change password: " + err.message);
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const cancelAddressEdit = () => {
+    setAddingAddress(false);
+    setEditingAddressId(null);
+    setNewAddress({ country: "Ghana", city: "Accra", zip: "", street: "" });
   };
 
   return (
@@ -278,6 +387,11 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                       <Check size={16} /> {message}
                     </div>
                   )}
+                  {error && (
+                    <div className="mb-6 p-4 bg-red-50 text-red-800 rounded-xl text-sm font-medium flex items-center gap-2">
+                      <X size={16} /> {error}
+                    </div>
+                  )}
 
                   {activeTab === "personal" && (
                     <form onSubmit={handleUpdateProfile} className="space-y-6">
@@ -341,7 +455,11 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                             {addresses.map((addr) => (
                               <div
                                 key={addr.id}
-                                className="p-4 border border-zinc-200 rounded-xl flex justify-between items-start group"
+                                className={`p-4 border rounded-xl flex justify-between items-start group relative transition-all ${
+                                  addr.isDefault
+                                    ? "border-black bg-zinc-50"
+                                    : "border-zinc-200 hover:border-zinc-300"
+                                }`}
                               >
                                 <div>
                                   <div className="font-bold flex items-center gap-2">
@@ -350,7 +468,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                                       (c) => c.value === addr.country
                                     )?.label || addr.country}
                                     {addr.isDefault && (
-                                      <span className="bg-zinc-100 text-xs px-2 py-0.5 rounded text-zinc-500">
+                                      <span className="bg-black text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider">
                                         Default
                                       </span>
                                     )}
@@ -362,12 +480,52 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                                     {addr.zip}
                                   </div>
                                 </div>
-                                <button
-                                  onClick={() => handleRemoveAddress(addr)}
-                                  className="text-zinc-300 hover:text-red-500"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
+                                <div className="relative">
+                                  <button
+                                    onClick={() =>
+                                      setActiveMenuId(
+                                        activeMenuId === addr.id
+                                          ? null
+                                          : addr.id
+                                      )
+                                    }
+                                    className="text-zinc-400 hover:text-black p-1 rounded-full hover:bg-zinc-200 transition-colors"
+                                  >
+                                    <MoreVertical size={16} />
+                                  </button>
+
+                                  {activeMenuId === addr.id && (
+                                    <div
+                                      ref={menuRef}
+                                      className="absolute right-0 top-8 bg-white shadow-xl rounded-xl border border-zinc-100 w-36 overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200"
+                                    >
+                                      <button
+                                        onClick={() => handleEditAddress(addr)}
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-zinc-50 flex items-center gap-2 font-medium"
+                                      >
+                                        <Edit2 size={14} /> Edit
+                                      </button>
+                                      {!addr.isDefault && (
+                                        <button
+                                          onClick={() =>
+                                            handleSetDefaultAddress(addr.id)
+                                          }
+                                          className="w-full text-left px-4 py-2 text-sm hover:bg-zinc-50 flex items-center gap-2 font-medium"
+                                        >
+                                          <Star size={14} /> Default
+                                        </button>
+                                      )}
+                                      <button
+                                        onClick={() =>
+                                          handleRemoveAddress(addr)
+                                        }
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-500 flex items-center gap-2 font-medium border-t border-zinc-50"
+                                      >
+                                        <Trash2 size={14} /> Remove
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -380,10 +538,12 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                         </>
                       ) : (
                         <form
-                          onSubmit={handleAddAddress}
+                          onSubmit={handleSaveAddress}
                           className="space-y-4 animate-in fade-in slide-in-from-bottom-4"
                         >
-                          <h3 className="font-bold mb-4">Add Address</h3>
+                          <h3 className="font-bold mb-4">
+                            {activeAddressFormTitle}
+                          </h3>
                           <div className="grid grid-cols-2 gap-4">
                             <div>
                               <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
@@ -460,7 +620,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                           <div className="flex gap-3 pt-4">
                             <button
                               type="button"
-                              onClick={() => setAddingAddress(false)}
+                              onClick={cancelAddressEdit}
                               className="flex-1 px-6 py-3 bg-zinc-100 rounded-xl font-bold hover:bg-zinc-200"
                             >
                               Cancel
@@ -473,7 +633,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                               {loading ? (
                                 <Loader2 className="animate-spin inline" />
                               ) : (
-                                "Save Address"
+                                activeAddressFormButton
                               )}
                             </button>
                           </div>
@@ -485,6 +645,19 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                   {activeTab === "security" && (
                     <form onSubmit={handleUpdatePassword} className="space-y-6">
                       <div className="space-y-4">
+                        <div>
+                          <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
+                            Current Password
+                          </label>
+                          <input
+                            type="password"
+                            value={oldPassword}
+                            onChange={(e) => setOldPassword(e.target.value)}
+                            required
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            placeholder="••••••••"
+                          />
+                        </div>
                         <div>
                           <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
                             New Password

@@ -10,9 +10,10 @@ import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 
 interface HeaderSearchProps {
   onAddToCart?: (product: any, variant?: any) => void;
+  onSearchOpen?: (isOpen: boolean) => void;
 }
 
-export function HeaderSearch({ onAddToCart }: HeaderSearchProps) {
+export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [queryText, setQueryText] = useState("");
   const [results, setResults] = useState<any[]>([]);
@@ -47,7 +48,8 @@ export function HeaderSearch({ onAddToCart }: HeaderSearchProps) {
       fetchProducts();
       setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isOpen]);
+    onSearchOpen?.(isOpen);
+  }, [isOpen, onSearchOpen]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

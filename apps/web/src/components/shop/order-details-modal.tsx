@@ -34,7 +34,13 @@ interface Order {
   total: number;
   subtotal: number;
   shipping: number;
-  status: "pending" | "paid" | "sent-out" | "delivered" | "completed";
+  status:
+    | "pending"
+    | "paid"
+    | "packaged"
+    | "sent-out"
+    | "delivered"
+    | "completed";
   createdAt: any;
   items: OrderItem[];
   shippingAddress: {
@@ -44,12 +50,6 @@ interface Order {
     zip: string;
   };
 }
-
-const STATUS_STEPS = [
-  { id: "paid", label: "Paid", icon: CheckCircle },
-  { id: "sent-out", label: "Shipped", icon: Truck },
-  { id: "delivered", label: "Delivered", icon: Package },
-];
 
 export function OrderDetailsModal() {
   const { isOrderDetailsOpen, selectedOrderId, closeOrderDetails } =
@@ -82,13 +82,6 @@ export function OrderDetailsModal() {
       setOrder(null);
     }
   }, [isOrderDetailsOpen, selectedOrderId]);
-
-  // Helper to determine active step index
-  const getCurrentStepIndex = (status: string) => {
-    if (status === "completed") return 3;
-    const index = STATUS_STEPS.findIndex((s) => s.id === status);
-    return index === -1 ? 0 : index + 1; // +1 because 0 is "Paid" which is usually the start
-  };
 
   return (
     <AnimatePresence>
@@ -133,32 +126,29 @@ export function OrderDetailsModal() {
               ) : order ? (
                 <div className="flex-1 overflow-y-auto p-6 space-y-8">
                   {/* Status Stepper */}
-                  <div className="relative flex items-center justify-between px-4">
-                    {/* Line */}
+                  <div className="relative flex items-center justify-between px-4 mb-4">
                     <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-zinc-100 mx-8 -z-10" />
 
-                    {STATUS_STEPS.map((step, idx) => {
-                      const activeIndex = getCurrentStepIndex(order.status);
-                      const isActive = idx < activeIndex; // idx starts at 0 (Paid).
-                      // Wait, logic: if status is 'paid', idx 0 is active.
-                      // if status is 'pending', none active?
-                      const isCompleted = idx < activeIndex - 1;
-                      // Lets simplify:
-                      // We map statuses to indices: Paid=0, Sent=1, Delivered=2
-                      // If current status is 'sent-out' (1), then Paid (0) is completed, Sent (1) is active.
-                      // Using STATUS_STEPS.findIndex determines which one matches current status.
-
-                      // A better way:
-                      const map = {
-                        paid: 0,
-                        "sent-out": 1,
-                        delivered: 2,
-                        completed: 2,
-                      };
-                      const currentIdx =
-                        map[order.status as keyof typeof map] ?? -1;
-
-                      const isPast = idx <= currentIdx;
+                    {[
+                      { id: "paid", label: "Paid", icon: CheckCircle },
+                      { id: "packaged", label: "Packaged", icon: Package },
+                      { id: "sent-out", label: "Shipped", icon: Truck },
+                      { id: "delivered", label: "Delivered", icon: MapPin },
+                    ].map((step, idx) => {
+                      const steps = [
+                        "paid",
+                        "packaged",
+                        "sent-out",
+                        "delivered",
+                      ];
+                      const currentStatusIndex = steps.indexOf(
+                        order.status === "completed"
+                          ? "delivered"
+                          : order.status
+                      );
+                      const stepIndex = idx;
+                      const isCompleted = stepIndex <= currentStatusIndex;
+                      const isCurrent = stepIndex === currentStatusIndex;
 
                       return (
                         <div
@@ -167,7 +157,7 @@ export function OrderDetailsModal() {
                         >
                           <div
                             className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
-                              isPast
+                              isCompleted
                                 ? "bg-black border-black text-white"
                                 : "bg-white border-zinc-200 text-zinc-300"
                             }`}
@@ -176,7 +166,7 @@ export function OrderDetailsModal() {
                           </div>
                           <span
                             className={`text-[10px] font-bold uppercase ${
-                              isPast ? "text-black" : "text-zinc-300"
+                              isCompleted ? "text-black" : "text-zinc-300"
                             }`}
                           >
                             {step.label}
@@ -213,11 +203,6 @@ export function OrderDetailsModal() {
                           <p className="font-bold text-sm truncate">
                             {item.name}
                           </p>
-                          {item.selectedVariant && (
-                            <p className="text-xs text-zinc-500">
-                              {item.selectedVariant.name}
-                            </p>
-                          )}
                           <p className="text-xs text-zinc-400 mt-1">
                             Qty: {item.quantity}
                           </p>
@@ -272,9 +257,21 @@ export function OrderDetailsModal() {
                             {order.createdAt?.toDate().toLocaleDateString()}
                           </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-zinc-500">Status</span>
-                          <span className="font-medium capitalize">
+                          <span
+                            className={`font-bold uppercase text-xs px-2 py-1 rounded-full border ${
+                              order.status === "paid" ||
+                              order.status === "delivered" ||
+                              order.status === "completed"
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : order.status === "sent-out"
+                                ? "bg-blue-100 text-blue-700 border-blue-200"
+                                : order.status === "packaged"
+                                ? "bg-purple-100 text-purple-700 border-purple-200"
+                                : "bg-yellow-100 text-yellow-700 border-yellow-200"
+                            }`}
+                          >
                             {order.status}
                           </span>
                         </div>
@@ -284,19 +281,6 @@ export function OrderDetailsModal() {
 
                   {/* Summary */}
                   <div className="pt-6 border-t border-zinc-100 space-y-2">
-                    <div className="flex justify-between text-sm text-zinc-500">
-                      <span>Subtotal</span>
-                      <span>
-                        GHS{" "}
-                        {Number(
-                          order.subtotal ?? order.total - (order.shipping || 0)
-                        ).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm text-zinc-500">
-                      <span>Shipping</span>
-                      <span>GHS {Number(order.shipping || 0).toFixed(2)}</span>
-                    </div>
                     <div className="flex justify-between text-lg font-black mt-4">
                       <span>TOTAL</span>
                       <span>GHS {Number(order.total || 0).toFixed(2)}</span>

@@ -1,14 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, getDocs } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  onSnapshot,
+} from "firebase/firestore"; // Added onSnapshot
 import { db } from "@/lib/firebase";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { LogOut, ShoppingCart, User, Zap, Package, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Product } from "@/types";
+import { Product, Category } from "@/types"; // Added Category
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 import { useCart } from "@/components/shop/cart-provider";
 import { ProductCard } from "@/components/shop/product-card";
@@ -22,12 +29,15 @@ import { useAlert } from "@/context/alert-context";
 
 export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]); // Added categories state
+  const [selectedCategory, setSelectedCategory] = useState("All"); // Added selectedCategory state
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const router = useRouter();
   const { addToCart, cart, setIsCartOpen } = useCart();
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -55,38 +65,69 @@ export default function ShopHome() {
   };
 
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchData() {
       try {
-        const q = query(
+        // Fetch Products
+        const qProducts = query(
           collection(db, "products"),
           orderBy("createdAt", "desc")
         );
-        const snapshot = await getDocs(q);
-        const items = snapshot.docs.map((doc) => ({
+        const snapshotProducts = await getDocs(qProducts);
+        const itemsProducts = snapshotProducts.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Product[];
-        console.log("Fetched products:", items);
-        setProducts(items);
+        setProducts(itemsProducts);
+
+        // Fetch Categories
+        const qCategories = query(
+          collection(db, "categories"),
+          orderBy("name", "asc")
+        );
+        const unsubCategories = onSnapshot(qCategories, (snapshot) => {
+          const itemsCategories = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          })) as Category[];
+          setCategories(itemsCategories);
+        });
+
+        return () => unsubCategories();
       } catch (error: any) {
-        console.error("Failed to fetch products", error);
+        console.error("Failed to fetch data", error);
       } finally {
         setLoading(false);
       }
     }
-    fetchProducts();
+    fetchData();
   }, []);
+
+  const filteredProducts =
+    selectedCategory === "All"
+      ? products
+      : products.filter((p) => p.category === selectedCategory);
 
   return (
     <div className="min-h-screen bg-white text-black font-sans selection:bg-purple-500 selection:text-white pb-20">
       {/* Sticky Header */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div
+          className={`flex items-center gap-2 ${
+            isSearchOpen ? "hidden md:flex" : "flex"
+          }`}
+        >
           <div className="h-6 w-6 bg-black rounded-full animate-pulse" />
           <span className="font-black tracking-tighter text-xl">DROP.</span>
         </div>
-        <div className="flex items-center gap-4">
-          <HeaderSearch onAddToCart={addToCart} />
+        <div
+          className={`flex items-center gap-4 ${
+            isSearchOpen ? "w-full md:w-auto justify-end" : ""
+          }`}
+        >
+          <HeaderSearch
+            onAddToCart={addToCart}
+            onSearchOpen={setIsSearchOpen}
+          />
 
           {user && (
             <div className="relative">
@@ -193,10 +234,43 @@ export default function ShopHome() {
         </motion.div>
       </section>
 
+      {/* Category Filter */}
+      {categories.length > 0 && (
+        <section className="px-6 mb-8 max-w-7xl mx-auto sticky top-20 z-30 py-4 bg-white/95 backdrop-blur-sm -mx-6 md:mx-auto overflow-hidden">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-2 md:pb-0 px-6 md:px-0 md:justify-center">
+            <button
+              onClick={() => setSelectedCategory("All")}
+              className={cn(
+                "whitespace-nowrap px-6 py-2 rounded-full text-sm font-bold border transition-all duration-200",
+                selectedCategory === "All"
+                  ? "bg-black text-white border-black"
+                  : "bg-white text-black border-zinc-200 hover:border-black"
+              )}
+            >
+              All
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={cn(
+                  "whitespace-nowrap px-6 py-2 rounded-full text-sm font-bold border transition-all duration-200",
+                  selectedCategory === cat.name
+                    ? "bg-black text-white border-black"
+                    : "bg-white text-black border-zinc-200 hover:border-black"
+                )}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Product Feed */}
       <section className="px-4 md:px-8 max-w-7xl mx-auto">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -205,15 +279,21 @@ export default function ShopHome() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12">
-            {products.map((product, i) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                index={i}
-                addToCart={addToCart}
-              />
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-8 md:gap-y-12">
+            {filteredProducts.length > 0 ? (
+              filteredProducts.map((product, i) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  index={i}
+                  addToCart={addToCart}
+                />
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center text-zinc-400">
+                <p>No products found in this category.</p>
+              </div>
+            )}
           </div>
         )}
       </section>

@@ -8,6 +8,8 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  ActionSheetIOS,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -19,6 +21,8 @@ import {
   updateProfile,
   updatePassword,
   updateEmail,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from "firebase/auth";
 import {
   doc,
@@ -40,6 +44,7 @@ import {
   Mail,
   Smartphone,
   CreditCard,
+  MoreVertical,
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
@@ -59,10 +64,14 @@ export default function ProfileScreen() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [addresses, setAddresses] = useState<any[]>([]);
+
+  // Security State
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
 
   // Address Form
   const [addingAddress, setAddingAddress] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [newAddr, setNewAddr] = useState({
     country: "GH", // Default to Ghana ISO Code
     city: "",
@@ -152,87 +161,250 @@ export default function ProfileScreen() {
         },
         { merge: true }
       );
-      Alert.alert("Success", "Profile updated.");
+      showAlert({
+        title: "Success",
+        message: "Profile updated successfully.",
+        type: "success",
+      });
     } catch (e) {
-      Alert.alert("Error", "Failed to update profile.");
+      showAlert({
+        title: "Error",
+        message: "Failed to update profile.",
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const addAddress = async () => {
+  const handleSaveAddress = async () => {
     if (!user) return;
     if (!newAddr.street)
-      return Alert.alert("Missing Info", "Please enter a street address.");
+      return showAlert({
+        title: "Missing Information",
+        message: "Please enter a street address.",
+        type: "error",
+      });
 
     setSaving(true);
     try {
-      const addressToAdd = {
-        id: Date.now().toString(),
-        ...newAddr,
-        isDefault: addresses.length === 0,
-      };
+      let updatedAddresses = [...addresses];
+
+      if (editingAddressId) {
+        // Update existing
+        updatedAddresses = addresses.map((addr) =>
+          addr.id === editingAddressId ? { ...addr, ...newAddr } : addr
+        );
+      } else {
+        // Add new
+        const addressToAdd = {
+          id: Date.now().toString(),
+          ...newAddr,
+          isDefault: addresses.length === 0,
+        };
+        updatedAddresses.push(addressToAdd);
+      }
 
       await setDoc(
         doc(db, "users", user.uid),
         {
-          addresses: arrayUnion(addressToAdd),
+          addresses: updatedAddresses,
         },
         { merge: true }
       );
 
-      setAddresses([...addresses, addressToAdd]);
+      setAddresses(updatedAddresses);
       setAddingAddress(false);
+      setEditingAddressId(null);
       setNewAddr({ country: "Ghana", city: "Accra", street: "", zip: "" });
     } catch (e) {
-      Alert.alert("Error", "Could not add address.");
+      showAlert({
+        title: "Error",
+        message: "Could not save address.",
+        type: "error",
+      });
     } finally {
       setSaving(false);
     }
   };
 
-  const removeAddress = async (addr: any) => {
+  const handleSetDefaultAddress = async (addrId: string) => {
     if (!user) return;
-    Alert.alert("Remove Address?", "Are you sure?", [
-      { text: "Cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await setDoc(
-              doc(db, "users", user.uid),
-              {
-                addresses: arrayRemove(addr),
-              },
-              { merge: true }
-            );
-            setAddresses(addresses.filter((a) => a.id !== addr.id));
-          } catch (e) {
-            Alert.alert("Error", "Failed to remove.");
-          }
+    try {
+      const updatedAddresses = addresses.map((addr) => ({
+        ...addr,
+        isDefault: addr.id === addrId,
+      }));
+
+      await setDoc(
+        doc(db, "users", user.uid),
+        {
+          addresses: updatedAddresses,
         },
+        { merge: true }
+      );
+      setAddresses(updatedAddresses);
+      showAlert({
+        title: "Success",
+        message: "Default address updated.",
+        type: "success",
+      });
+    } catch (e) {
+      showAlert({
+        title: "Error",
+        message: "Failed to set default address.",
+        type: "error",
+      });
+    }
+  };
+
+  const handleEditAddress = (addr: any) => {
+    setNewAddr({
+      country: addr.country,
+      city: addr.city,
+      street: addr.street,
+      zip: addr.zip || "",
+    });
+    setEditingAddressId(addr.id);
+    setAddingAddress(true);
+  };
+
+  const handleRemoveAddress = async (addr: any) => {
+    if (!user) return;
+    showAlert({
+      title: "Remove Address",
+      message: "Are you sure you want to remove this address?",
+      confirmLabel: "Remove",
+      type: "error",
+      onConfirm: async () => {
+        try {
+          await setDoc(
+            doc(db, "users", user.uid),
+            {
+              addresses: arrayRemove(addr),
+            },
+            { merge: true }
+          );
+          setAddresses(addresses.filter((a) => a.id !== addr.id));
+        } catch (e) {
+          showAlert({
+            title: "Error",
+            message: "Failed to remove address.",
+            type: "error",
+          });
+        }
       },
-    ]);
+    });
+  };
+
+  const showAddressOptions = (addr: any) => {
+    const options = ["Edit", "Remove", "Cancel"];
+    if (!addr.isDefault) {
+      options.unshift("Set as Default");
+    }
+
+    const destructiveButtonIndex = options.indexOf("Remove");
+    const cancelButtonIndex = options.indexOf("Cancel");
+
+    if (Platform.OS === "ios") {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          destructiveButtonIndex,
+          cancelButtonIndex,
+        },
+        (buttonIndex) => {
+          const selectedOption = options[buttonIndex];
+          if (selectedOption === "Set as Default") {
+            handleSetDefaultAddress(addr.id);
+          } else if (selectedOption === "Edit") {
+            handleEditAddress(addr);
+          } else if (selectedOption === "Remove") {
+            handleRemoveAddress(addr);
+          }
+        }
+      );
+    } else {
+      // Android / Other Alert fallback
+      Alert.alert(
+        "Address Options",
+        `options for ${addr.street}`,
+        [
+          !addr.isDefault
+            ? {
+                text: "Set Default",
+                onPress: () => handleSetDefaultAddress(addr.id),
+              }
+            : (null as any),
+          { text: "Edit", onPress: () => handleEditAddress(addr) },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: () => handleRemoveAddress(addr),
+          },
+          { text: "Cancel", style: "cancel" },
+        ].filter(Boolean)
+      );
+    }
   };
 
   const changePassword = async () => {
-    if (!user || !newPassword) return;
+    if (!user || !newPassword || !oldPassword) {
+      return showAlert({
+        title: "Missing Information",
+        message: "Please enter current and new passwords.",
+        type: "error",
+      });
+    }
     setSaving(true);
     try {
+      // Re-authenticate user
+      const credential = EmailAuthProvider.credential(user.email, oldPassword);
+      await reauthenticateWithCredential(user, credential);
+
       await updatePassword(user, newPassword);
-      Alert.alert("Success", "Password updated.");
+      showAlert({
+        title: "Success",
+        message: "Password updated successfully.",
+        type: "success",
+      });
       setNewPassword("");
+      setOldPassword("");
     } catch (e: any) {
-      if (e.code === "auth/requires-recent-login") {
-        Alert.alert("Security Check", "Please re-login to change password.");
-        handleSignOut();
+      if (
+        e.code === "auth/wrong-password" ||
+        e.code === "auth/invalid-credential"
+      ) {
+        showAlert({
+          title: "Incorrect Password",
+          message:
+            "The current password you entered is incorrect. Please try again.",
+          type: "error",
+        });
+      } else if (e.code === "auth/requires-recent-login") {
+        showAlert({
+          title: "Security Check",
+          message: "Please re-login to change password.",
+          type: "error",
+          onConfirm: handleSignOut,
+          confirmLabel: "Sign Out",
+        });
       } else {
-        Alert.alert("Error", e.message);
+        showAlert({
+          title: "Error",
+          message: e.message,
+          type: "error",
+        });
       }
     } finally {
       setSaving(false);
     }
+  };
+
+  const cancelAddressEdit = () => {
+    setAddingAddress(false);
+    setEditingAddressId(null);
+    setNewAddr({ country: "Ghana", city: "Accra", street: "", zip: "" });
   };
 
   if (loading) {
@@ -410,31 +582,40 @@ export default function ProfileScreen() {
                         ) : (
                           <View className="space-y-4 mb-6">
                             {addresses.map((addr, i) => (
-                              <View
+                              <Pressable
                                 key={i}
-                                className="p-4 border mb-4 border-zinc-200 rounded-xl bg-white flex-row justify-between items-start"
+                                onPress={() => showAddressOptions(addr)}
+                                className={`p-4 border mb-4 rounded-xl bg-white flex-row justify-between items-start active:bg-zinc-50 ${
+                                  addr.isDefault
+                                    ? "border-black"
+                                    : "border-zinc-200"
+                                }`}
                               >
-                                <View>
-                                  <P className="font-bold">
-                                    {addr.city},{" "}
-                                    {countryOptions.find(
-                                      (c) => c.value === addr.country
-                                    )?.label || addr.country}
-                                  </P>
-                                  <P className="text-zinc-500 mt-1">
-                                    {addr.street}
-                                  </P>
+                                <View className="flex-1">
+                                  <View className="flex-row items-center gap-2 mb-1">
+                                    <P className="font-bold">
+                                      {addr.city},{" "}
+                                      {countryOptions.find(
+                                        (c) => c.value === addr.country
+                                      )?.label || addr.country}
+                                    </P>
+                                    {addr.isDefault && (
+                                      <View className="bg-black px-2 py-1 rounded">
+                                        <P className="text-white text-[10px] font-bold uppercase">
+                                          Default
+                                        </P>
+                                      </View>
+                                    )}
+                                  </View>
+                                  <P className="text-zinc-500">{addr.street}</P>
                                   <P className="text-xs text-zinc-400 mt-1">
                                     {addr.zip}
                                   </P>
                                 </View>
-                                <Pressable
-                                  onPress={() => removeAddress(addr)}
-                                  className="p-2"
-                                >
-                                  <Trash2 size={20} color="#ef4444" />
-                                </Pressable>
-                              </View>
+                                <View className="p-2">
+                                  <MoreVertical size={20} color="#a1a1aa" />
+                                </View>
+                              </Pressable>
                             ))}
                           </View>
                         )}
@@ -450,7 +631,9 @@ export default function ProfileScreen() {
                       </>
                     ) : (
                       <View className="space-y-6">
-                        <H1 className="text-lg font-bold mb-4">New Address</H1>
+                        <H1 className="text-lg font-bold mb-4">
+                          {editingAddressId ? "Edit Address" : "New Address"}
+                        </H1>
                         <View className="mb-6">
                           <P className="text-xs font-bold uppercase text-zinc-400 mb-2 tracking-wider">
                             Country
@@ -526,19 +709,21 @@ export default function ProfileScreen() {
 
                         <View className="flex-row gap-4 pt-4">
                           <Pressable
-                            onPress={() => setAddingAddress(false)}
+                            onPress={cancelAddressEdit}
                             className="flex-1 py-4 bg-zinc-100 rounded-xl items-center"
                           >
                             <P className="font-bold">Cancel</P>
                           </Pressable>
                           <Pressable
-                            onPress={addAddress}
+                            onPress={handleSaveAddress}
                             className="flex-1 py-4 bg-black rounded-xl items-center"
                           >
                             {saving ? (
                               <ActivityIndicator color="white" />
                             ) : (
-                              <P className="font-bold text-white">Save</P>
+                              <P className="font-bold text-white">
+                                {editingAddressId ? "Update" : "Save"}
+                              </P>
                             )}
                           </Pressable>
                         </View>
@@ -549,6 +734,13 @@ export default function ProfileScreen() {
 
                 {activeSection === "security" && (
                   <View className="space-y-6">
+                    <InputGroup
+                      label="Current Password"
+                      value={oldPassword}
+                      onChange={(t: string) => setOldPassword(t)}
+                      placeholder="••••••••"
+                      secure
+                    />
                     <InputGroup
                       label="New Password"
                       value={newPassword}

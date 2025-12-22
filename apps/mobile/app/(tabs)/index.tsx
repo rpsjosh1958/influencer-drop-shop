@@ -186,7 +186,23 @@ export default function ShopHome() {
       }
     );
 
-    return () => unsub();
+    // 3. Fetch Categories
+    const unsubCategories = onSnapshot(
+      query(collection(db, "categories"), orderBy("name", "asc")),
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Category[];
+        setCategories(items);
+      },
+      (error) => console.log("Error fetching categories:", error)
+    );
+
+    return () => {
+      unsub();
+      unsubCategories();
+    };
   }, []);
 
   // Search Logic
@@ -231,6 +247,15 @@ export default function ShopHome() {
       setSuggestions([]);
     }
   };
+
+  // Category State
+  interface Category {
+    id: string;
+    name: string;
+    slug: string;
+  }
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   const performSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -282,7 +307,11 @@ export default function ShopHome() {
     }
   };
 
-  const displayedProducts = isSearching ? searchResults : products;
+  const displayedProducts = isSearching
+    ? searchResults
+    : selectedCategory === "All"
+    ? products
+    : products.filter((p) => p.category === selectedCategory);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -567,6 +596,58 @@ export default function ShopHome() {
                   </View>
                 )}
 
+                {/* Category Filter */}
+                {!isSearching && categories.length > 0 && (
+                  <View className="mb-6">
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingHorizontal: 24, gap: 8 }}
+                      className="flex-row"
+                    >
+                      <Pressable
+                        onPress={() => setSelectedCategory("All")}
+                        className={`px-5 py-2.5 rounded-full border ${
+                          selectedCategory === "All"
+                            ? "bg-black border-black"
+                            : "bg-white border-zinc-200"
+                        }`}
+                      >
+                        <P
+                          className={`text-xs font-bold ${
+                            selectedCategory === "All"
+                              ? "text-white"
+                              : "text-black"
+                          }`}
+                        >
+                          All
+                        </P>
+                      </Pressable>
+                      {categories.map((cat) => (
+                        <Pressable
+                          key={cat.id}
+                          onPress={() => setSelectedCategory(cat.name)}
+                          className={`px-5 py-2.5 rounded-full border ${
+                            selectedCategory === cat.name
+                              ? "bg-black border-black"
+                              : "bg-white border-zinc-200"
+                          }`}
+                        >
+                          <P
+                            className={`text-xs font-bold ${
+                              selectedCategory === cat.name
+                                ? "text-white"
+                                : "text-black"
+                            }`}
+                          >
+                            {cat.name}
+                          </P>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </View>
+                )}
+
                 {isSearching && (
                   <View className="px-6 py-4">
                     <H1 className="text-2xl font-black uppercase mb-4">
@@ -601,6 +682,13 @@ export default function ShopHome() {
                         <View className="w-full py-10 items-center">
                           <P className="text-zinc-400">
                             No drops found matching "{searchQuery}"
+                          </P>
+                        </View>
+                      )}
+                      {!isSearching && displayedProducts.length === 0 && (
+                        <View className="w-full py-20 items-center">
+                          <P className="text-zinc-400">
+                            No products found in this category.
                           </P>
                         </View>
                       )}
