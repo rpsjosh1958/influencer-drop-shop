@@ -388,7 +388,6 @@ export function FloatingCart() {
                     <P className="text-white font-bold text-lg uppercase tracking-wider">
                       Checkout
                     </P>
-                    <ArrowRight size={20} color="white" />
                   </Pressable>
                 ) : (
                   <Pressable

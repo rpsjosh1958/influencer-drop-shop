@@ -23,7 +23,6 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
-// Configure Global Handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
