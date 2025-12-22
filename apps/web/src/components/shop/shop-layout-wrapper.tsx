@@ -25,6 +25,7 @@ import {
   NotificationProvider,
   useNotifications,
 } from "@/context/notification-context";
+import { useAlert } from "@/context/alert-context";
 import { NotificationDropdown } from "./notification-dropdown";
 import { NotificationToast } from "./notification-toast";
 import { HeaderSearch } from "./header-search";
@@ -72,10 +73,32 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
     return () => unsub();
   }, []);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.replace("/login");
+  const { showAlert } = useAlert();
+
+  const handleLogout = () => {
+    showAlert({
+      title: "Sign Out",
+      message: "Are you sure you want to sign out?",
+      confirmLabel: "Sign Out",
+      type: "error", // Using error style (red) for destructive action
+      onConfirm: async () => {
+        await signOut(auth);
+        router.replace("/login");
+      },
+      onCancel: () => {},
+    });
   };
+
+  // Allow access to Login/Signup pages regardless of Store Status
+  const isAuthPage =
+    pathname.includes("/login") || pathname.includes("/signup");
+
+  // Prevent flicker: If user is logged in but on auth page, redirect
+  useEffect(() => {
+    if (user && isAuthPage) {
+      router.replace("/");
+    }
+  }, [user, isAuthPage, router]);
 
   // Loading State
   if (isLive === null || user === undefined) {
@@ -86,13 +109,8 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Allow access to Login/Signup pages regardless of Store Status
-  const isAuthPage =
-    pathname.includes("/login") || pathname.includes("/signup");
-
-  // Prevent flicker: If user is logged in but on auth page, show nothing (redirecting)
+  // If redirecting, we can return null (or a loader) to avoid flashing content
   if (user && isAuthPage) {
-    router.replace("/");
     return null;
   }
 

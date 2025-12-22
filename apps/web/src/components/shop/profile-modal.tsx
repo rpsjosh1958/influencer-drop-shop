@@ -39,12 +39,24 @@ interface ProfileModalProps {
   user: any;
 }
 
-const COUNTRIES = ["Ghana", "Nigeria", "United States", "United Kingdom"];
-const CITIES: Record<string, string[]> = {
-  Ghana: ["Accra", "Kumasi", "Tamale", "Takoradi"],
-  Nigeria: ["Lagos", "Abuja", "Port Harcourt"],
-  "United States": ["New York", "Los Angeles", "Chicago"],
-  "United Kingdom": ["London", "Manchester", "Birmingham"],
+import { Country, City } from "country-state-city";
+import { Combobox } from "@/components/ui/combobox";
+
+// Helper to get formatted options
+const countryOptions = Country.getAllCountries().map((country) => ({
+  label: country.name,
+  value: country.isoCode,
+}));
+
+// Helper to get city options for a country
+const getCityOptions = (countryCode: string) => {
+  if (!countryCode) return [];
+  return (
+    City.getCitiesOfCountry(countryCode)?.map((city) => ({
+      label: city.name,
+      value: city.name, // Using name as value since we store city names, not IDs
+    })) || []
+  );
 };
 
 export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
@@ -333,7 +345,10 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                               >
                                 <div>
                                   <div className="font-bold flex items-center gap-2">
-                                    {addr.city}, {addr.country}
+                                    {addr.city},{" "}
+                                    {countryOptions.find(
+                                      (c) => c.value === addr.country
+                                    )?.label || addr.country}
                                     {addr.isDefault && (
                                       <span className="bg-zinc-100 text-xs px-2 py-0.5 rounded text-zinc-500">
                                         Default
@@ -374,46 +389,39 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                               <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
                                 Country
                               </label>
-                              <select
+                              <Combobox
+                                options={countryOptions}
                                 value={newAddress.country}
-                                onChange={(e) =>
+                                onChange={(val) =>
                                   setNewAddress({
                                     ...newAddress,
-                                    country: e.target.value,
-                                    city: CITIES[e.target.value]?.[0] || "",
+                                    country: val,
+                                    city: "", // Reset city when country changes
                                   })
                                 }
-                                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
-                              >
-                                {COUNTRIES.map((c) => (
-                                  <option key={c} value={c}>
-                                    {c}
-                                  </option>
-                                ))}
-                              </select>
+                                placeholder="Select Country"
+                                searchPlaceholder="Search country..."
+                              />
                             </div>
                             <div>
                               <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
                                 City
                               </label>
-                              <select
+                              <Combobox
+                                options={getCityOptions(
+                                  newAddress.country || ""
+                                )}
                                 value={newAddress.city}
-                                onChange={(e) =>
+                                onChange={(val) =>
                                   setNewAddress({
                                     ...newAddress,
-                                    city: e.target.value,
+                                    city: val,
                                   })
                                 }
-                                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
-                              >
-                                {CITIES[newAddress.country || "Ghana"]?.map(
-                                  (c) => (
-                                    <option key={c} value={c}>
-                                      {c}
-                                    </option>
-                                  )
-                                )}
-                              </select>
+                                placeholder="Select City"
+                                searchPlaceholder="Search city..."
+                                disabled={!newAddress.country}
+                              />
                             </div>
                           </div>
                           <div>

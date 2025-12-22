@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "../globals.css";
 import { ShopLayoutWrapper } from "@/components/shop/shop-layout-wrapper";
+import { AlertProvider } from "@/context/alert-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +29,9 @@ export default function ShopLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ShopLayoutWrapper>{children}</ShopLayoutWrapper>
+        <AlertProvider>
+          <ShopLayoutWrapper>{children}</ShopLayoutWrapper>
+        </AlertProvider>
       </body>
     </html>
   );

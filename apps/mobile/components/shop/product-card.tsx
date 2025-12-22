@@ -80,7 +80,7 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
               {product.name}
             </H2>
             <P className="font-medium text-zinc-900">
-              ${product.price.toFixed(2)}
+              GHS{product.price.toFixed(2)}
             </P>
           </View>
 

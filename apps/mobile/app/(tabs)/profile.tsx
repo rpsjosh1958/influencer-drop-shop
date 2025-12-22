@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
+import { useAlert } from "@/context/alert-context";
 import { auth, db } from "@/lib/firebase";
 import {
   onAuthStateChanged,
@@ -42,6 +43,8 @@ import {
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
+import { Country, City } from "country-state-city";
+import { SelectionModal } from "@/components/ui/selection-modal";
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
@@ -61,11 +64,34 @@ export default function ProfileScreen() {
   // Address Form
   const [addingAddress, setAddingAddress] = useState(false);
   const [newAddr, setNewAddr] = useState({
-    country: "Ghana",
-    city: "Accra",
+    country: "GH", // Default to Ghana ISO Code
+    city: "",
     street: "",
     zip: "",
   });
+
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+
+  // Data Memos
+  const countryOptions = useMemo(
+    () =>
+      Country.getAllCountries().map((c) => ({
+        label: c.name,
+        value: c.isoCode,
+      })),
+    []
+  );
+
+  const cityOptions = useMemo(() => {
+    if (!newAddr.country) return [];
+    return (
+      City.getCitiesOfCountry(newAddr.country)?.map((c) => ({
+        label: c.stateCode ? `${c.name} (${c.stateCode})` : c.name,
+        value: c.name,
+      })) || []
+    );
+  }, [newAddr.country]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -94,14 +120,23 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut(auth);
-      // Optional: Navigate to home (Shop)
-      // router.replace("/(tabs)");
-    } catch (e) {
-      console.error(e);
-    }
+  const { showAlert } = useAlert();
+
+  const handleSignOut = () => {
+    showAlert({
+      title: "Sign Out",
+      message: "Are you sure you want to sign out?",
+      confirmLabel: "Sign Out",
+      type: "error",
+      onConfirm: async () => {
+        try {
+          await signOut(auth);
+          // router.replace("/(tabs)");
+        } catch (e) {
+          console.error(e);
+        }
+      },
+    });
   };
 
   const updatePersonalInfo = async () => {
@@ -381,7 +416,10 @@ export default function ProfileScreen() {
                               >
                                 <View>
                                   <P className="font-bold">
-                                    {addr.city}, {addr.country}
+                                    {addr.city},{" "}
+                                    {countryOptions.find(
+                                      (c) => c.value === addr.country
+                                    )?.label || addr.country}
                                   </P>
                                   <P className="text-zinc-500 mt-1">
                                     {addr.street}
@@ -413,20 +451,64 @@ export default function ProfileScreen() {
                     ) : (
                       <View className="space-y-6">
                         <H1 className="text-lg font-bold mb-4">New Address</H1>
-                        <InputGroup
-                          label="Country"
-                          value={newAddr.country}
-                          onChange={(t: string) =>
-                            setNewAddr({ ...newAddr, country: t })
+                        <View className="mb-6">
+                          <P className="text-xs font-bold uppercase text-zinc-400 mb-2 tracking-wider">
+                            Country
+                          </P>
+                          <Pressable
+                            onPress={() => setCountryModalVisible(true)}
+                            className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex-row justify-between items-center"
+                          >
+                            <P className="font-bold text-base">
+                              {countryOptions.find(
+                                (c) => c.value === newAddr.country
+                              )?.label || "Select Country"}
+                            </P>
+                            <ChevronRight size={20} color="#a1a1aa" />
+                          </Pressable>
+                        </View>
+
+                        <View className="mb-6">
+                          <P className="text-xs font-bold uppercase text-zinc-400 mb-2 tracking-wider">
+                            City
+                          </P>
+                          <Pressable
+                            onPress={() => {
+                              if (newAddr.country) setCityModalVisible(true);
+                            }}
+                            className={`w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex-row justify-between items-center ${
+                              !newAddr.country ? "opacity-50" : ""
+                            }`}
+                          >
+                            <P className="font-bold text-base">
+                              {newAddr.city || "Select City"}
+                            </P>
+                            <ChevronRight size={20} color="#a1a1aa" />
+                          </Pressable>
+                        </View>
+
+                        <SelectionModal
+                          visible={countryModalVisible}
+                          onClose={() => setCountryModalVisible(false)}
+                          title="Select Country"
+                          options={countryOptions}
+                          onSelect={(val) =>
+                            setNewAddr({ ...newAddr, country: val, city: "" })
                           }
+                          selectedValue={newAddr.country}
                         />
-                        <InputGroup
-                          label="City"
-                          value={newAddr.city}
-                          onChange={(t: string) =>
-                            setNewAddr({ ...newAddr, city: t })
+
+                        <SelectionModal
+                          visible={cityModalVisible}
+                          onClose={() => setCityModalVisible(false)}
+                          title="Select City"
+                          options={cityOptions}
+                          onSelect={(val) =>
+                            setNewAddr({ ...newAddr, city: val })
                           }
+                          selectedValue={newAddr.city}
                         />
+
                         <InputGroup
                           label="Street Address"
                           value={newAddr.street}

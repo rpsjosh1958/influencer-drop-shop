@@ -18,6 +18,7 @@ import { OrdersDropdown } from "@/components/shop/orders-dropdown";
 import { HeaderSearch } from "@/components/shop/header-search";
 import { NotificationDropdown } from "@/components/shop/notification-dropdown";
 import { useNotifications } from "@/context/notification-context";
+import { useAlert } from "@/context/alert-context";
 
 export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -38,9 +39,19 @@ export default function ShopHome() {
     return () => unsub();
   }, []);
 
-  const handleLogout = async () => {
-    await signOut(auth);
-    window.location.reload();
+  const { showAlert } = useAlert();
+
+  const handleLogout = () => {
+    showAlert({
+      title: "Sign Out",
+      message: "Are you sure you want to sign out?",
+      confirmLabel: "Sign Out",
+      type: "error",
+      onConfirm: async () => {
+        await signOut(auth);
+        window.location.reload();
+      },
+    });
   };
 
   useEffect(() => {

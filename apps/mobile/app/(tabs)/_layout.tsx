@@ -50,7 +50,7 @@ function TabBar({ state, descriptors, navigation }: any) {
           <Pressable
             key={index}
             onPress={onPress}
-            className="items-center justify-center"
+            className="items-center justify-center flex-1"
           >
             <MotiView
               animate={{

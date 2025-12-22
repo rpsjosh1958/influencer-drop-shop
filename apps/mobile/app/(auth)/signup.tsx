@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   View,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   TouchableOpacity,
+  Text,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,13 +17,10 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-const COUNTRIES = ["Ghana", "Nigeria", "United States", "United Kingdom"];
-const CITIES: Record<string, string[]> = {
-  Ghana: ["Accra", "Kumasi", "Tamale", "Takoradi"],
-  Nigeria: ["Lagos", "Abuja", "Port Harcourt"],
-  "United States": ["New York", "Los Angeles", "Chicago"],
-  "United Kingdom": ["London", "Manchester", "Birmingham"],
-};
+import { Country, City } from "country-state-city";
+import { SelectionModal } from "@/components/ui/selection-modal";
+import { ChevronRight } from "lucide-react-native";
+import clsx from "clsx";
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name is too short"),
@@ -45,11 +43,34 @@ export default function Signup() {
     phone: "",
     email: "",
     password: "",
-    country: "Ghana",
-    city: "Accra",
+    country: "GH",
+    city: "",
     street: "",
     zip: "",
   });
+
+  const [countryModalVisible, setCountryModalVisible] = useState(false);
+  const [cityModalVisible, setCityModalVisible] = useState(false);
+
+  // Data Memos
+  const countryOptions = useMemo(
+    () =>
+      Country.getAllCountries().map((c) => ({
+        label: c.name,
+        value: c.isoCode,
+      })),
+    []
+  );
+
+  const cityOptions = useMemo(() => {
+    if (!form.country) return [];
+    return (
+      City.getCitiesOfCountry(form.country)?.map((c) => ({
+        label: c.stateCode ? `${c.name} (${c.stateCode})` : c.name,
+        value: c.name,
+      })) || []
+    );
+  }, [form.country]);
 
   const handleSignup = async () => {
     try {
@@ -117,7 +138,9 @@ export default function Signup() {
           <View className="space-y-8 pb-10">
             <View>
               <H1 className="text-center">JOIN THE DROP.</H1>
-              <P className="text-center text-lg mb-5">Create an account to secure your bag.</P>
+              <P className="text-center text-lg mb-5">
+                Create an account to secure your bag.
+              </P>
             </View>
 
             {/* Identity */}
@@ -165,31 +188,79 @@ export default function Signup() {
                 Shipping Address
               </P>
 
-              <Input
-                placeholder="Country (Tap to cycle)"
-                value={form.country}
-                editable={false}
-                onPressIn={() => {
-                  const idx = COUNTRIES.indexOf(form.country);
-                  const next = COUNTRIES[(idx + 1) % COUNTRIES.length];
-                  setForm((p) => ({
-                    ...p,
-                    country: next,
-                    city: CITIES[next][0],
-                  }));
-                }}
-              />
+              {/* Country Selection */}
+              <View>
+                <P className="text-xs mb-2 font-bold uppercase text-zinc-400">
+                  Country
+                </P>
+                <TouchableOpacity
+                  onPress={() => setCountryModalVisible(true)}
+                  className="bg-zinc-50 mb-5 p-4 rounded-xl border border-zinc-200 flex-row items-center justify-between"
+                  style={{ height: 56 }}
+                >
+                  <Text
+                    className={clsx(
+                      "font-bold text-base",
+                      form.country ? "text-black" : "text-zinc-400"
+                    )}
+                  >
+                    {countryOptions.find((c) => c.value === form.country)
+                      ?.label || "Select Country"}
+                  </Text>
+                  <ChevronRight size={20} color="#a1a1aa" />
+                </TouchableOpacity>
+              </View>
 
-              <Input
-                placeholder="City (Tap to cycle)"
-                value={form.city}
-                editable={false}
-                onPressIn={() => {
-                  const currentCities = CITIES[form.country];
-                  const idx = currentCities.indexOf(form.city);
-                  const next = currentCities[(idx + 1) % currentCities.length];
-                  setForm((p) => ({ ...p, city: next }));
-                }}
+              {/* City Selection */}
+              <View>
+                <P className="text-xs mb-2 font-bold uppercase text-zinc-400">
+                  City
+                </P>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!form.country) return;
+                    setCityModalVisible(true);
+                  }}
+                  className={clsx(
+                    "mb-5 bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex-row items-center justify-between",
+                    !form.country && "opacity-50"
+                  )}
+                  style={{ height: 56 }}
+                >
+                  <Text
+                    className={clsx(
+                      "font-bold text-base",
+                      form.city ? "text-black" : "text-zinc-400"
+                    )}
+                  >
+                    {form.city || "Select City"}
+                  </Text>
+                  <ChevronRight size={20} color="#a1a1aa" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Modals */}
+              <SelectionModal
+                visible={countryModalVisible}
+                onClose={() => setCountryModalVisible(false)}
+                title="Select Country"
+                options={countryOptions}
+                onSelect={(val) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    country: val,
+                    city: "", // Reset city
+                  }))
+                }
+                selectedValue={form.country}
+              />
+              <SelectionModal
+                visible={cityModalVisible}
+                onClose={() => setCityModalVisible(false)}
+                title="Select City"
+                options={cityOptions}
+                onSelect={(val) => setForm((prev) => ({ ...prev, city: val }))}
+                selectedValue={form.city}
               />
 
               <Input

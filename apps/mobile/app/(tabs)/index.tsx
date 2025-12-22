@@ -8,7 +8,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { collection, query, orderBy, getDocs, where } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  where,
+  doc,
+  onSnapshot,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Product, ProductCard } from "@/components/shop/product-card";
 import { ProductDetailsModal } from "@/components/shop/product-details-modal";
@@ -17,6 +25,7 @@ import { SwipeableNotificationRow } from "@/components/swipeable-notification-ro
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/context/cart-context";
 import { MotiView } from "moti";
+import { ShopClosed } from "@/components/shop/shop-closed";
 import {
   Bell,
   ShoppingCart,
@@ -56,6 +65,7 @@ export default function ShopHome() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isLive, setIsLive] = useState<boolean | null>(null); // Store status
 
   // Search State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -157,7 +167,26 @@ export default function ShopHome() {
   };
 
   useEffect(() => {
+    // 1. Fetch Products
     fetchProducts();
+
+    // 2. Subscribe to Store Status
+    const unsub = onSnapshot(
+      doc(db, "system", "config"),
+      (doc) => {
+        if (doc.exists()) {
+          setIsLive(doc.data().isLive);
+        } else {
+          setIsLive(false); // Default to closed if no doc
+        }
+      },
+      (error) => {
+        console.log("Error fetching system config:", error);
+        setIsLive(false);
+      }
+    );
+
+    return () => unsub();
   }, []);
 
   // Search Logic
@@ -259,6 +288,10 @@ export default function ShopHome() {
     setRefreshing(true);
     fetchProducts();
   }, []);
+
+  if (isLive === false) {
+    return <ShopClosed />;
+  }
 
   return (
     <GestureHandlerRootView className="flex-1 bg-black">

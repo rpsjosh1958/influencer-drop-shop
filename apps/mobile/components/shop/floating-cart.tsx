@@ -31,6 +31,7 @@ import {
 } from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";
 import { useCart } from "@/context/cart-context";
+import { useAlert } from "@/context/alert-context";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -176,6 +177,7 @@ function CartItemRow({ item, index, onUpdate, onRemove }: any) {
 
 export function FloatingCart() {
   const { cart, updateQuantity, removeFromCart, total, clearCart } = useCart();
+  const { showAlert } = useAlert();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -215,29 +217,23 @@ export function FloatingCart() {
   };
 
   const handleRemove = (item: any) => {
-    Alert.alert(
-      "Remove Item?",
-      `Are you sure you want to remove ${item.name} from your bag?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: () => removeFromCart(item.id, item.variant?.id),
-        },
-      ]
-    );
+    showAlert({
+      title: "Remove Item?",
+      message: `Are you sure you want to remove ${item.name} from your bag?`,
+      type: "error",
+      confirmLabel: "Remove",
+      onConfirm: () => removeFromCart(item.id, item.variant?.id),
+    });
   };
 
   const handleClear = () => {
-    Alert.alert("Clear Cart?", "This will remove all items from your bag.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Clear All",
-        style: "destructive",
-        onPress: () => clearCart(),
-      },
-    ]);
+    showAlert({
+      title: "Clear Cart?",
+      message: "This will remove all items from your bag.",
+      type: "error",
+      confirmLabel: "Clear All",
+      onConfirm: () => clearCart(),
+    });
   };
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -381,8 +377,7 @@ export function FloatingCart() {
                     className="bg-black w-full py-4 rounded-2xl flex-row items-center justify-center gap-3 active:scale-95 transition-transform"
                     onPress={() => {
                       toggleOpen(false);
-                      // router.push("/checkout");
-                      Alert.alert("Checkout", "Proceeding...");
+                      router.push("/checkout");
                     }}
                   >
                     <P className="text-white font-bold text-lg uppercase tracking-wider">

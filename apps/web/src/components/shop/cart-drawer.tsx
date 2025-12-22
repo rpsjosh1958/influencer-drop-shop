@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useCart } from "./cart-provider";
+import { useAlert } from "@/context/alert-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, ShoppingBag, Minus, Plus } from "lucide-react";
 import Image from "next/image";
@@ -19,6 +20,7 @@ export function CartDrawer() {
   } = useCart();
 
   useBodyScrollLock(isCartOpen);
+  const { showAlert } = useAlert();
 
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
@@ -130,9 +132,19 @@ export function CartDrawer() {
                           </button>
                         </div>
                         <button
-                          onClick={() =>
-                            removeFromCart(item.id, item.selectedVariant?.id)
-                          }
+                          onClick={() => {
+                            showAlert({
+                              title: "Remove Item?",
+                              message: `Are you sure you want to remove ${item.name} from your bag?`,
+                              type: "error",
+                              confirmLabel: "Remove",
+                              onConfirm: () =>
+                                removeFromCart(
+                                  item.id,
+                                  item.selectedVariant?.id
+                                ),
+                            });
+                          }}
                           className="text-zinc-400 hover:text-red-500 transition-colors"
                         >
                           <Trash2 size={18} />

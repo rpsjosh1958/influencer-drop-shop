@@ -13,12 +13,24 @@ import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
-const COUNTRIES = ["Ghana", "Nigeria", "United States", "United Kingdom"];
-const CITIES: Record<string, string[]> = {
-  Ghana: ["Accra", "Kumasi", "Tamale", "Takoradi"],
-  Nigeria: ["Lagos", "Abuja", "Port Harcourt"],
-  "United States": ["New York", "Los Angeles", "Chicago"],
-  "United Kingdom": ["London", "Manchester", "Birmingham"],
+import { Country, City } from "country-state-city";
+import { Combobox } from "@/components/ui/combobox";
+
+// Helper to get formatted options
+const countryOptions = Country.getAllCountries().map((country) => ({
+  label: country.name,
+  value: country.isoCode,
+}));
+
+// Helper to get city options for a country
+const getCityOptions = (countryCode: string) => {
+  if (!countryCode) return [];
+  return (
+    City.getCitiesOfCountry(countryCode)?.map((city) => ({
+      label: city.name,
+      value: city.name,
+    })) || []
+  );
 };
 
 export default function ShopSignup() {
@@ -33,8 +45,8 @@ export default function ShopSignup() {
   const [phone, setPhone] = useState("");
 
   // Address State
-  const [country, setCountry] = useState("Ghana");
-  const [city, setCity] = useState("Accra");
+  const [country, setCountry] = useState("GH"); // Default to Ghana ISO
+  const [city, setCity] = useState("");
   const [street, setStreet] = useState("");
   const [zip, setZip] = useState("");
 
@@ -170,31 +182,24 @@ export default function ShopSignup() {
               Shipping Address
             </h3>
             <div className="grid grid-cols-2 gap-4">
-              <select
+              <Combobox
+                options={countryOptions}
                 value={country}
-                onChange={(e) => {
-                  setCountry(e.target.value);
-                  setCity(CITIES[e.target.value]?.[0] || "");
+                onChange={(val) => {
+                  setCountry(val);
+                  setCity(""); // Reset city
                 }}
-                className="w-full bg-zinc-50 border border-zinc-200 p-4 rounded-xl outline-none focus:ring-2 focus:ring-black transition-all appearance-none"
-              >
-                {COUNTRIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-              <select
+                placeholder="Select Country"
+                searchPlaceholder="Search country..."
+              />
+              <Combobox
+                options={getCityOptions(country)}
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 p-4 rounded-xl outline-none focus:ring-2 focus:ring-black transition-all appearance-none"
-              >
-                {CITIES[country]?.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setCity(val)}
+                placeholder="Select City"
+                searchPlaceholder="Search city..."
+                disabled={!country}
+              />
             </div>
             <input
               type="text"

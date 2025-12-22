@@ -4,7 +4,9 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
-import { Stack, useRouter, Slot } from "expo-router";
+import { useFonts } from "expo-font";
+import { Stack, useRouter } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "../global.css";
@@ -12,9 +14,8 @@ import { useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { AnimatedSplash } from "@/components/animated-splash";
-import { View } from "react-native";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { View, useColorScheme } from "react-native";
+import { PaystackProvider } from "react-native-paystack-webview";
 import { NotificationProvider } from "@/context/notification-context";
 import { InAppNotificationBanner } from "@/components/in-app-notification-banner";
 
@@ -23,7 +24,8 @@ export const unstable_settings = {
 };
 
 import { CartProvider } from "@/context/cart-context";
-
+import { AlertProvider } from "@/context/alert-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -65,46 +67,66 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NotificationProvider>
-        <CartProvider>
-          <InAppNotificationBanner />
-          <ThemeProvider
-            value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-          >
-            <View style={{ flex: 1 }}>
-              <Stack>
-                <Stack.Screen
-                  name="(tabs)"
-                  options={{ headerShown: false, gestureEnabled: false }}
-                />
-                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-                <Stack.Screen name="+not-found" />
-                <Stack.Screen
-                  name="modal"
-                  options={{ presentation: "modal", title: "Modal" }}
-                />
-              </Stack>
+      <PaystackProvider
+        publicKey={
+          process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY ||
+          "pk_test_a0a57464670081d486241b2123ba3f42193b2a0c"
+        }
+        currency="GHS"
+        defaultChannels={["card", "mobile_money"]}
+      >
+        <NotificationProvider>
+          <AlertProvider>
+            <CartProvider>
+              <InAppNotificationBanner />
+              <ThemeProvider
+                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+              >
+                <View style={{ flex: 1 }}>
+                  <Stack>
+                    <Stack.Screen
+                      name="(tabs)"
+                      options={{ headerShown: false, gestureEnabled: false }}
+                    />
+                    <Stack.Screen
+                      name="(auth)"
+                      options={{ headerShown: false }}
+                    />
+                    <Stack.Screen name="+not-found" />
+                    <Stack.Screen
+                      name="modal"
+                      options={{ presentation: "modal", title: "Modal" }}
+                    />
+                    <Stack.Screen
+                      name="checkout"
+                      options={{ headerShown: false }}
+                    />
+                  </Stack>
 
-              {/* Splash Overlay */}
-              {!splashFinished && (
-                <View
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    zIndex: 50,
-                  }}
-                >
-                  <AnimatedSplash onFinish={() => setSplashFinished(true)} />
+                  {/* Splash Overlay */}
+                  {!splashFinished && (
+                    <View
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 50,
+                      }}
+                    >
+                      <AnimatedSplash
+                        onFinish={() => setSplashFinished(true)}
+                      />
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-            <StatusBar style="auto" />
-          </ThemeProvider>
-        </CartProvider>
-      </NotificationProvider>
+                <StatusBar style="auto" />
+              </ThemeProvider>
+            </CartProvider>
+          </AlertProvider>
+        </NotificationProvider>
+      </PaystackProvider>
     </GestureHandlerRootView>
   );
 }
