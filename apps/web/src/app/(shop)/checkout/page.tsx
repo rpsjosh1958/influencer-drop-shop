@@ -266,8 +266,11 @@ export default function CheckoutPage() {
     setLoading(true);
     try {
       // Create Order in Firestore (Stock ALREADY deducted by reserveStock)
+      // Sanitize cart to remove undefined values and ensure clean JSON snapshot
+      const safeItems = JSON.parse(JSON.stringify(cart));
+
       const orderData = {
-        items: cart,
+        items: safeItems,
         total,
         shipping: {
           fullName: name,
@@ -365,7 +368,7 @@ export default function CheckoutPage() {
           <div className="bg-white p-6 rounded-2xl shadow-sm space-y-4">
             {cart.map((item) => (
               <div
-                key={`${item.id}-${item.selectedVariant?.id || 'base'}`}
+                key={`${item.id}-${item.selectedVariant?.id || "base"}`}
                 className="flex justify-between items-center text-sm"
               >
                 <div className="flex items-center gap-3">

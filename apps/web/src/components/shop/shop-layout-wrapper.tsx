@@ -27,6 +27,7 @@ import {
 } from "@/context/notification-context";
 import { useAlert } from "@/context/alert-context";
 import { NotificationDropdown } from "./notification-dropdown";
+import { AddedToCartToast } from "./added-to-cart-toast";
 import { NotificationToast } from "./notification-toast";
 import { HeaderSearch } from "./header-search";
 import { ShopUIProvider } from "@/context/shop-ui-context";
@@ -123,12 +124,13 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
       </ShopUIProvider>
     );
   }
-
   return (
     <NotificationProvider>
       <ShopUIProvider>
         <SnowfallEffect />
         <NotificationToast />
+
+        {/* Closed State Overlay */}
 
         {/* Closed State Overlay */}
         <AnimatePresence mode="wait">
@@ -261,6 +263,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
           <CartProvider>
             {children}
             <CartDrawer />
+            <AddedToCartToast />
           </CartProvider>
         )}
 

@@ -22,6 +22,9 @@ interface CartContextType {
   total: number;
   isCartOpen: boolean;
   setIsCartOpen: (open: boolean) => void;
+  lastAddedItem: Product | null;
+  showAddedToast: boolean;
+  setShowAddedToast: (show: boolean) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -29,6 +32,8 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [lastAddedItem, setLastAddedItem] = useState<Product | null>(null);
+  const [showAddedToast, setShowAddedToast] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Hydrate from localStorage
@@ -68,7 +73,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, { ...product, quantity: 1, selectedVariant: variant }];
     });
-    setIsCartOpen(true);
+    // setIsCartOpen(true); // Don't open cart anymore
+    setLastAddedItem(product);
+    setShowAddedToast(true);
   };
 
   const updateQuantity = (
@@ -118,6 +125,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         total,
         isCartOpen,
         setIsCartOpen,
+        lastAddedItem,
+        showAddedToast,
+        setShowAddedToast,
       }}
     >
       {children}
