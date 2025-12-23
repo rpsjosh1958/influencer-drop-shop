@@ -105,7 +105,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="md:hidden fixed inset-0 z-[100] px-6 bg-black/80 backdrop-blur-md flex flex-col pt-[20vh]"
+            className="md:hidden fixed inset-0 z-[100] px-6 bg-white/80 backdrop-blur-md flex flex-col pt-[20vh]"
           >
             {/* Close Mobile Search */}
             <button
