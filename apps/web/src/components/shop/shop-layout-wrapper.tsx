@@ -31,6 +31,7 @@ import { NotificationToast } from "./notification-toast";
 import { HeaderSearch } from "./header-search";
 import { ShopUIProvider } from "@/context/shop-ui-context";
 import { OrderDetailsModal } from "./order-details-modal";
+import { SnowfallEffect } from "./snowfall-effect";
 
 export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isLive, setIsLive] = useState<boolean | null>(null);
@@ -126,6 +127,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   return (
     <NotificationProvider>
       <ShopUIProvider>
+        <SnowfallEffect />
         <NotificationToast />
 
         {/* Closed State Overlay */}
@@ -140,8 +142,6 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
               {/* Top Right Header for Logged In Users */}
               {user && (
                 <div className="absolute top-6 right-6 flex items-center gap-4 z-50">
-                  <HeaderSearch />
-
                   <div className="relative">
                     <button
                       onClick={() =>

@@ -2,11 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, X, Loader2, ShoppingBag } from "lucide-react";
+import { Search, X, Loader2, ShoppingBag, ChevronRight } from "lucide-react";
 import { collection, query, orderBy, getDocs, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import { ProductDetailsModal } from "./product-details-modal";
+import { Product } from "@/types";
 
 interface HeaderSearchProps {
   onAddToCart?: (product: any, variant?: any) => void;
@@ -19,6 +21,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [productToView, setProductToView] = useState<Product | null>(null); // State for modal
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -95,24 +98,96 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
 
   return (
     <>
-      {/* Backdrop Blur */}
+      {/* Mobile Overlay Search */}
       <AnimatePresence>
-        {isOpen && queryText.length > 0 && (
+        {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm"
-            onClick={() => {
-              setIsOpen(false);
-              setQueryText("");
-            }}
-          />
+            className="md:hidden fixed inset-0 z-[100] px-6 bg-black/80 backdrop-blur-md flex flex-col pt-[20vh]"
+          >
+            {/* Close Mobile Search */}
+            <button
+              onClick={() => {
+                setIsOpen(false);
+                setQueryText("");
+              }}
+              className="absolute top-6 right-6 p-2 bg-zinc-800 rounded-full text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="w-full max-w-lg mx-auto"
+            >
+              <div className="relative">
+                <input
+                  autoFocus
+                  type="text"
+                  value={queryText}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Search products..."
+                  className="w-full bg-zinc-900 border border-zinc-700 text-white rounded-2xl px-6 py-4 text-lg font-bold placeholder:text-zinc-600 outline-none focus:border-white transition-colors"
+                />
+                {loading && (
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                    <Loader2 className="animate-spin text-zinc-500" size={20} />
+                  </div>
+                )}
+              </div>
+
+              {/* Mobile Results */}
+              {results.length > 0 && (
+                <div className="mt-4 bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+                  {results.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center gap-4 p-4 border-b border-zinc-800 last:border-0 hover:bg-zinc-800 active:bg-zinc-800 transition-colors"
+                      onClick={() => {
+                        setProductToView(product); // Open modal
+                        setIsOpen(false);
+                        setQueryText("");
+                      }}
+                    >
+                      <div className="h-12 w-12 rounded-lg bg-zinc-800 overflow-hidden shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={product.images?.[0] || "/placeholder.png"}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-bold">{product.name}</p>
+                        <p className="text-zinc-500 text-xs">
+                          GHS {product.price}
+                        </p>
+                      </div>
+                      <button className="h-8 w-8 rounded-full bg-white text-black flex items-center justify-center">
+                        <ChevronRight size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      <div ref={containerRef} className="relative z-40 flex items-center">
+      {/* Desktop Inline Search & Mobile Trigger */}
+      <div
+        ref={containerRef}
+        className={`relative z-40 flex items-center ${
+          isOpen ? "hidden md:flex" : "flex"
+        }`}
+      >
         <motion.div
+          // ... existing motion.div logic
           initial={false}
           animate={{ width: isOpen ? 300 : 40 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -186,15 +261,9 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
                         key={product.id}
                         className="flex items-center gap-3 p-2 hover:bg-zinc-50 rounded-lg cursor-pointer transition-colors"
                         onClick={() => {
-                          // Handle interaction - maybe minimal view or add to cart?
-                          // Since it's a quick search, maybe just logging or trying to add to cart if function exists?
-                          // Or we could navigate to a product page if we had one.
-                          // For now, let's assume direct add logic if provided, or console log.
-                          if (onAddToCart) {
-                            onAddToCart(product);
-                            setIsOpen(false);
-                            setQueryText("");
-                          }
+                          setProductToView(product); // Open modal
+                          setIsOpen(false);
+                          setQueryText("");
                         }}
                       >
                         <div className="h-10 w-10 rounded bg-zinc-100 overflow-hidden shrink-0">
@@ -213,11 +282,9 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
                             GHS {product.price}
                           </p>
                         </div>
-                        {onAddToCart && (
-                          <button className="h-8 w-8 rounded-full bg-black text-white flex items-center justify-center shrink-0">
-                            <ShoppingBag size={14} />
-                          </button>
-                        )}
+                        <button className="h-8 w-8 rounded-full bg-zinc-100 text-black flex items-center justify-center shrink-0">
+                          <ChevronRight size={14} />
+                        </button>
                       </div>
                     ))}
                   </div>

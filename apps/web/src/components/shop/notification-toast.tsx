@@ -48,11 +48,11 @@ export function NotificationToast() {
     <AnimatePresence>
       {visible && currentNotif && (
         <motion.div
-          initial={{ opacity: 0, x: 100 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 100 }}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed top-24 right-6 z-[60] w-full max-w-sm"
+          className="fixed top-6 inset-x-4 md:inset-x-auto md:left-auto md:right-6 md:top-24 z-[60] md:w-full md:max-w-sm"
         >
           <div
             onClick={handleClick}
