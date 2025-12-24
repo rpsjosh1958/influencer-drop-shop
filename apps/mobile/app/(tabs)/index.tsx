@@ -5,6 +5,7 @@ import {
   Pressable,
   Dimensions,
   RefreshControl,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -58,8 +59,10 @@ const { width } = Dimensions.get("window");
 
 import { useNotifications } from "@/context/notification-context";
 import { useRouter } from "expo-router";
+import { cn } from "@/lib/utils";
 
 import { useStore } from "@/context/store-context";
+import { StoreSwitcher } from "@/components/shop/store-switcher"; // Imported
 
 export default function ShopHome() {
   const router = useRouter();
@@ -72,6 +75,15 @@ export default function ShopHome() {
 
   // Use store status instead of system config
   const isLive = store?.status === "live";
+
+  useEffect(() => {
+    if (store?.theme) {
+      console.log(
+        "🎨 MOBILE THEME DEBUG:",
+        JSON.stringify(store.theme, null, 2)
+      );
+    }
+  }, [store?.theme]);
 
   // Search State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -296,7 +308,35 @@ export default function ShopHome() {
     fetchProducts();
   }, [storeId]);
 
-  if (loading && !products.length) return null; // Or skeleton
+  if (loading && !products.length) {
+    return (
+      <GestureHandlerRootView className="flex-1 bg-black">
+        <StatusBar style="dark" />
+        <SafeAreaView className="flex-1 bg-white">
+          <View className="px-6 py-4">
+            <View className="h-4 w-20 bg-zinc-100 rounded-full mb-4" />
+            {/* Logo skeleton */}
+            <View className="flex-row items-center justify-between mb-8">
+              <View className="flex-row items-center gap-2 bg-zinc-100 rounded-full px-3 py-1.5 w-32 h-6" />
+            </View>
+            <View className="mb-4 items-center space-y-2">
+              <Skeleton width="80%" height={40} radius={8} />
+              <Skeleton width="60%" height={20} radius={4} />
+            </View>
+            <View className="flex-row flex-wrap justify-center align-center">
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} className="w-[48%] mb-6 space-y-3">
+                  <Skeleton width="100%" height={256} radius={20} />
+                  <Skeleton width="60%" height={24} radius={4} />
+                  <Skeleton width="40%" height={16} radius={4} />
+                </View>
+              ))}
+            </View>
+          </View>
+        </SafeAreaView>
+      </GestureHandlerRootView>
+    );
+  }
 
   if (isLive === false) {
     return <ShopClosed />;
@@ -424,8 +464,11 @@ export default function ShopHome() {
 
           {/* Main Screen Content (Draggable) */}
           <Animated.View
-            style={rStyle}
-            className="flex-1 bg-white overflow-hidden shadow-2xl z-10"
+            style={[
+              rStyle,
+              { backgroundColor: store?.theme?.backgroundColor || "#ffffff" },
+            ]}
+            className="flex-1 overflow-hidden shadow-2xl z-10"
           >
             <SafeAreaView className="flex-1">
               {/* Header */}
@@ -433,15 +476,12 @@ export default function ShopHome() {
                 {/* Logo Area */}
                 {!isSearchOpen && (
                   <MotiView
-                    from={{ opacity: 0, translateX: -20 }}
+                    from={{ opacity: 0, translateX: -10 }}
                     animate={{ opacity: 1, translateX: 0 }}
-                    exit={{ opacity: 0, translateX: -20 }}
-                    className="flex-row items-center gap-2"
+                    exit={{ opacity: 0, translateX: -10 }}
+                    transition={{ type: "timing", duration: 250 }}
                   >
-                    <View className="h-4 w-4 bg-black rounded-full" />
-                    <H1 className="text-xl tracking-tighter uppercase">
-                      {store?.name || "DROP."}
-                    </H1>
+                    <StoreSwitcher />
                   </MotiView>
                 )}
 
@@ -544,7 +584,7 @@ export default function ShopHome() {
 
               {/* Scrolling Content */}
               <ScrollView
-                contentContainerStyle={{ paddingBottom: 150 }}
+                contentContainerStyle={{ paddingBottom: 80 }}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -554,25 +594,60 @@ export default function ShopHome() {
                 }
                 scrollEnabled={!isSearchOpen || suggestions.length === 0}
               >
-                {!isSearching && (
+                {!isSearching && store?.theme?.hero?.enabled !== false && (
                   <View className="px-6 pt-4 pb-6">
                     <MotiView
                       from={{ opacity: 0, translateY: 30 }}
                       animate={{ opacity: 1, translateY: 0 }}
                       transition={{ delay: 200 }}
+                      className={cn(
+                        "flex-col",
+                        store?.theme?.hero?.layout === "left"
+                          ? "items-start"
+                          : store?.theme?.hero?.layout === "right"
+                          ? "items-end"
+                          : "items-center"
+                      )}
                     >
-                      <View className="flex-row items-center gap-2 mb-4 bg-black self-center px-3 py-1.5 rounded-full">
-                        <Zap size={12} color="#fbbf24" fill="#fbbf24" />
+                      <View
+                        className="flex-row items-center gap-2 mb-4 bg-black px-3 py-1.5 rounded-full"
+                        style={{
+                          backgroundColor:
+                            store?.theme?.primaryColor || "black",
+                        }}
+                      >
+                        <Zap size={12} color="white" fill="white" />
                         <P className="text-white text-[10px] font-bold uppercase tracking-widest">
                           Live Drop Now Active
                         </P>
                       </View>
-                      <H1 className="text-6xl font-black text-center tracking-tighter leading-none mb-4 uppercase">
-                        {store?.theme?.heroText || "SECURE THE BAG."}
+                      <H1
+                        className={cn(
+                          "text-6xl font-black tracking-tighter leading-none mb-4 uppercase",
+                          store?.theme?.hero?.layout === "left"
+                            ? "text-left"
+                            : store?.theme?.hero?.layout === "right"
+                            ? "text-right"
+                            : "text-center"
+                        )}
+                        style={{
+                          color: store?.theme?.hero?.headlineColor || "black",
+                        }}
+                      >
+                        {store?.theme?.hero?.headline || "SECURE THE BAG."}
                       </H1>
-                      <P className="text-lg text-center text-zinc-500">
-                        Limited edition drops. Once they're gone, they're gone
-                        forever. Don't lack.
+                      <P
+                        className={cn(
+                          "text-lg text-zinc-500",
+                          store?.theme?.hero?.layout === "left"
+                            ? "text-left"
+                            : store?.theme?.hero?.layout === "right"
+                            ? "text-right"
+                            : "text-center"
+                        )}
+                      >
+                        {store?.theme?.hero?.subheadline ||
+                          "Limited edition drops. Once they're gone, they're gone forever. Don't lack."}
                       </P>
                     </MotiView>
                   </View>
@@ -650,9 +725,27 @@ export default function ShopHome() {
                       ))}
                     </View>
                   ) : (
-                    <View className="flex-row flex-wrap justify-center align-center">
+                    <View
+                      className={cn(
+                        "flex-row flex-wrap gap-3",
+                        store?.theme?.cardSize === "large"
+                          ? "justify-center"
+                          : "justify-between"
+                      )}
+                    >
                       {displayedProducts.map((product, i) => (
-                        <View key={product.id} className="w-[48%]">
+                        <View
+                          key={product.id}
+                          style={{
+                            width:
+                              store?.theme?.cardSize === "large"
+                                ? "100%"
+                                : store?.theme?.cardSize === "small"
+                                ? "31%"
+                                : "48%",
+                          }}
+                          className="mb-4"
+                        >
                           <ProductCard
                             product={product}
                             index={i}
@@ -677,6 +770,62 @@ export default function ShopHome() {
                     </View>
                   )}
                 </View>
+
+                {/* Footer Section */}
+                {store?.theme?.footer?.enabled && (
+                  <View
+                    className="px-6 py-10 border-t border-zinc-100 mt-10"
+                    style={{ borderColor: `${store.theme.primaryColor}20` }}
+                  >
+                    <View className="items-center space-y-4">
+                      <H1
+                        className="text-xl font-black uppercase tracking-tighter"
+                        style={{ color: store.theme.primaryColor || "black" }}
+                      >
+                        {store.name}
+                      </H1>
+                      {store.theme.footer.text && (
+                        <P
+                          className="text-center text-xs opacity-60"
+                          style={{ color: store.theme.primaryColor || "black" }}
+                        >
+                          {store.theme.footer.text}
+                        </P>
+                      )}
+
+                      {/* Socials & Contact */}
+                      <View className="flex-row gap-6 mt-4 opacity-80">
+                        {store.theme.footer.socials?.instagram && (
+                          <P className="text-xs font-bold">
+                            IG: {store.theme.footer.socials.instagram}
+                          </P>
+                        )}
+                        {store.theme.footer.socials?.twitter && (
+                          <P className="text-xs font-bold">
+                            TW: {store.theme.footer.socials.twitter}
+                          </P>
+                        )}
+                      </View>
+
+                      <View className="items-center gap-1 mt-2 opacity-60">
+                        {store.theme.footer.contact?.email && (
+                          <P className="text-xs underline">
+                            {store.theme.footer.contact.email}
+                          </P>
+                        )}
+                        {store.theme.footer.contact?.address && (
+                          <P className="text-xs text-center">
+                            {store.theme.footer.contact.address}
+                          </P>
+                        )}
+                      </View>
+
+                      <P className="text-[10px] text-zinc-300 uppercase tracking-widest mt-3">
+                        Powered by CopDrop
+                      </P>
+                    </View>
+                  </View>
+                )}
               </ScrollView>
             </SafeAreaView>
           </Animated.View>

@@ -1,10 +1,9 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
-// High-quality "Hype" images from Unsplash
-// Local optimized assets
-const ITEM_IMAGES = [
+const IMAGES = [
   "/assets/landing/item-1.jpg",
   "/assets/landing/item-2.jpg",
   "/assets/landing/item-3.jpg",
@@ -15,75 +14,71 @@ const ITEM_IMAGES = [
   "/assets/landing/item-8.jpg",
   "/assets/landing/item-9.jpg",
   "/assets/landing/item-10.jpg",
-  "/assets/landing/item-11.jpg",
-  "/assets/landing/item-12.jpg",
+  "https://images.unsplash.com/photo-1523398002811-999ca8dec234?q=80&w=1000",
+  "https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1000",
+  "https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=1000",
+  "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1000",
+  "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1000",
+  "https://images.unsplash.com/photo-1511556532299-8f662fc26c06?q=80&w=1000",
+  "https://images.unsplash.com/photo-1617137984095-74e4e5e3613f?q=80&w=1000",
+  "https://images.unsplash.com/photo-1512353087810-25dfcd100962?q=80&w=1000",
+  "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=1000",
+  "https://images.unsplash.com/photo-1445205170230-053b83016050?q=80&w=1000",
 ];
 
-// Shuffle/Duplicate for infinite feel
-const IMAGES_COL_1 = ITEM_IMAGES.slice(0, 6);
-const IMAGES_COL_2 = ITEM_IMAGES.slice(3, 9);
-const IMAGES_COL_3 = ITEM_IMAGES.slice(6, 12);
-const IMAGES_COL_4 = [...ITEM_IMAGES.slice(9, 12), ...ITEM_IMAGES.slice(0, 3)];
+function FadingImageCell({ delay }: { delay: number }) {
+  const [currentImage, setCurrentImage] = useState(
+    () => IMAGES[Math.floor(Math.random() * IMAGES.length)]
+  );
 
-export function HeroBackground() {
+  useEffect(() => {
+    const changeImage = () => {
+      setCurrentImage((prev) => {
+        let next;
+        do {
+          next = IMAGES[Math.floor(Math.random() * IMAGES.length)];
+        } while (next === prev);
+        return next;
+      });
+    };
+
+    const timeout = setTimeout(() => {
+      const interval = setInterval(changeImage, 4000 + Math.random() * 4000);
+      return () => clearInterval(interval);
+    }, delay * 1000);
+
+    return () => clearTimeout(timeout);
+  }, [delay]);
+
   return (
-    <div className="fixed inset-0 z-0 overflow-hidden bg-black pointer-events-none">
-      {/* Grid Container */}
-      <div className="absolute -inset-[50%] opacity-40 rotate-[10deg] scale-110 flex gap-4 md:gap-8 justify-center">
-        <Column images={IMAGES_COL_1} duration={40} />
-        <Column images={IMAGES_COL_2} duration={55} offset={-50} />
-        <Column images={IMAGES_COL_3} duration={45} />
-        <Column
-          images={IMAGES_COL_4}
-          duration={60}
-          offset={-100}
-          className="hidden md:flex"
+    <div className="relative w-full h-full bg-zinc-900/50 overflow-hidden rounded-lg">
+      <AnimatePresence mode="popLayout">
+        <motion.img
+          key={currentImage}
+          src={currentImage}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.4 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+          className="absolute inset-0 w-full h-full object-cover grayscale opacity-50"
         />
-      </div>
-
-      {/* Vignette & Dimming */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black z-10" />
-      <div className="absolute inset-0 bg-black/20 z-10" />
-      <div className="absolute inset-0 z-10" />
+      </AnimatePresence>
     </div>
   );
 }
 
-function Column({
-  images,
-  duration,
-  offset = 0,
-  className = "",
-}: {
-  images: string[];
-  duration: number;
-  offset?: number;
-  className?: string;
-}) {
+export function HeroBackground() {
   return (
-    <motion.div
-      initial={{ y: offset }}
-      animate={{ y: `-${50 + offset}%` }}
-      transition={{
-        ease: "linear",
-        duration: duration,
-        repeat: Infinity,
-      }}
-      className={`flex flex-col gap-4 md:gap-8 w-1/3 md:w-64 flex-shrink-0 ${className}`}
-    >
-      {[...images, ...images].map((src, idx) => (
-        <div
-          key={idx}
-          className="relative aspect-[3/4] w-full overflow-hidden rounded-xl bg-zinc-900 border border-white/5"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt="Drop item"
-            className="h-full w-full object-cover grayscale hover:grayscale-0 transition-all duration-700 opacity-60"
-          />
-        </div>
-      ))}
-    </motion.div>
+    <div className="fixed inset-0 z-0 bg-black pointer-events-none">
+      <div className="absolute inset-0 grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 p-2 opacity-60">
+        {Array.from({ length: 30 }).map((_, i) => (
+          <FadingImageCell key={i} delay={Math.random() * 5} />
+        ))}
+      </div>
+
+      {/* Overlays */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-black/40 z-10" />
+      <div className="absolute inset-0 bg-black/10 z-10" />
+    </div>
   );
 }

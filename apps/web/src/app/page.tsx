@@ -50,7 +50,7 @@ function PlatformLandingContent() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 bg-white rounded-full" />
-          <span className="font-black tracking-tighter text-xl">COPDROP.</span>
+          <span className="font-black tracking-tighter text-xl">DROP.</span>
         </div>
         <div className="flex items-center gap-6">
           <Link
@@ -63,12 +63,13 @@ function PlatformLandingContent() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center">
         {/* Background scrolls WITH this section now */}
         <HeroBackground />
 
         {/* Hero Content */}
-        <div className="relative z-10 text-center px-6 pt-20">
+        <div className="relative z-20 text-center px-6 pt-20">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-widest mb-8 border border-white/10 hover:bg-white/20 transition-colors cursor-default">
             <Zap size={14} className="text-yellow-400 fill-yellow-400" />
             The Drop Platform
@@ -82,7 +83,7 @@ function PlatformLandingContent() {
           </h1>
 
           <p className="text-xl md:text-2xl text-zinc-400 font-medium max-w-2xl mx-auto leading-relaxed mb-12">
-            The all-in-one platform for influencers to launch exclusive drops.
+            The all-in-one platform for stores to launch exclusive drops.
             Limited stock. High demand. Zero friction.
           </p>
 
@@ -95,11 +96,6 @@ function PlatformLandingContent() {
             </Link>
             <StoreSelector />
           </div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20 animate-bounce">
-          <ChevronDown className="text-white/50 w-10 h-10" />
         </div>
       </section>
 

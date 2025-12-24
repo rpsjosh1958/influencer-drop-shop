@@ -25,6 +25,7 @@ export const unstable_settings = {
 
 import { CartProvider } from "@/context/cart-context";
 import { AlertProvider } from "@/context/alert-context";
+import { StoreProvider } from "@/context/store-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RootLayout() {
@@ -77,53 +78,55 @@ export default function RootLayout() {
       >
         <NotificationProvider>
           <AlertProvider>
-            <CartProvider>
-              <InAppNotificationBanner />
-              <ThemeProvider
-                value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-              >
-                <View style={{ flex: 1 }}>
-                  <Stack>
-                    <Stack.Screen
-                      name="(tabs)"
-                      options={{ headerShown: false, gestureEnabled: false }}
-                    />
-                    <Stack.Screen
-                      name="(auth)"
-                      options={{ headerShown: false }}
-                    />
-                    <Stack.Screen name="+not-found" />
-                    <Stack.Screen
-                      name="modal"
-                      options={{ presentation: "modal", title: "Modal" }}
-                    />
-                    <Stack.Screen
-                      name="checkout"
-                      options={{ headerShown: false }}
-                    />
-                  </Stack>
-
-                  {/* Splash Overlay */}
-                  {!splashFinished && (
-                    <View
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        zIndex: 50,
-                      }}
-                    >
-                      <AnimatedSplash
-                        onFinish={() => setSplashFinished(true)}
+            <StoreProvider>
+              <CartProvider>
+                <InAppNotificationBanner />
+                <ThemeProvider
+                  value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Stack>
+                      <Stack.Screen
+                        name="(tabs)"
+                        options={{ headerShown: false, gestureEnabled: false }}
                       />
-                    </View>
-                  )}
-                </View>
-                <StatusBar style="auto" />
-              </ThemeProvider>
-            </CartProvider>
+                      <Stack.Screen
+                        name="(auth)"
+                        options={{ headerShown: false }}
+                      />
+                      <Stack.Screen name="+not-found" />
+                      <Stack.Screen
+                        name="modal"
+                        options={{ presentation: "modal", title: "Modal" }}
+                      />
+                      <Stack.Screen
+                        name="checkout"
+                        options={{ headerShown: false }}
+                      />
+                    </Stack>
+
+                    {/* Splash Overlay */}
+                    {!splashFinished && (
+                      <View
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          zIndex: 50,
+                        }}
+                      >
+                        <AnimatedSplash
+                          onFinish={() => setSplashFinished(true)}
+                        />
+                      </View>
+                    )}
+                  </View>
+                  <StatusBar style="auto" />
+                </ThemeProvider>
+              </CartProvider>
+            </StoreProvider>
           </AlertProvider>
         </NotificationProvider>
       </PaystackProvider>

@@ -16,6 +16,7 @@ interface ButtonProps {
   textClassName?: string;
   disabled?: boolean;
   loading?: boolean;
+  icon?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -28,9 +29,10 @@ export function Button({
   textClassName,
   disabled,
   loading,
+  icon,
   children,
 }: ButtonProps) {
-  const baseStyles = "flex-row items-center justify-center rounded-xl";
+  const baseStyles = "flex-row items-center justify-center rounded-xl gap-2";
 
   const variants = {
     default: "bg-black",
@@ -70,15 +72,18 @@ export function Button({
             </Text>
           ) : (
             children || (
-              <Text
-                className={cn(
-                  textBaseStyles,
-                  textVariants[variant],
-                  textClassName
-                )}
-              >
-                {title}
-              </Text>
+              <>
+                <Text
+                  className={cn(
+                    textBaseStyles,
+                    textVariants[variant],
+                    textClassName
+                  )}
+                >
+                  {title}
+                </Text>
+                {icon}
+              </>
             )
           )}
         </MotiView>
