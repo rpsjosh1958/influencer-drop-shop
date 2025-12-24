@@ -12,9 +12,12 @@ import {
 import { db } from "@/lib/firebase";
 import { Product } from "@/types";
 import { ProductForm } from "@/components/admin/product-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Eye } from "lucide-react";
+import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 export default function ProductsPage() {
+  const { storeId, loading: storeLoading } = useAdminStore();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(
@@ -25,16 +28,26 @@ export default function ProductsPage() {
 
   // Check store status
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "system", "config"), (doc) => {
+    if (!storeId) return;
+
+    const unsub = onSnapshot(doc(db, "stores", storeId), (doc) => {
       if (doc.exists()) {
-        setIsLive(doc.data().isLive);
+        const data = doc.data();
+        // Stores use 'status' field: 'live' | 'maintenance' | 'unpaid'
+        // 'isLive' in older code meant strict boolean, here we check status string
+        setIsLive(data.status === "live");
       }
     });
     return () => unsub();
-  }, []);
+  }, [storeId]);
 
   useEffect(() => {
-    const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+    if (!storeId) return;
+
+    const q = query(
+      collection(db, "stores", storeId, "products"),
+      orderBy("createdAt", "desc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -44,11 +57,12 @@ export default function ProductsPage() {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [storeId]);
 
   const handleDelete = async (id: string) => {
+    if (!storeId) return;
     if (confirm("Are you sure you want to delete this product?")) {
-      await deleteDoc(doc(db, "products", id));
+      await deleteDoc(doc(db, "stores", storeId, "products", id));
     }
   };
 
@@ -61,6 +75,10 @@ export default function ProductsPage() {
     setEditingProduct(undefined);
     setIsFormOpen(true);
   };
+
+  if (storeLoading || !storeId) {
+    return <div className="p-8">Loading store context...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -164,6 +182,7 @@ export default function ProductsPage() {
 
       {isFormOpen && (
         <ProductForm
+          storeId={storeId}
           initialData={editingProduct}
           onClose={() => setIsFormOpen(false)}
           onSuccess={() => setIsFormOpen(false)}

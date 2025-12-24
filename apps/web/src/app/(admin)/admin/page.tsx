@@ -80,6 +80,16 @@ export default function AdminLogin() {
             {loading ? <Loader2 className="animate-spin" /> : "ENTER SYSTEM"}
           </button>
         </form>
+
+        <p className="text-center text-zinc-500 text-sm">
+          Want to sell your own drops?{" "}
+          <span
+            onClick={() => router.push("/create-store")}
+            className="text-white font-bold hover:underline cursor-pointer"
+          >
+            Create a store
+          </span>
+        </p>
       </motion.div>
     </div>
   );

@@ -16,7 +16,7 @@ import {
   Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useParams } from "next/navigation";
 import { CartProvider } from "./cart-provider";
 import { CartDrawer } from "./cart-drawer";
 import { OrdersDropdown } from "./orders-dropdown";
@@ -46,30 +46,61 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
 
   const router = useRouter();
   const pathname = usePathname();
+  const params = useParams();
+
+  useEffect(() => {
+    console.log(
+      "ShopLayoutWrapper: Mounted. Params:",
+      params,
+      "Pathname:",
+      pathname
+    );
+  }, [params, pathname]);
 
   // 1. Check Store Status
   useEffect(() => {
+    const storeId = Array.isArray(params?.storeId)
+      ? params.storeId[0]
+      : (params?.storeId as string) || "default-store";
+
+    console.log(
+      `ShopLayoutWrapper: Subscribing to store config for: ${storeId}`
+    );
+
     const unsub = onSnapshot(
-      doc(db, "system", "config"),
+      doc(db, "stores", storeId),
       (doc) => {
         if (doc.exists()) {
-          setIsLive(doc.data().isLive);
+          const data = doc.data();
+          console.log("ShopLayoutWrapper: Store config fetched:", data);
+          // Assuming 'status' field controls live state. 'live' = open.
+          setIsLive(data.status === "live");
         } else {
+          console.warn(
+            "ShopLayoutWrapper: Store doc does not exist. Defaulting to closed."
+          );
           setIsLive(false);
         }
       },
       (error) => {
-        console.error("System config access denied:", error);
+        console.error(
+          "ShopLayoutWrapper: Store config access denied/error:",
+          error
+        );
         // Default to closed if we can't read config (likely due to auth rules)
         setIsLive(false);
       }
     );
     return () => unsub();
-  }, []);
+  }, [params]);
 
   // 2. Check Auth Status
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
+      console.log(
+        "ShopLayoutWrapper: Auth state changed. User:",
+        user ? user.uid : "null"
+      );
       setUser(user);
     });
     return () => unsub();
@@ -85,7 +116,13 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
       type: "error", // Using error style (red) for destructive action
       onConfirm: async () => {
         await signOut(auth);
-        router.replace("/login");
+
+        // Use window.location for a hard refresh to clear any lingering React state/listeners
+        // or just router.replace with the correct store path
+        const storeId = Array.isArray(params?.storeId)
+          ? params.storeId[0]
+          : (params?.storeId as string) || "default-store";
+        router.replace(`/shop/${storeId}/login`);
       },
       onCancel: () => {},
     });

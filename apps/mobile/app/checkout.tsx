@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+// @ts-ignore
+import { Paystack } from "react-native-paystack-webview";
 import {
   View,
   ScrollView,
@@ -23,7 +25,7 @@ import {
   ShieldCheck,
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { usePaystack } from "react-native-paystack-webview";
+
 import { SlideToPay } from "@/components/ui/slide-to-pay";
 import { auth, db } from "@/lib/firebase";
 import {
@@ -37,109 +39,79 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
+import { useStore } from "@/context/store-context";
+
+// ... inside component
 export default function CheckoutScreen() {
   const router = useRouter();
-
-  const truncate = (str: string, length: number) => {
-    return str.length > length ? str.substring(0, length) + "..." : str;
-  };
-
-  const { cart, total, clearCart } = useCart();
+  const { storeId } = useStore(); // Get storeId
+  const { cart, clearCart, total } = useCart();
   const { showAlert } = useAlert();
-  const { popup } = usePaystack();
 
   const [loading, setLoading] = useState(false);
-  const [initializing, setInitializing] = useState(true);
-
-  // Form State
-  const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
-  const [city, setCity] = useState("Accra");
+  const [initializing, setInitializing] = useState(true);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
-        setEmail(u.email || "");
-        setName(u.displayName || "");
-
-        // Fetch Profile
-        try {
-          const docRef = doc(db, "users", u.uid);
-          const snap = await getDoc(docRef);
-          if (snap.exists()) {
-            const data = snap.data();
-            setPhone(data.phone || "");
-
-            // Pre-fill address if available
-            const addrs = data.addresses || [];
-            const def = addrs.find((a: any) => a.isDefault);
-            if (def) {
-              setCity(def.city);
-              setAddress(def.street);
-            } else if (addrs.length > 0) {
-              setCity(addrs[0].city);
-              setAddress(addrs[0].street);
-            }
-          }
-        } catch (e) {
-          console.log("Failed to load profile", e);
-        }
+        // Pre-fill if available
+        if (u.displayName) setName(u.displayName);
+        if (u.email) setEmail(u.email);
       }
       setInitializing(false);
     });
-    return () => unsub();
+    return unsub;
   }, []);
 
+  // ... existing code
+
   const reserveStock = async () => {
+    if (!storeId) return false;
     try {
       await runTransaction(db, async (transaction) => {
         // 1. Read all product docs first
         const productReads = await Promise.all(
           cart.map(async (item) => {
-            const ref = doc(db, "products", item.id);
+            const ref = doc(db, "stores", storeId, "products", item.id); // Updated path
             const snapshot = await transaction.get(ref);
             return { ref, snapshot, item };
           })
         );
 
-        // 2. Validate availability
+        // ... validation logic (same as before)
         for (const { snapshot, item } of productReads) {
           if (!snapshot.exists()) {
             throw new Error(`Product ${item.name} no longer exists.`);
           }
-
+          // ... rest of validation
           const productData = snapshot.data();
 
           if (item.variant) {
-            // Variant Logic
             const variants = productData.variants || [];
             const variant = variants.find(
               (v: any) => v.id === item.variant!.id
             );
-
-            if (!variant) {
+            if (!variant)
               throw new Error(
                 `Variant ${item.variant.name} of ${item.name} no longer exists.`
               );
-            }
-
-            if (variant.stock < item.quantity) {
+            if (variant.stock < item.quantity)
               throw new Error(
                 `Not enough stock for ${item.name} (${item.variant.name}). Only ${variant.stock} left.`
               );
-            }
           } else {
-            // Simple Product Logic
             const currentStock = productData.stock ?? 0;
-            if (currentStock < item.quantity) {
+            if (currentStock < item.quantity)
               throw new Error(
                 `Not enough stock for ${item.name}. Only ${currentStock} left.`
               );
-            }
           }
         }
 
@@ -156,10 +128,7 @@ export default function CheckoutScreen() {
               }
               return v;
             });
-
-            // Also decrease total stock for convenience
             const newTotalStock = (productData.stock ?? 0) - item.quantity;
-
             transaction.update(ref, {
               variants: updatedVariants,
               stock: newTotalStock,
@@ -183,10 +152,13 @@ export default function CheckoutScreen() {
   };
 
   const restoreStock = async () => {
+    if (!storeId) return;
     try {
       await runTransaction(db, async (transaction) => {
         const reads = await Promise.all(
-          cart.map((item) => transaction.get(doc(db, "products", item.id)))
+          cart.map((item) =>
+            transaction.get(doc(db, "stores", storeId, "products", item.id))
+          )
         );
 
         reads.forEach((snap, idx) => {
@@ -195,7 +167,7 @@ export default function CheckoutScreen() {
           const data = snap.data();
           if (!data) return;
 
-          const ref = doc(db, "products", item.id);
+          const ref = doc(db, "stores", storeId, "products", item.id);
 
           if (item.variant) {
             const variants = data.variants || [];
@@ -209,9 +181,7 @@ export default function CheckoutScreen() {
               stock: (data.stock || 0) + item.quantity,
             });
           } else {
-            transaction.update(ref, {
-              stock: increment(item.quantity),
-            });
+            transaction.update(ref, { stock: increment(item.quantity) });
           }
         });
       });
@@ -221,48 +191,12 @@ export default function CheckoutScreen() {
     }
   };
 
-  const handlePayPress = async () => {
-    if (!name || !email || !phone || !address || !city) {
-      showAlert({
-        title: "Missing Information",
-        message: "Please fill in all shipping details first.",
-        type: "error",
-      });
-      return;
-    }
-
-    setLoading(true);
-    const reserved = await reserveStock();
-
-    if (reserved) {
-      // Trigger Paystack Modal
-      try {
-        popup.checkout({
-          email,
-          amount: total, // Assuming library handles unit or key implies GHS
-          onSuccess: (res) => handleSuccess(res),
-          onCancel: () => handleCancel(),
-        });
-      } catch (e) {
-        console.error("Paystack Init Error", e);
-        setLoading(false);
-        showAlert({
-          title: "Payment Error",
-          message: "Could not start payment",
-          type: "error",
-        });
-      }
-    } else {
-      setLoading(false);
-    }
-  };
-
   const handleSuccess = async (res: any) => {
-    // Payment Successful
     try {
+      if (!storeId) throw new Error("No store context");
+
       const orderData = {
         items: cart.map((item) => ({
-          // Map to match web format slightly if needed, but keeping consistently with context
           id: item.id,
           name: item.name,
           price: item.price,
@@ -276,7 +210,7 @@ export default function CheckoutScreen() {
           email: email,
           phone: phone,
           address: `${address}, ${city}`,
-          country: "Ghana", // Defaulting for now or add picker
+          country: "Ghana",
           city,
           street: address,
           zip: "",
@@ -287,9 +221,10 @@ export default function CheckoutScreen() {
         userId: user?.uid || "guest",
         customerEmail: user?.email || email,
         customerName: name,
+        storeId, // Tag with storeId
       };
 
-      await addDoc(collection(db, "orders"), orderData);
+      await addDoc(collection(db, "stores", storeId, "orders"), orderData);
 
       clearCart();
       setLoading(false);
@@ -325,6 +260,27 @@ export default function CheckoutScreen() {
       message: "You cancelled the payment process.",
       type: "info",
     });
+  };
+
+  const paystackWebViewRef = useRef<any>(null);
+
+  const handlePayPress = async () => {
+    if (!name || !email || !phone || !address || !city) {
+      showAlert({
+        title: "Missing Information",
+        message: "Please fill in all shipping details.",
+        type: "error",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const stockReserved = await reserveStock();
+    if (stockReserved) {
+      paystackWebViewRef.current?.startTransaction();
+    } else {
+      setLoading(false);
+    }
   };
 
   if (initializing) {
@@ -472,6 +428,21 @@ export default function CheckoutScreen() {
                       className="flex-1 ml-3 font-medium text-base text-black"
                       placeholderTextColor="#a1a1aa"
                     />
+                    <Paystack
+                      paystackKey={
+                        process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY || ""
+                      }
+                      billingEmail={email}
+                      billingName={name}
+                      billingMobile={phone}
+                      amount={total}
+                      onCancel={handleCancel}
+                      onSuccess={handleSuccess}
+                      ref={paystackWebViewRef}
+                      currency="GHS"
+                      channels={["card", "mobile_money"]}
+                      autoStart={false}
+                    />
                   </View>
                 </View>
               </View>
@@ -500,3 +471,7 @@ export default function CheckoutScreen() {
     </View>
   );
 }
+
+const truncate = (str: string, n: number) => {
+  return str.length > n ? str.slice(0, n - 1) + "..." : str;
+};

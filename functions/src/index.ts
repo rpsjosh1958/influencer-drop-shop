@@ -119,3 +119,5 @@ export const onNotificationCreated = onDocumentCreated(
     }
   }
 );
+
+export { migrateToMultiVendor } from "./migrate_to_multi_vendor";

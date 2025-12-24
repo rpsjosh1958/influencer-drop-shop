@@ -1,40 +1,45 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Order } from "@/types";
+import {
+  Search,
+  CheckCircle2,
+  Clock,
+  Truck,
+  XCircle,
+  AlertCircle,
+  Eye,
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
   SlidersHorizontal,
   ArrowUpDown,
 } from "lucide-react";
-import { AdminOrderModal } from "@/components/admin/admin-order-modal";
-import { startOfDay, endOfDay, isAfter, isBefore } from "date-fns";
-
-import DatePicker from "react-datepicker";
+import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-
-interface Order {
-  id: string;
-  customerName?: string;
-  customerEmail: string;
-  total: number;
-  status: string;
-  items: any[];
-  shipping?: any;
-  createdAt: any;
-}
+import { AdminOrderModal } from "@/components/admin/admin-order-modal";
+import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { startOfDay, endOfDay, isBefore, isAfter } from "date-fns";
 
 const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
 
 export default function OrdersPage() {
+  const { storeId, loading: storeLoading } = useAdminStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Filters
+  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
@@ -43,10 +48,17 @@ export default function OrdersPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
 
+  // Selected Order for Modal
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
   useEffect(() => {
-    // Listen to ALL orders (assuming dataset < a few thousands for now)
-    // For scale, we'd use server-side cursors.
-    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    if (!storeId) return;
+
+    // Listen to store-specific orders
+    const q = query(
+      collection(db, "stores", storeId, "orders"),
+      orderBy("createdAt", "desc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -56,12 +68,29 @@ export default function OrdersPage() {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
-
-  // ... (inside component)
+  }, [storeId]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
+      // Search Term Filter
+      const customerInfo =
+        (order.customerName || "") +
+        " " +
+        (order.customerEmail || "") +
+        " " +
+        (order.shipping?.address || "") +
+        " " +
+        (order.shipping?.city || "") +
+        " " +
+        (order.shipping?.country || "");
+
+      if (
+        searchTerm &&
+        !customerInfo.toLowerCase().includes(searchTerm.toLowerCase())
+      ) {
+        return false;
+      }
+
       // Status Filter
       if (statusFilter !== "all") {
         if (
@@ -88,7 +117,7 @@ export default function OrdersPage() {
 
       return true;
     });
-  }, [orders, statusFilter, startDate, endDate]);
+  }, [orders, statusFilter, startDate, endDate, searchTerm]);
 
   // Pagination Logic
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -128,6 +157,10 @@ export default function OrdersPage() {
     return <span className="font-bold">{order.customerEmail}</span>;
   };
 
+  if (storeLoading || !storeId) {
+    return <div className="p-8">Loading store context...</div>;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header & Filters */}
@@ -138,6 +171,20 @@ export default function OrdersPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative h-10">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+              size={16}
+            />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search orders..."
+              className="h-full pl-9 pr-4 rounded-lg border border-zinc-200 bg-zinc-50 text-sm outline-none focus:ring-2 focus:ring-black w-48"
+            />
+          </div>
+
           {/* Status Filter */}
           <select
             value={statusFilter}
@@ -156,7 +203,7 @@ export default function OrdersPage() {
             <span className="text-xs font-bold text-zinc-400 uppercase whitespace-nowrap">
               From
             </span>
-            <DatePicker
+            <ReactDatePicker
               selected={startDate}
               onChange={(date) => setStartDate(date)}
               selectsStart
@@ -170,7 +217,7 @@ export default function OrdersPage() {
             <span className="text-xs font-bold text-zinc-400 uppercase whitespace-nowrap">
               To
             </span>
-            <DatePicker
+            <ReactDatePicker
               selected={endDate}
               onChange={(date) => setEndDate(date)}
               selectsEnd
@@ -310,8 +357,8 @@ export default function OrdersPage() {
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         order={selectedOrder}
+        storeId={storeId!}
       />
     </div>
   );
 }
-

@@ -2,8 +2,8 @@
 
 import "../../globals.css";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import {
   LayoutDashboard,
   Package,
@@ -13,23 +13,41 @@ import {
   ChevronRight,
   Megaphone,
   Tag,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
 import { BroadcastModal } from "@/components/admin/broadcast-modal";
+import { AdminStoreProvider } from "@/components/admin/admin-store-provider";
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        </div>
+      }
+    >
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
+  );
+}
+
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [collapsed, setCollapsed] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const handleLogout = async () => {
     try {
@@ -43,38 +61,60 @@ export default function AdminLayout({
     }
   };
 
-  const [loading, setLoading] = useState(true);
-
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-
-      // Check auth logic
-      if (!user && pathname !== "/admin") {
-        router.push("/admin");
-      } else if (user && pathname !== "/admin") {
-        // Logged in and inside dashboard
-        if (adminEmail && user.email !== adminEmail) {
-          router.push("/");
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // 1. Not logged in
+      if (!user) {
+        if (pathname !== "/admin") {
+          router.push("/admin");
         }
-      } else if (user && pathname === "/admin") {
-        // Logged in but on login page -> go to dashboard
-        router.push("/admin/dashboard");
+        setLoading(false);
+        return;
+      }
+
+      // 2. Logged in (Login Page) -> Go to dashboard or redirect
+      if (pathname === "/admin") {
+        const redirectPath = searchParams.get("redirect");
+        router.push(redirectPath || "/admin/dashboard");
+        // Don't set loading false here, wait for redirect
+        return;
+      }
+
+      // 3. Gatekeeper: Check Store Ownership
+      if (user) {
+        try {
+          // If we are already running this check, prevent double checking?
+          // Actually, we need to verify user has a store.
+          const userDoc = await getDoc(doc(db, "users", user.uid));
+
+          if (!userDoc.exists()) {
+            // Edge case: Authenticated but no user doc?
+            console.error("User authenticated but no user doc found.");
+            // Potentially sign out or redirect? For now, let it fail safe.
+          }
+
+          const userData = userDoc.data();
+          const ownedStores = userData?.ownedStores || [];
+
+          if (ownedStores.length === 0) {
+            router.push("/create-store");
+            return; // Redirecting
+          }
+        } catch (e) {
+          console.error("Profile check failed", e);
+        }
       }
 
       setLoading(false);
     });
     return () => unsub();
-  }, [router, pathname]);
+  }, [router, pathname, searchParams]); // Added searchParams to dep array
 
   if (loading) {
     return (
-      <html lang="en">
-        <body className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
-          {/* Simple Loader */}
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-        </body>
-      </html>
+      <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      </div>
     );
   }
 
@@ -83,35 +123,32 @@ export default function AdminLayout({
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Categories", href: "/admin/categories", icon: Tag },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Settings", href: "/admin/settings", icon: Settings },
   ];
 
   // Don't show sidebar on login page
   if (pathname === "/admin") {
     return (
-      <html lang="en" suppressHydrationWarning>
-        <body>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            {children}
-          </ThemeProvider>
-        </body>
-      </html>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        {children}
+      </ThemeProvider>
     );
   }
 
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="antialiased bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 flex min-h-screen font-sans">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+    <div className="antialiased bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 flex min-h-screen font-sans">
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
+        <AdminStoreProvider>
           {/* Sidebar */}
           <aside
             className={cn(
@@ -202,8 +239,8 @@ export default function AdminLayout({
               {children}
             </div>
           </main>
-        </ThemeProvider>
-      </body>
-    </html>
+        </AdminStoreProvider>
+      </ThemeProvider>
+    </div>
   );
 }

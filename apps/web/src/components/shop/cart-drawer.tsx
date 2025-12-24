@@ -4,7 +4,7 @@ import { useAlert } from "@/context/alert-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Trash2, ShoppingBag, Minus, Plus } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -24,6 +24,7 @@ export function CartDrawer() {
 
   const [user, setUser] = useState<any>(null);
   const router = useRouter();
+  const params = useParams();
 
   useEffect(() => {
     return onAuthStateChanged(auth, (u) => setUser(u));
@@ -163,11 +164,15 @@ export function CartDrawer() {
               </div>
               <button
                 onClick={() => {
+                  const storeId = Array.isArray(params?.storeId)
+                    ? params.storeId[0]
+                    : (params?.storeId as string) || "default-store";
+
                   setIsCartOpen(false);
                   if (user) {
-                    router.push("/checkout");
+                    router.push(`/shop/${storeId}/checkout`);
                   } else {
-                    router.push("/login");
+                    router.push(`/shop/${storeId}/login`);
                   }
                 }}
                 className={`block w-full text-center py-4 rounded-xl font-bold uppercase tracking-wide transition-all ${

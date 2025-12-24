@@ -3,26 +3,35 @@
 import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function ShopLogin() {
   const router = useRouter();
+  const params = useParams(); // Get storeId params
+  const storeId = params.storeId as string;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    console.log("ShopLogin: Mounted. StoreId:", storeId);
     const unsub = onAuthStateChanged(auth, (user) => {
+      console.log("ShopLogin: Auth check. User:", user ? user.uid : "null");
       if (user) {
-        router.replace("/");
+        console.log(
+          "ShopLogin: User logged in, redirecting to store home:",
+          `/shop/${storeId}`
+        );
+        router.replace(`/shop/${storeId}`);
       }
     });
     return () => unsub();
-  }, [router]);
+  }, [router, storeId]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +40,7 @@ export default function ShopLogin() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push("/");
+      router.push(`/shop/${storeId}`);
     } catch (err: any) {
       setError("Invalid credentials. Please try again.");
     } finally {
@@ -94,14 +103,14 @@ export default function ShopLogin() {
           <p className="text-zinc-500 text-sm">
             Don't have an account?{" "}
             <Link
-              href="/signup"
+              href={`/shop/${storeId}/signup`}
               className="text-black font-bold hover:underline"
             >
               Join the movement
             </Link>
           </p>
           <Link
-            href="/"
+            href={`/shop/${storeId}`}
             className="inline-block text-xs font-bold text-zinc-400 hover:text-black uppercase tracking-widest transition-colors"
           >
             Continue as Guest

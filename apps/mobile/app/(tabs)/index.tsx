@@ -59,13 +59,19 @@ const { width } = Dimensions.get("window");
 import { useNotifications } from "@/context/notification-context";
 import { useRouter } from "expo-router";
 
+import { useStore } from "@/context/store-context";
+
 export default function ShopHome() {
   const router = useRouter();
+  const { storeId, store } = useStore();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isLive, setIsLive] = useState<boolean | null>(null); // Store status
+
+  // Use store status instead of system config
+  const isLive = store?.status === "live";
 
   // Search State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -96,10 +102,9 @@ export default function ShopHome() {
   const translateX = useSharedValue(0);
   const contextX = useSharedValue(0);
 
-  // Effect to sync state changes (if closing/opening programmatically)
+  // Effect to sync state changes
   useEffect(() => {
     const target = isNotificationOpen ? -width : 0;
-    // Use withTiming for no bounce
     translateX.value = withTiming(target, {
       duration: 300,
       easing: Easing.out(Easing.quad),
@@ -108,22 +113,19 @@ export default function ShopHome() {
 
   // Gesture
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-20, 20]) // Only activate if moved >20px horizontally
-    .failOffsetY([-20, 20]) // Fail if moved >20px vertically (allows scrolling)
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-20, 20])
     .onStart(() => {
       contextX.value = translateX.value;
     })
     .onUpdate((e) => {
-      // Allow dragging left (negative) up to -width
       let newValue = contextX.value + e.translationX;
-      if (newValue > 0) newValue = 0; // Cannot drag right past closed
-      if (newValue < -width) newValue = -width; // Cannot drag left past open
+      if (newValue > 0) newValue = 0;
+      if (newValue < -width) newValue = -width;
       translateX.value = newValue;
     })
     .onEnd((e) => {
-      // Snap logic
       if (translateX.value < -width / 2 || e.velocityX < -500) {
-        // Snap to Open (Slide out)
         translateX.value = withTiming(
           -width,
           { duration: 300, easing: Easing.out(Easing.quad) },
@@ -132,7 +134,6 @@ export default function ShopHome() {
           }
         );
       } else {
-        // Snap to Closed (Slide in)
         translateX.value = withTiming(
           0,
           { duration: 300, easing: Easing.out(Easing.quad) },
@@ -150,8 +151,12 @@ export default function ShopHome() {
   });
 
   const fetchProducts = async () => {
+    if (!storeId) return;
     try {
-      const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc")
+      );
       const snapshot = await getDocs(q);
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -167,26 +172,9 @@ export default function ShopHome() {
   };
 
   useEffect(() => {
-    // 1. Fetch Products
     fetchProducts();
 
-    // 2. Subscribe to Store Status
-    const unsub = onSnapshot(
-      doc(db, "system", "config"),
-      (doc) => {
-        if (doc.exists()) {
-          setIsLive(doc.data().isLive);
-        } else {
-          setIsLive(false); // Default to closed if no doc
-        }
-      },
-      (error) => {
-        console.log("Error fetching system config:", error);
-        setIsLive(false);
-      }
-    );
-
-    // 3. Fetch Categories
+    // Fetch Categories (Global for now)
     const unsubCategories = onSnapshot(
       query(collection(db, "categories"), orderBy("name", "asc")),
       (snapshot) => {
@@ -200,10 +188,9 @@ export default function ShopHome() {
     );
 
     return () => {
-      unsub();
       unsubCategories();
     };
-  }, []);
+  }, [storeId]);
 
   // Search Logic
   const searchWidth = useSharedValue(0);
@@ -211,7 +198,7 @@ export default function ShopHome() {
 
   useEffect(() => {
     if (isSearchOpen) {
-      searchWidth.value = withTiming(width - 48, { duration: 300 }); // ample width
+      searchWidth.value = withTiming(width - 48, { duration: 300 });
       searchOpacity.value = withTiming(1, { duration: 300 });
     } else {
       searchWidth.value = withTiming(0, { duration: 300 });
@@ -220,7 +207,6 @@ export default function ShopHome() {
       setSearchQuery("");
       setSuggestions([]);
       if (searchResults.length > 0) {
-        // Reset to show all products if we were showing search results
         setSearchResults([]);
         setIsSearching(false);
       }
@@ -237,7 +223,7 @@ export default function ShopHome() {
   const handleSearchTextChange = (text: string) => {
     setSearchQuery(text);
     if (text.length > 1) {
-      // Client-side suggestions from currently loaded products
+      // Client-side suggestions
       const textLower = text.toLowerCase();
       const matched = products.filter((p) =>
         p.name.toLowerCase().includes(textLower)
@@ -258,21 +244,16 @@ export default function ShopHome() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const performSearch = async () => {
-    if (!searchQuery.trim()) return;
+    if (!searchQuery.trim() || !storeId) return;
 
     setIsSearching(true);
     setLoading(true);
-    setSuggestions([]); // hide suggestions
+    setSuggestions([]);
     Keyboard.dismiss();
 
     try {
-      // Firestore Search (Prefix match)
-      // Note: Firestore is case-sensitive.
-      // Ideally, we'd have a 'keywords' array or normalized 'name_lower' field on the document.
-      // For now, attempting exact Case match or relying on client-side full list backup.
-
       const q = query(
-        collection(db, "products"),
+        collection(db, "stores", storeId, "products"),
         where("name", ">=", searchQuery),
         where("name", "<=", searchQuery + "\uf8ff")
       );
@@ -286,8 +267,6 @@ export default function ShopHome() {
         })) as Product[];
         setSearchResults(results);
       } else {
-        // Fallback: If endpoint returns nothing (likely due to case sensitivity),
-        // assume we already have most products loaded and filter locally.
         const textLower = searchQuery.toLowerCase();
         const localResults = products.filter((p) =>
           p.name.toLowerCase().includes(textLower)
@@ -296,7 +275,6 @@ export default function ShopHome() {
       }
     } catch (e) {
       console.error("Search failed:", e);
-      // Fallback to local filter on error
       const textLower = searchQuery.toLowerCase();
       const localResults = products.filter((p) =>
         p.name.toLowerCase().includes(textLower)
@@ -316,7 +294,9 @@ export default function ShopHome() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchProducts();
-  }, []);
+  }, [storeId]);
+
+  if (loading && !products.length) return null; // Or skeleton
 
   if (isLive === false) {
     return <ShopClosed />;
@@ -330,6 +310,7 @@ export default function ShopHome() {
         <View className="flex-1 bg-black">
           {/* Notification Screen (Behind) */}
           <View className="absolute inset-0 bg-black z-0">
+            {/* ... NO CHANGE ... */}
             <SafeAreaView className="flex-1 px-6">
               <View className="flex-row items-center justify-between py-4 border-b border-zinc-800 mb-4">
                 <H1 className="text-white text-3xl font-black tracking-tighter">
@@ -343,7 +324,6 @@ export default function ShopHome() {
                 </Pressable>
               </View>
 
-              {/* Filter Tabs */}
               <View className="flex-row gap-2 mb-6">
                 {["all", "unread", "read"].map((f) => (
                   <Pressable
@@ -450,7 +430,7 @@ export default function ShopHome() {
             <SafeAreaView className="flex-1">
               {/* Header */}
               <View className="flex-row items-center justify-between px-6 py-4 z-50">
-                {/* Logo Area - Hide when searching */}
+                {/* Logo Area */}
                 {!isSearchOpen && (
                   <MotiView
                     from={{ opacity: 0, translateX: -20 }}
@@ -459,7 +439,9 @@ export default function ShopHome() {
                     className="flex-row items-center gap-2"
                   >
                     <View className="h-4 w-4 bg-black rounded-full" />
-                    <H1 className="text-xl tracking-tighter">DROP.</H1>
+                    <H1 className="text-xl tracking-tighter uppercase">
+                      {store?.name || "DROP."}
+                    </H1>
                   </MotiView>
                 )}
 
@@ -504,7 +486,7 @@ export default function ShopHome() {
                     </Pressable>
                   )}
 
-                  {/* Notification Bell - Hide when searching to give space */}
+                  {/* Notification Bell */}
                   {!isSearchOpen && (
                     <Pressable
                       onPress={() => setIsNotificationOpen(!isNotificationOpen)}
@@ -528,7 +510,7 @@ export default function ShopHome() {
                   intensity={20}
                   tint="light"
                   className="absolute inset-0 z-40"
-                  style={{ top: 80 }} // Start below header approx
+                  style={{ top: 80 }}
                 />
               )}
 
@@ -570,7 +552,7 @@ export default function ShopHome() {
                     tintColor="black"
                   />
                 }
-                scrollEnabled={!isSearchOpen || suggestions.length === 0} // Disable scroll if suggestions might block? Optional.
+                scrollEnabled={!isSearchOpen || suggestions.length === 0}
               >
                 {!isSearching && (
                   <View className="px-6 pt-4 pb-6">
@@ -585,8 +567,8 @@ export default function ShopHome() {
                           Live Drop Now Active
                         </P>
                       </View>
-                      <H1 className="text-6xl font-black text-center tracking-tighter leading-none mb-4">
-                        SECURE THE BAG.
+                      <H1 className="text-6xl font-black text-center tracking-tighter leading-none mb-4 uppercase">
+                        {store?.theme?.heroText || "SECURE THE BAG."}
                       </H1>
                       <P className="text-lg text-center text-zinc-500">
                         Limited edition drops. Once they're gone, they're gone

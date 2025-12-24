@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import { User } from "firebase/auth";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
+import { useParams } from "next/navigation";
 
 interface Order {
   id: string;
@@ -32,21 +33,22 @@ interface OrdersDropdownProps {
 }
 
 export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
-  // console.log("OrdersDropdown Rendered. isOpen:", isOpen, "User:", user?.uid);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const { openOrderDetails } = useShopUI();
+  const params = useParams();
+  const storeId = params.storeId as string;
 
   useBodyScrollLock(isOpen);
 
   useEffect(() => {
     async function fetchOrders() {
-      if (!user || !isOpen) return;
+      if (!user || !isOpen || !storeId) return;
 
       setLoading(true);
       try {
         const q = query(
-          collection(db, "orders"),
+          collection(db, "stores", storeId, "orders"),
           where("userId", "==", user.uid),
           orderBy("createdAt", "desc")
         );
@@ -64,7 +66,7 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
     }
 
     fetchOrders();
-  }, [user, isOpen]);
+  }, [user, isOpen, storeId]);
 
   return (
     <AnimatePresence>

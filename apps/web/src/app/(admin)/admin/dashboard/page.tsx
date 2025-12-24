@@ -22,8 +22,11 @@ import {
   TrendingUp,
   ShoppingBag,
 } from "lucide-react";
+import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 export default function AdminDashboard() {
+  const { storeId, loading: storeLoading } = useAdminStore();
+  const [storeName, setStoreName] = useState("");
   const [isLive, setIsLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
@@ -31,21 +34,30 @@ export default function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
 
-  // Real-time listener for System Config
+  // Real-time listener for Store Config
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, "system", "config"), (doc) => {
+    if (!storeId) return;
+
+    // In multi-vendor, 'isLive' is a property of the store document itself
+    const unsub = onSnapshot(doc(db, "stores", storeId), (doc) => {
       if (doc.exists()) {
-        setIsLive(doc.data().isLive);
+        const data = doc.data();
+        setIsLive(data.status === "live");
+        setStoreName(data.name);
       }
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [storeId]);
 
   // Real-time listener for Metrics & Recent Orders
   useEffect(() => {
-    // We fetch all orders for metrics, but we could optimize this with aggregation queries in production
-    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+    if (!storeId) return;
+
+    const q = query(
+      collection(db, "stores", storeId, "orders"),
+      orderBy("createdAt", "desc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       let totalRev = 0;
       let count = 0;
@@ -53,13 +65,19 @@ export default function AdminDashboard() {
 
       snapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.status === "paid") {
+        // Assuming all orders in this collection are valid or check status
+        if (
+          data.status === "paid" ||
+          data.status === "processing" ||
+          data.status === "shipped"
+        ) {
           totalRev += data.total || 0;
           count++;
-          // Take top 5 for display
-          if (recent.length < 5) {
-            recent.push({ id: doc.id, ...data });
-          }
+        }
+
+        // Take top 5 for display (all orders, even unpaid for visibility?)
+        if (recent.length < 5) {
+          recent.push({ id: doc.id, ...data });
         }
       });
       setRevenue(totalRev);
@@ -67,27 +85,41 @@ export default function AdminDashboard() {
       setRecentOrders(recent);
     });
     return () => unsub();
-  }, []);
+  }, [storeId]);
 
   // Real-time listener for Inventory Summary
   useEffect(() => {
-    const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
+    if (!storeId) return;
+
+    const q = query(
+      collection(db, "stores", storeId, "products"),
+      orderBy("createdAt", "desc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setProducts(items);
     });
     return () => unsub();
-  }, []);
+  }, [storeId]);
 
   const toggleStore = async () => {
+    if (!storeId) return;
     try {
-      await updateDoc(doc(db, "system", "config"), {
-        isLive: !isLive,
+      await updateDoc(doc(db, "stores", storeId), {
+        status: isLive ? "maintenance" : "live",
       });
     } catch (err) {
       console.error("Failed to toggle status", err);
     }
   };
+
+  if (storeLoading || !storeId) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-white"></div>
+      </div>
+    );
+  }
 
   const metrics = [
     {
@@ -98,18 +130,18 @@ export default function AdminDashboard() {
       bg: "bg-green-500/10",
     },
     {
-      title: "Active Orders",
+      title: "Total Orders",
       value: ordersCount.toString(),
       icon: Activity,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
     },
     {
-      title: "Site Visitors",
-      value: "1.2k", // Placeholder
-      icon: Users,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
+      title: "Store Status",
+      value: isLive ? "Active" : "Paused",
+      icon: Zap,
+      color: isLive ? "text-yellow-500" : "text-zinc-500",
+      bg: isLive ? "bg-yellow-500/10" : "bg-zinc-500/10",
     },
   ];
 
@@ -119,7 +151,7 @@ export default function AdminDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            War Room
+            {storeName || "Store"} Dashboard
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Real-time command center
@@ -166,9 +198,6 @@ export default function AdminDashboard() {
               <div className={`p-3 rounded-2xl ${metric.bg}`}>
                 <metric.icon className={`w-6 h-6 ${metric.color}`} />
               </div>
-              <span className="text-xs font-medium px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                Today
-              </span>
             </div>
             <div className="mt-4">
               <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
@@ -187,8 +216,10 @@ export default function AdminDashboard() {
         <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group">
           <div className="relative z-10 h-full flex flex-col">
             <h3 className="text-2xl font-bold mb-2">Live Orders</h3>
-            <p className="text-zinc-400 mb-6">Real-time feed of incoming purchases.</p>
-            
+            <p className="text-zinc-400 mb-6">
+              Real-time feed of incoming purchases.
+            </p>
+
             <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
               {recentOrders.length === 0 ? (
                 <div className="h-full flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl">
@@ -196,12 +227,26 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 recentOrders.map((order, i) => (
-                  <div key={i} className="bg-zinc-800/50 p-4 rounded-xl flex items-center justify-between backdrop-blur-sm border border-zinc-700/50">
+                  <div
+                    key={i}
+                    className="bg-zinc-800/50 p-4 rounded-xl flex items-center justify-between backdrop-blur-sm border border-zinc-700/50"
+                  >
                     <div>
-                      <h4 className="font-bold">{order.customerName || order.customerEmail}</h4>
-                      <p className="text-xs text-zinc-400">{order.items.length} items • {order.createdAt?.seconds ? new Date(order.createdAt.seconds * 1000).toLocaleTimeString() : 'Just now'}</p>
+                      <h4 className="font-bold">
+                        {order.customerName || order.customerEmail}
+                      </h4>
+                      <p className="text-xs text-zinc-400">
+                        {order.items ? order.items.length : 0} items •{" "}
+                        {order.createdAt?.seconds
+                          ? new Date(
+                              order.createdAt.seconds * 1000
+                            ).toLocaleTimeString()
+                          : "Just now"}
+                      </p>
                     </div>
-                    <span className="font-mono font-bold text-green-400">GHS {order.total.toFixed(2)}</span>
+                    <span className="font-mono font-bold text-green-400">
+                      GHS {order?.total?.toFixed(2)}
+                    </span>
                   </div>
                 ))
               )}
@@ -215,30 +260,40 @@ export default function AdminDashboard() {
             <Package className="w-5 h-5 text-blue-500" />
             Inventory Status
           </h3>
-          
+
           <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-             {products.length === 0 ? (
-               <p className="text-zinc-500 text-center py-10">No items.</p>
-             ) : (
-               products.map(product => (
-                 <div key={product.id} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl">
-                    <span className="font-medium text-sm truncate max-w-[120px]">{product.name}</span>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${
-                      product.stock < 10 
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" 
+            {products.length === 0 ? (
+              <p className="text-zinc-500 text-center py-10">No items.</p>
+            ) : (
+              products.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl"
+                >
+                  <span className="font-medium text-sm truncate max-w-[120px]">
+                    {product.name}
+                  </span>
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded-full ${
+                      (product.stock || 0) < 10
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
                         : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    }`}>
-                      {product.stock} left
-                    </span>
-                 </div>
-               ))
-             )}
+                    }`}
+                  >
+                    {product.stock || 0} left
+                  </span>
+                </div>
+              ))
+            )}
           </div>
-          
+
           <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-             <Link href="/admin/products" className="block w-full py-2 text-center text-sm font-medium text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors">
-               Manage All Items →
-             </Link>
+            <Link
+              href="/admin/products"
+              className="block w-full py-2 text-center text-sm font-medium text-zinc-600 hover:text-black dark:text-zinc-400 dark:hover:text-white transition-colors"
+            >
+              Manage All Items →
+            </Link>
           </div>
         </div>
       </div>

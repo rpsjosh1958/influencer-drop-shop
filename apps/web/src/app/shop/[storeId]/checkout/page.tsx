@@ -2,7 +2,7 @@
 
 import { useCart } from "@/components/shop/cart-provider";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { usePaystackPayment } from "react-paystack";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -48,6 +48,7 @@ const CITIES: Record<string, string[]> = {
 export default function CheckoutPage() {
   const { cart, total, clearCart } = useCart();
   const router = useRouter();
+  const params = useParams();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -139,11 +140,15 @@ export default function CheckoutPage() {
 
   const reserveStock = async () => {
     try {
+      const storeId = Array.isArray(params?.storeId)
+        ? params.storeId[0]
+        : (params?.storeId as string) || "default-store";
+
       await runTransaction(db, async (transaction) => {
         // 1. Read all product docs first
         const productReads = await Promise.all(
           cart.map(async (item) => {
-            const ref = doc(db, "products", item.id);
+            const ref = doc(db, "stores", storeId, "products", item.id);
             const snapshot = await transaction.get(ref);
             return { ref, snapshot, item };
           })
@@ -225,9 +230,15 @@ export default function CheckoutPage() {
     // Best effort restoration
     // Using transaction to properly update variant arrays
     try {
+      const storeId = Array.isArray(params?.storeId)
+        ? params.storeId[0]
+        : (params?.storeId as string) || "default-store";
+
       await runTransaction(db, async (transaction) => {
         const reads = await Promise.all(
-          cart.map((item) => transaction.get(doc(db, "products", item.id)))
+          cart.map((item) =>
+            transaction.get(doc(db, "stores", storeId, "products", item.id))
+          )
         );
 
         reads.forEach((snap, idx) => {
@@ -236,7 +247,7 @@ export default function CheckoutPage() {
           const data = snap.data();
           if (!data) return;
 
-          const ref = doc(db, "products", item.id);
+          const ref = doc(db, "stores", storeId, "products", item.id);
 
           if (item.selectedVariant) {
             const variants = data.variants || [];
@@ -265,6 +276,10 @@ export default function CheckoutPage() {
   const handlePaystackSuccess = async (reference: any) => {
     setLoading(true);
     try {
+      const storeId = Array.isArray(params?.storeId)
+        ? params.storeId[0]
+        : (params?.storeId as string) || "default-store";
+
       // Create Order in Firestore (Stock ALREADY deducted by reserveStock)
       // Sanitize cart to remove undefined values and ensure clean JSON snapshot
       const safeItems = JSON.parse(JSON.stringify(cart));
@@ -290,7 +305,7 @@ export default function CheckoutPage() {
         customerName: name,
       };
 
-      await addDoc(collection(db, "orders"), orderData);
+      await addDoc(collection(db, "stores", storeId, "orders"), orderData);
 
       clearCart();
       setShowSuccess(true);
@@ -341,7 +356,14 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <h1 className="text-2xl font-bold mb-4">Your bag is empty.</h1>
-        <Link href="/" className="underline font-medium">
+        <Link
+          href={`/shop/${
+            (Array.isArray(params?.storeId)
+              ? params.storeId[0]
+              : (params?.storeId as string)) || "default-store"
+          }`}
+          className="underline font-medium"
+        >
           Continue Shopping
         </Link>
       </div>
@@ -352,7 +374,11 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-zinc-50 py-12 px-6 lg:px-8">
       <div className="max-w-4xl mx-auto mb-8">
         <Link
-          href="/"
+          href={`/shop/${
+            (Array.isArray(params?.storeId)
+              ? params.storeId[0]
+              : (params?.storeId as string)) || "default-store"
+          }`}
           className="inline-flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-black transition-colors"
         >
           <ArrowLeft size={16} /> Back to Shop
@@ -610,7 +636,12 @@ export default function CheckoutPage() {
                 Your order has been successfully placed.
               </p>
               <button
-                onClick={() => router.push("/")}
+                onClick={() => {
+                  const storeId = Array.isArray(params?.storeId)
+                    ? params.storeId[0]
+                    : (params?.storeId as string) || "default-store";
+                  router.push(`/shop/${storeId}`);
+                }}
                 className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform"
               >
                 Continue Shopping

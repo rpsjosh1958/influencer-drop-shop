@@ -11,36 +11,15 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { Order } from "@/types";
 
-interface Order {
-  id: string;
-  userId?: string; // Added for notifications
-  customerName?: string;
-  customerEmail: string;
-  total: number;
-  status: string;
-  items: {
-    name: string;
-    quantity: number;
-    price: number;
-    image?: string;
-    imageUrl?: string;
-    images?: string[];
-  }[];
-  shipping?: {
-    country: string;
-    city: string;
-    street: string;
-    zip: string;
-    phone: string;
-  };
-  createdAt: any;
-}
+// Local Order interface removed in favor of @/types import
 
 interface AdminOrderModalProps {
   isOpen: boolean;
   onClose: () => void;
   order: Order | null;
+  storeId?: string;
 }
 
 const STATUSES = [
@@ -74,6 +53,7 @@ export function AdminOrderModal({
   isOpen,
   onClose,
   order,
+  storeId,
 }: AdminOrderModalProps) {
   const [updating, setUpdating] = useState(false);
   // Optimistic status state
@@ -94,7 +74,8 @@ export function AdminOrderModal({
     setUpdating(true);
 
     try {
-      const ref = doc(db, "orders", order.id);
+      if (!storeId) throw new Error("Store ID is missing");
+      const ref = doc(db, "stores", storeId, "orders", order.id);
       await updateDoc(ref, { status: newStatus });
 
       // Create Notification
@@ -235,7 +216,7 @@ export function AdminOrderModal({
                     Items ({order.items.length})
                   </h4>
                   <div className="space-y-3">
-                    {order.items.map((item: any, idx) => (
+                    {order.items.map((item: any, idx: number) => (
                       <div
                         key={idx}
                         className="flex items-center gap-4 p-3 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors"

@@ -19,8 +19,11 @@ import { StatusBar } from "expo-status-bar";
 import { OrderDetailsModal } from "@/components/shop/order-details-modal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
+import { useStore } from "@/context/store-context";
+
 export default function OrdersScreen() {
   const router = useRouter();
+  const { storeId } = useStore(); // Get storeId
   const params = useLocalSearchParams();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -28,16 +31,16 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Detail Modal
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const FILTERS = ["all", "paid", "packaged", "sent-out", "delivered"];
 
   const fetchOrders = async (userId: string) => {
+    if (!storeId) return;
     try {
       const q = query(
-        collection(db, "orders"),
+        collection(db, "stores", storeId, "orders"), // Updated path
         where("userId", "==", userId),
         orderBy("createdAt", "desc")
       );
@@ -61,7 +64,7 @@ export default function OrdersScreen() {
       setLoading(false);
     });
     return unsub;
-  }, []);
+  }, [storeId]); // Re-fetch if store changes
 
   // Deep Link Handling
   useEffect(() => {

@@ -15,6 +15,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
+import { useParams } from "next/navigation";
 
 interface OrderItem {
   id: string;
@@ -56,15 +57,17 @@ export function OrderDetailsModal() {
     useShopUI();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
+  const params = useParams();
+  const storeId = params.storeId as string;
 
   useBodyScrollLock(isOrderDetailsOpen);
 
   useEffect(() => {
     async function fetchOrder() {
-      if (!selectedOrderId) return;
+      if (!selectedOrderId || !storeId) return;
       setLoading(true);
       try {
-        const docRef = doc(db, "orders", selectedOrderId);
+        const docRef = doc(db, "stores", storeId, "orders", selectedOrderId);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           setOrder({ id: snap.id, ...snap.data() } as Order);
@@ -81,7 +84,7 @@ export function OrderDetailsModal() {
     } else {
       setOrder(null);
     }
-  }, [isOrderDetailsOpen, selectedOrderId]);
+  }, [isOrderDetailsOpen, selectedOrderId, storeId]);
 
   return (
     <AnimatePresence>

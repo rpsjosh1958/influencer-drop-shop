@@ -17,12 +17,14 @@ import { Loader2, Upload, X } from "lucide-react";
 import { Product, Category } from "@/types";
 
 interface ProductFormProps {
+  storeId: string;
   onClose: () => void;
   onSuccess: () => void;
   initialData?: Product;
 }
 
 export function ProductForm({
+  storeId,
   onClose,
   onSuccess,
   initialData,
@@ -203,9 +205,12 @@ export function ProductForm({
 
       // 2. Save Product to Firestore
       if (initialData) {
-        await updateDoc(doc(db, "products", initialData.id), productData);
+        await updateDoc(
+          doc(db, "stores", storeId, "products", initialData.id),
+          productData
+        );
       } else {
-        await addDoc(collection(db, "products"), {
+        await addDoc(collection(db, "stores", storeId, "products"), {
           ...productData,
           createdAt: serverTimestamp(),
         });

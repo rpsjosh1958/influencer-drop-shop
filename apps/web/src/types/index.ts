@@ -35,3 +35,24 @@ export interface Category {
   slug: string;
   createdAt: any;
 }
+
+export interface Order {
+  id: string;
+  customerName?: string;
+  customerEmail: string;
+  total: number;
+  status: string;
+  items: any[];
+  shipping?: {
+    address?: string;
+    city?: string;
+    country?: string;
+    phone?: string;
+    street?: string;
+    zip?: string;
+    fullName?: string;
+    email?: string;
+  };
+  createdAt: any;
+  userId?: string;
+}

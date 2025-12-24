@@ -234,10 +234,16 @@ export default function ShopSignup() {
         </form>
 
         <p className="text-center text-zinc-500 text-sm">
-          Already have an account?{" "}
-          <Link href="/login" className="text-black font-bold hover:underline">
+          Already have an account? Already have an account?{" "}
+          <button
+            onClick={() => {
+              const storeIdStr = window.location.pathname.split("/")[2];
+              router.push(`/shop/${storeIdStr}/login`);
+            }}
+            className="text-black font-bold hover:underline"
+          >
             Sign in
-          </Link>
+          </button>
         </p>
       </motion.div>
     </div>
