@@ -70,7 +70,7 @@ function PlatformLandingContent() {
 
         {/* Hero Content */}
         <div className="relative z-20 text-center px-6 pt-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white text-xs font-bold uppercase tracking-widest mb-8 border border-white/10 hover:bg-white/20 transition-colors cursor-default">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 text-white text-xs font-bold uppercase tracking-widest mb-8 border border-white/10 hover:bg-white/20 transition-colors cursor-default">
             <Zap size={14} className="text-yellow-400 fill-yellow-400" />
             The Drop Platform
           </div>
@@ -82,7 +82,7 @@ function PlatformLandingContent() {
             </span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-zinc-400 font-medium max-w-2xl mx-auto leading-relaxed mb-12">
+          <p className="text-xl md:text-2xl text-white-400 font-medium max-w-2xl mx-auto leading-relaxed mb-12">
             The all-in-one platform for stores to launch exclusive drops.
             Limited stock. High demand. Zero friction.
           </p>
