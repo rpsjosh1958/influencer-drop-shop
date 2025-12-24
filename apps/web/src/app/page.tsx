@@ -10,6 +10,12 @@ import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 import { HeroBackground } from "@/components/home/hero-background";
+import { LandingFeatures } from "@/components/home/landing-features";
+import { LandingPricing } from "@/components/home/landing-pricing";
+import { LandingFAQ } from "@/components/home/landing-faq";
+import { LandingFooter } from "@/components/home/landing-footer";
+import { LandingHowItWorks } from "@/components/home/landing-how-it-works";
+import { LandingCommunity } from "@/components/home/landing-community";
 
 export default function PlatformLanding() {
   return (
@@ -47,17 +53,39 @@ function PlatformLandingContent() {
   return (
     <div className="bg-black text-white font-sans selection:bg-purple-500 selection:text-white">
       {/* Header (Fixed) */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-6 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 bg-white rounded-full" />
-          <span className="font-black tracking-tighter text-xl">DROP.</span>
+          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500" />
+          <span className="font-black tracking-tighter text-2xl">DROP.</span>
         </div>
-        <div className="flex items-center gap-6">
+
+        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
+          <a href="#features" className="hover:text-white transition-colors">
+            Features
+          </a>
+          <a href="#ecosystem" className="hover:text-white transition-colors">
+            Ecosystem
+          </a>
+          <a href="#pricing" className="hover:text-white transition-colors">
+            Pricing
+          </a>
+          <a href="#faq" className="hover:text-white transition-colors">
+            FAQ
+          </a>
+        </nav>
+
+        <div className="flex items-center gap-4">
           <Link
             href="/admin"
-            className="hidden md:flex bg-white text-black px-5 py-2 rounded-full text-sm font-bold hover:scale-105 transition-transform"
+            className="text-sm font-bold text-white hover:text-zinc-300 transition-colors mr-4"
           >
-            Log in to store
+            Sign In
+          </Link>
+          <Link
+            href="/create-store"
+            className="hidden md:flex bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform"
+          >
+            Start Selling
           </Link>
         </div>
       </header>
@@ -99,26 +127,12 @@ function PlatformLandingContent() {
         </div>
       </section>
 
-      {/* Example Next Section (Features) */}
-      <section className="relative z-10 bg-zinc-950 py-32 px-6 border-t border-white/10">
-        <div className="max-w-7xl mx-auto text-center space-y-8">
-          <h2 className="text-4xl md:text-6xl font-black tracking-tight">
-            BUILT FOR <span className="text-purple-500">SPEED</span>.
-          </h2>
-          <p className="text-xl text-zinc-400 max-w-3xl mx-auto">
-            Everything you need to sell out significantly fast. Automated drops,
-            bot protection, and instant payouts.
-          </p>
-          {/* Add more feature content here later */}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-white/10 py-12 text-center bg-black relative z-10">
-        <p className="text-zinc-600 text-sm">
-          © 2025 CopDrop.io. Secure the bag.
-        </p>
-      </footer>
+      <LandingHowItWorks />
+      <LandingFeatures />
+      <LandingCommunity />
+      <LandingPricing />
+      <LandingFAQ />
+      <LandingFooter />
     </div>
   );
 }

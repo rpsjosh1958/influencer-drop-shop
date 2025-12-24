@@ -27,11 +27,12 @@ const IMAGES = [
 ];
 
 function FadingImageCell({ delay }: { delay: number }) {
-  const [currentImage, setCurrentImage] = useState(
-    () => IMAGES[Math.floor(Math.random() * IMAGES.length)]
-  );
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
 
   useEffect(() => {
+    // Client-side only initialization to prevent hydration mismatch
+    setCurrentImage(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
+
     const changeImage = () => {
       setCurrentImage((prev) => {
         let next;
@@ -53,15 +54,17 @@ function FadingImageCell({ delay }: { delay: number }) {
   return (
     <div className="relative w-full h-full bg-zinc-900/50 overflow-hidden rounded-lg">
       <AnimatePresence mode="popLayout">
-        <motion.img
-          key={currentImage}
-          src={currentImage}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.4 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.5, ease: "easeInOut" }}
-          className="absolute inset-0 w-full h-full object-cover grayscale opacity-50"
-        />
+        {currentImage && (
+          <motion.img
+            key={currentImage}
+            src={currentImage}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.4 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            className="absolute inset-0 w-full h-full object-cover grayscale opacity-50"
+          />
+        )}
       </AnimatePresence>
     </div>
   );
