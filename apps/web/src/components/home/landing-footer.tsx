@@ -67,12 +67,12 @@ export function LandingFooter() {
             <h4 className="font-bold text-white">Legal</h4>
             <ul className="space-y-2 text-zinc-500 text-sm">
               <li>
-                <Link href="#" className="hover:text-white">
+                <Link href="/privacy" className="hover:text-white">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="#" className="hover:text-white">
+                <Link href="/terms" className="hover:text-white">
                   Terms of Service
                 </Link>
               </li>
@@ -88,10 +88,16 @@ export function LandingFooter() {
         <div className="flex flex-col md:flex-row items-center justify-between text-zinc-600 text-sm gap-4">
           <p>© 2025 CopDrop Inc. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="https://x.com/copdrop_io?s=21" className="hover:text-white transition-colors">
+            <a
+              href="https://x.com/copdrop_io?s=21"
+              className="hover:text-white transition-colors"
+            >
               <Twitter size={20} />
             </a>
-            <a href="https://instagram.com/copdrop_io" className="hover:text-white transition-colors">
+            <a
+              href="https://instagram.com/copdrop_io"
+              className="hover:text-white transition-colors"
+            >
               <Instagram size={20} />
             </a>
             <a
