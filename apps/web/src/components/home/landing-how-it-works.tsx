@@ -7,7 +7,7 @@ const STEPS = [
   {
     num: "01",
     title: "Design Your Vibe",
-    desc: "Claim your unique URL, upload your logo, and customize your storefront's grid, fonts, and colors to match your aesthetic.",
+    desc: "Claim your unique URL, upload your logo, and customize your storefront's layout, fonts, and colors to match your aesthetic.",
     icon: Zap,
     color: "from-purple-500 to-indigo-500",
   },

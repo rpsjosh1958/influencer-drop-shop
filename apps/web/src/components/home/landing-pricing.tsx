@@ -12,7 +12,7 @@ const PLANS = [
     features: [
       "Unlimited Products",
       "8% Transaction Fee",
-      "Standard Payouts (T+2)",
+      "Payouts in 2 days",
       "Mobile App Listing",
       "Basic Analytics",
     ],

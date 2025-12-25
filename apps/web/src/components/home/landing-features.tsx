@@ -7,26 +7,33 @@ const FEATURES = [
   {
     title: "Command Center.",
     description:
-      "A powerful dashboard to manage your empire. Track sales in real-time, manage inventory, and customize your store's aesthetic without writing a single line of code.",
+      "A powerful dashboard to manage your business. Track sales in real-time, manage inventory, and customize your store's look and feel without writing a single line of code.",
     icon: BarChart3,
     color: "text-purple-500",
     mockup: "dashboard",
+    bullets: ["✨ Live Sales Tracker", "✨ Easy Inventory", "✨ Customer Orders"],
   },
   {
     title: "Your Brand, Your Rules.",
     description:
-      "Don't just sell, express. Customize fonts, colors, layouts, and hero sections. Create a storefront that screams your identity while maintainng conversion-optimized flows.",
+      "Don't just sell, express. Customize fonts, colors, layouts, and banners. Create a storefront that screams your identity while keeping the buying process fast and easy.",
     icon: Layout,
     color: "text-pink-500",
     mockup: "store",
+    bullets: ["✨ Visual Editor", "✨ Custom Branding", "✨ Instant Checkout"],
   },
   {
-    title: "Native Mobile Dominance.",
+    title: "Your Custom Mobile App.",
     description:
-      "Stay in your customer's pocket. Our native iOS and Android app keeps fans engaged with push notifications for drops, blazing fast checkout, and stored payment details.",
+      "Stay in your customer's pocket. Your own custom app for iOS and Android keeps fans engaged with push notifications for drops, blazing fast checkout, and stored payment details.",
     icon: Smartphone,
     color: "text-orange-500",
     mockup: "mobile",
+    bullets: [
+      "✨ Instant Notifications",
+      "✨ Store Switch",
+      "✨ One-Tap Checkout",
+    ],
   },
 ];
 
@@ -77,15 +84,12 @@ export function LandingFeatures() {
                   {feature.description}
                 </p>
                 <ul className="space-y-3 pl-4 border-l-2 border-white/10">
-                  <li className="text-zinc-300 font-medium">
-                    ✨ Real-time updates
-                  </li>
-                  <li className="text-zinc-300 font-medium">
-                    ✨ Conversion optimized
-                  </li>
-                  <li className="text-zinc-300 font-medium">
-                    ✨ Zero maintenance
-                  </li>
+                  {/* @ts-ignore - bullets exist now */}
+                  {feature.bullets?.map((bullet: string, idx: number) => (
+                    <li key={idx} className="text-zinc-300 font-medium">
+                      {bullet}
+                    </li>
+                  ))}
                 </ul>
               </div>
 

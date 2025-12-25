@@ -5,7 +5,7 @@ import { Twitter, Instagram, Mail, ArrowRight } from "lucide-react";
 
 export function LandingFooter() {
   return (
-    <footer className="bg-black border-t border-white/10 pt-20 pb-10">
+    <footer className="bg-black border-t border-white/10 pt-20 pb-10 relative z-20">
       <div className="max-w-7xl mx-auto px-6">
         {/* CTA Section */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-20 bg-zinc-900/50 p-12 rounded-3xl border border-white/5 relative overflow-hidden">
@@ -88,10 +88,10 @@ export function LandingFooter() {
         <div className="flex flex-col md:flex-row items-center justify-between text-zinc-600 text-sm gap-4">
           <p>© 2025 CopDrop Inc. All rights reserved.</p>
           <div className="flex gap-6">
-            <a href="#" className="hover:text-white transition-colors">
+            <a href="https://x.com/copdrop_io?s=21" className="hover:text-white transition-colors">
               <Twitter size={20} />
             </a>
-            <a href="#" className="hover:text-white transition-colors">
+            <a href="https://instagram.com/copdrop_io" className="hover:text-white transition-colors">
               <Instagram size={20} />
             </a>
             <a

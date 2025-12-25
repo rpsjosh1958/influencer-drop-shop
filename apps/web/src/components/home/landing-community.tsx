@@ -79,8 +79,8 @@ export function LandingCommunity() {
         {/* Stats Strip */}
         <div className="mt-24 pt-12 border-t border-white/5 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           <Stat label="Active Stores" value="50+" />
-          <Stat label="Drops Hosted" value="120+" />
-          <Stat label="Total Volume" value="GH₵ 850k+" />
+          <Stat label="Drops Launched" value="120+" />
+          <Stat label="Total Sales" value="GH₵ 850k+" />
           <Stat label="Avg. Sellout Time" value="45m" />
         </div>
       </div>
