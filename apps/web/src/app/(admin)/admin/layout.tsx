@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { BroadcastModal } from "@/components/admin/broadcast-modal";
 import { AdminStoreProvider } from "@/components/admin/admin-store-provider";
 
@@ -62,7 +62,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeSnapshot: (() => void) | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       // 1. Not logged in
       if (!user) {
         if (pathname !== "/admin") {
@@ -80,35 +82,33 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 3. Gatekeeper: Check Store Ownership
-      if (user) {
-        try {
-          // If we are already running this check, prevent double checking?
-          // Actually, we need to verify user has a store.
-          const userDoc = await getDoc(doc(db, "users", user.uid));
+      // 3. Gatekeeper: Check Store Ownership (Realtime)
+      // Use onSnapshot to immediately detect when a store is created/linked
+      unsubscribeSnapshot = onSnapshot(
+        doc(db, "users", user.uid),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            const ownedStores = userData?.ownedStores || [];
 
-          if (!userDoc.exists()) {
-            // Edge case: Authenticated but no user doc?
-            console.error("User authenticated but no user doc found.");
-            // Potentially sign out or redirect? For now, let it fail safe.
+            if (ownedStores.length > 0) {
+              setLoading(false);
+            } else {
+              router.push("/create-store");
+            }
           }
-
-          const userData = userDoc.data();
-          const ownedStores = userData?.ownedStores || [];
-
-          if (ownedStores.length === 0) {
-            router.push("/create-store");
-            return; // Redirecting
-          }
-        } catch (e) {
-          console.error("Profile check failed", e);
+        },
+        (error) => {
+          console.error("Profile check failed", error);
         }
-      }
-
-      setLoading(false);
+      );
     });
-    return () => unsub();
-  }, [router, pathname, searchParams]); // Added searchParams to dep array
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
+  }, [router, pathname, searchParams]);
 
   if (loading) {
     return (

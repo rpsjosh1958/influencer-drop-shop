@@ -10,12 +10,14 @@ import {
   Truck,
   MapPin,
   Loader2,
+  BadgeCheck,
 } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { useParams } from "next/navigation";
+import { useStore } from "./store-provider";
 
 interface OrderItem {
   id: string;
@@ -57,6 +59,7 @@ export function OrderDetailsModal() {
     useShopUI();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
+  const { store } = useStore();
   const params = useParams();
   const storeId = params.storeId as string;
 
@@ -107,6 +110,17 @@ export function OrderDetailsModal() {
               {/* Header */}
               <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
                 <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                      SOLD BY {store?.name}
+                    </span>
+                    {store?.isVerified && (
+                      <BadgeCheck
+                        size={14}
+                        className="text-blue-500 fill-blue-500 text-white"
+                      />
+                    )}
+                  </div>
                   <h2 className="text-xl font-black tracking-tight">
                     ORDER DETAILS
                   </h2>

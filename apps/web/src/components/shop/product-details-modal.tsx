@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { Product, ProductVariant } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Check, BadgeCheck } from "lucide-react";
 import { useCart } from "./cart-provider";
+import { useStore } from "./store-provider";
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -18,6 +19,7 @@ export function ProductDetailsModal({
   onClose,
 }: ProductDetailsModalProps) {
   const { addToCart } = useCart();
+  const { store } = useStore();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
@@ -172,6 +174,17 @@ export function ProductDetailsModal({
               <div className="flex-1 p-6 md:p-10 flex flex-col overflow-y-auto">
                 <div className="flex justify-between items-start">
                   <div>
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                        SOLD BY {store?.name || "DROP."}
+                      </p>
+                      {store?.isVerified && (
+                        <BadgeCheck
+                          size={14}
+                          className="text-blue-500 fill-blue-500 text-white"
+                        />
+                      )}
+                    </div>
                     <h2 className="text-3xl font-black uppercase tracking-tight">
                       {product.name}
                     </h2>

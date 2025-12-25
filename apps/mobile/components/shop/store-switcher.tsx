@@ -1,5 +1,13 @@
 import { useState, useEffect } from "react";
-import { View, Pressable, Image, Modal, ScrollView, Text } from "react-native";
+import {
+  View,
+  Pressable,
+  Image,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+} from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
 import { collection, query, where, getDocs } from "firebase/firestore";
@@ -10,6 +18,8 @@ import {
   Loader2,
   Check,
   X,
+  Search,
+  BadgeCheck,
 } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 import { MotiView } from "moti";
@@ -19,6 +29,7 @@ interface Store {
   id: string;
   name: string;
   logo?: string;
+  isVerified?: boolean;
 }
 
 export function StoreSwitcher() {
@@ -26,6 +37,7 @@ export function StoreSwitcher() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (isOpen && stores.length === 0) {
@@ -60,6 +72,10 @@ export function StoreSwitcher() {
     }
   };
 
+  const filteredStores = stores.filter((s) =>
+    s.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <>
       <Pressable
@@ -79,6 +95,9 @@ export function StoreSwitcher() {
         <H1 className="text-xl tracking-tighter uppercase">
           {store?.name || "DROP."}
         </H1>
+        {store?.isVerified && (
+          <BadgeCheck size={16} color="#3b82f6" fill="white" />
+        )}
         <ChevronDown size={16} color="black" />
       </Pressable>
 
@@ -95,7 +114,7 @@ export function StoreSwitcher() {
             from={{ translateY: 300, opacity: 0 }}
             animate={{ translateY: 0, opacity: 1 }}
             transition={{ type: "timing", duration: 300 }}
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl overflow-hidden max-h-[70%]"
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
           >
             <View className="p-6 border-b border-zinc-100 flex-row items-center justify-between">
               <H1 className="text-xl">Select Store</H1>
@@ -112,52 +131,89 @@ export function StoreSwitcher() {
                 <Loader2 size={32} color="black" className="animate-spin" />
               </View>
             ) : (
-              <ScrollView
-                contentContainerStyle={{ padding: 24, paddingBottom: 48 }}
-              >
-                {stores.map((s) => (
-                  <Pressable
-                    key={s.id}
-                    onPress={() => handleSelect(s.id)}
-                    className={cn(
-                      "flex-row items-center gap-4 p-4 rounded-xl mb-3 border",
-                      s.id === storeId
-                        ? "bg-black border-black"
-                        : "bg-zinc-50 border-zinc-50"
-                    )}
-                  >
-                    {s.logo ? (
-                      <Image
-                        source={{ uri: s.logo }}
-                        className="w-10 h-10 rounded-full bg-white"
-                      />
-                    ) : (
-                      <View className="w-10 h-10 rounded-full bg-zinc-200 items-center justify-center">
-                        <StoreIcon size={16} color="black" />
-                      </View>
-                    )}
-                    <View className="flex-1">
-                      <H1
+              <>
+                {/* Search Bar */}
+                <View className="px-6 py-2">
+                  <View className="flex-row items-center bg-zinc-100 rounded-xl px-3 py-3 gap-2">
+                    <Search size={16} color="#a1a1aa" />
+                    <TextInput
+                      placeholder="Find a store..."
+                      className="flex-1 font-medium text-base"
+                      placeholderTextColor="#a1a1aa"
+                      value={searchTerm}
+                      onChangeText={setSearchTerm}
+                    />
+                  </View>
+                </View>
+
+                {/* List */}
+                <ScrollView
+                  contentContainerStyle={{
+                    padding: 24,
+                    paddingTop: 12,
+                    paddingBottom: 48,
+                  }}
+                >
+                  {filteredStores.length === 0 ? (
+                    <P className="text-center text-zinc-400 py-8">
+                      No stores found.
+                    </P>
+                  ) : (
+                    filteredStores.map((s) => (
+                      <Pressable
+                        key={s.id}
+                        onPress={() => handleSelect(s.id)}
                         className={cn(
-                          "text-base",
-                          s.id === storeId ? "text-white" : "text-black"
+                          "flex-row items-center gap-4 p-4 rounded-xl mb-3 border",
+                          s.id === storeId
+                            ? "bg-black border-black"
+                            : "bg-zinc-50 border-zinc-50"
                         )}
                       >
-                        {s.name}
-                      </H1>
-                      <P
-                        className={cn(
-                          "text-xs opacity-60",
-                          s.id === storeId ? "text-white" : "text-zinc-500"
+                        {s.logo ? (
+                          <Image
+                            source={{ uri: s.logo }}
+                            className="w-10 h-10 rounded-full bg-white"
+                          />
+                        ) : (
+                          <View className="w-10 h-10 rounded-full bg-zinc-200 items-center justify-center">
+                            <StoreIcon size={16} color="black" />
+                          </View>
                         )}
-                      >
-                        @{s.id}
-                      </P>
-                    </View>
-                    {s.id === storeId && <Check size={20} color="white" />}
-                  </Pressable>
-                ))}
-              </ScrollView>
+                        <View className="flex-1">
+                          <View className="flex-row items-center gap-1.5">
+                            <H1
+                              className={cn(
+                                "text-base",
+                                s.id === storeId ? "text-white" : "text-black"
+                              )}
+                            >
+                              {s.name}
+                            </H1>
+                            {s.isVerified && (
+                              <BadgeCheck
+                                size={14}
+                                color="#3b82f6"
+                                fill="white"
+                              />
+                            )}
+                          </View>
+
+                          <P
+                            className={cn(
+                              "text-xs opacity-60",
+                              s.id === storeId ? "text-white" : "text-zinc-500"
+                            )}
+                          >
+                            @{s.id}
+                          </P>
+                        </View>
+                        {s.id === storeId && <Check size={20} color="white" />}
+                      </Pressable>
+                    ))
+                  )}
+                </ScrollView>
+              </>
             )}
           </MotiView>
         </BlurView>

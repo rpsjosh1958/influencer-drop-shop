@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { Product, ProductVariant } from "@/types";
+import { useParams } from "next/navigation";
 
 export interface CartItem extends Product {
   quantity: number;
@@ -36,25 +37,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [showAddedToast, setShowAddedToast] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const params = useParams();
+  const storeId = params?.storeId as string;
+
   // Hydrate from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("drop-cart");
+    if (!storeId) return;
+    const saved = localStorage.getItem(`drop-cart-${storeId}`);
     if (saved) {
       try {
         setCart(JSON.parse(saved));
       } catch (e) {
         console.error("Failed to parse cart", e);
+        setCart([]);
       }
+    } else {
+      setCart([]);
     }
     setMounted(true);
-  }, []);
+  }, [storeId]);
 
   // Persist to localStorage
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem("drop-cart", JSON.stringify(cart));
+    if (mounted && storeId) {
+      localStorage.setItem(`drop-cart-${storeId}`, JSON.stringify(cart));
     }
-  }, [cart, mounted]);
+  }, [cart, mounted, storeId]);
 
   const addToCart = (product: Product, variant?: ProductVariant) => {
     setCart((prev) => {

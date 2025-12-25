@@ -2,10 +2,14 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 import { Expo, ExpoPushMessage } from "expo-server-sdk";
 import * as admin from "firebase-admin";
+import { Resend } from "resend";
 
 admin.initializeApp();
 
 const expo = new Expo();
+// TODO: Set this in your Firebase Functions environment secrets
+// firebase functions:secrets:set RESEND_API_KEY
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const onNotificationCreated = onDocumentCreated(
   "notifications/{notificationId}",
@@ -116,6 +120,90 @@ export const onNotificationCreated = onDocumentCreated(
       logger.info(`Notification sent to ${userId}`);
     } catch (error) {
       logger.error("Error fetching user or sending notification", error);
+    }
+  }
+);
+
+/*
+ * TRIGGER: When a new Store is created
+ * ACTION: Sends a "Welcome" email to the vendor via Resend
+ */
+export const onStoreCreated = onDocumentCreated(
+  "stores/{storeId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return; // Document deleted or invalid
+
+    const store = snapshot.data();
+    const ownerId = store.ownerId;
+
+    if (!ownerId) {
+      logger.warn(`Store ${event.params.storeId} has no ownerId.`);
+      return;
+    }
+
+    try {
+      // 1. Fetch Owner's Email
+      const userDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(ownerId)
+        .get();
+      const user = userDoc.data();
+
+      if (!user || !user.email) {
+        logger.warn(`Owner ${ownerId} has no email address.`);
+        return;
+      }
+
+      // 2. Send Email via Resend
+      const { data, error } = await resend.emails.send({
+        from: "Drop <onboarding@resend.dev>", // TODO: Change to your verified domain (e.g. welcome@copdrop.io)
+        to: [user.email],
+        subject: `WELCOME TO THE FAMILY 🚀`,
+        html: `
+          <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
+            <div style="max-width: 600px; margin: 0 auto;">
+              <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px;">OWN THE HYPE.</h1>
+              <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
+              
+              <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 40px;">
+                Yo <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
+                Your store <strong>${
+                  store.name
+                }</strong> is officially live. You operate on your own terms now.
+              </p>
+
+              <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left;">
+                <h3 style="margin-top: 0; margin-bottom: 15px;">🚀 Your Launch Checklist:</h3>
+                <ul style="color: #ccc; padding-left: 20px;">
+                  <li style="margin-bottom: 10px;">Login to your Dashboard</li>
+                  <li style="margin-bottom: 10px;">Add your first Product</li>
+                  <li style="margin-bottom: 10px;">Share your link: <strong>drop.io/shop/${
+                    store.slug
+                  }</strong></li>
+                </ul>
+              </div>
+
+              <a href="https://copdrop.io/admin" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 18px 40px; border-radius: 50px; text-decoration: none; font-weight: 900; font-size: 16px; transition: transform 0.2s;">
+                GO TO DASHBOARD
+              </a>
+
+              <p style="margin-top: 60px; font-size: 12px; color: #666666;">
+                © 2025 CopDrop Inc. • Accra, Ghana
+              </p>
+            </div>
+          </div>
+        `,
+      });
+
+      if (error) {
+        logger.error("Resend API Error:", error);
+      } else {
+        logger.info(`Welcome email sent to ${user.email}. ID: ${data?.id}`);
+      }
+    } catch (err) {
+      logger.error("Failed to execute onStoreCreated logic", err);
     }
   }
 );

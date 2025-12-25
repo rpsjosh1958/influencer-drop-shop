@@ -15,6 +15,8 @@ export interface StoreConfig {
   slug: string;
   ownerId: string;
   logo?: string;
+  isVerified?: boolean;
+  plan?: "starter" | "growth";
   status: "live" | "maintenance";
   theme?: {
     primaryColor: string;

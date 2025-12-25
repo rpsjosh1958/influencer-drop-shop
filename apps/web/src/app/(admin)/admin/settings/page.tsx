@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { usePaystackPayment } from "react-paystack";
 import {
   Loader2,
   Save,
@@ -16,6 +17,10 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  CreditCard,
+  CheckCircle2,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
@@ -26,6 +31,7 @@ const TABS = [
   { id: "style", label: "Style", icon: Palette },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "footer", label: "Footer", icon: LinkIcon },
+  { id: "billing", label: "Billing & Plan", icon: CreditCard },
 ];
 
 export default function StoreSettingsPage() {
@@ -40,6 +46,8 @@ export default function StoreSettingsPage() {
     name: "",
     status: "maintenance",
     logo: "",
+    plan: "starter", // starter, growth
+    isVerified: false, // false, pending, true
     theme: {
       // Style
       backgroundColor: "#ffffff",
@@ -136,6 +144,49 @@ export default function StoreSettingsPage() {
       current[path[path.length - 1]] = value;
       return deepCopy;
     });
+  };
+
+  // --- PAYSTACK INTEGRATION ---
+  const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_KEY || "";
+
+  const paystackConfig = {
+    reference: new Date().getTime().toString(),
+    email: "vendor@copdrop.io", // Idealy fetch logged in user email
+    amount: 250 * 100, // GHS 250
+    publicKey: PAYSTACK_KEY,
+    currency: "GHS",
+  };
+
+  const onSuccess = async (reference: any) => {
+    // On success, upgrade the plan
+    setLoading(true);
+    try {
+      await updateDoc(doc(db, "stores", storeId!), {
+        plan: "growth",
+        isVerified: "pending", // Flag for manual review
+      });
+      setConfig((prev: any) => ({
+        ...prev,
+        plan: "growth",
+        isVerified: "pending",
+      }));
+      setSuccess("Upgrade Successful! Welcome to Growth.");
+    } catch (err) {
+      console.error("Upgrade failed", err);
+      alert("Payment successful but upgrade failed. Contact support.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onClose = () => {
+    console.log("Payment closed");
+  };
+
+  const initializePayment = usePaystackPayment(paystackConfig);
+
+  const handleUpgrade = () => {
+    initializePayment({ onSuccess, onClose });
   };
 
   if (storeLoading || fetching)
@@ -579,6 +630,156 @@ export default function StoreSettingsPage() {
                   </div>
                 </motion.div>
               )}
+
+              {activeTab === "billing" && (
+                <motion.div
+                  key="billing"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6"
+                >
+                  {/* Current Plan Card */}
+                  <div className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-4 text-zinc-900 flex justify-between items-center">
+                    <div>
+                      <h2 className="text-xl font-bold text-zinc-900">
+                        Current Plan
+                      </h2>
+                      <p className="text-zinc-500">
+                        Your active subscription tier.
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <div
+                        className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 ${
+                          config.plan === "growth"
+                            ? "bg-black text-white"
+                            : "bg-zinc-100 text-zinc-500"
+                        }`}
+                      >
+                        {config.plan === "growth" ? (
+                          <Zap size={16} fill="white" />
+                        ) : null}
+                        {config.plan === "growth"
+                          ? "GROWTH (PRO)"
+                          : "STARTER (FREE)"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GROWTH UPGRADE CARD */}
+                  <div
+                    className={`p-8 rounded-3xl border ${
+                      config.plan === "growth"
+                        ? "bg-gradient-to-br from-zinc-900 to-black text-white border-black"
+                        : "bg-white border-zinc-200"
+                    }`}
+                  >
+                    <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
+                      <div className="space-y-4 max-w-lg">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`h-12 w-12 rounded-2xl flex items-center justify-center ${
+                              config.plan === "growth"
+                                ? "bg-white text-black"
+                                : "bg-black text-white"
+                            }`}
+                          >
+                            <Zap
+                              size={24}
+                              fill={
+                                config.plan === "growth" ? "black" : "white"
+                              }
+                            />
+                          </div>
+                          <div>
+                            <h3
+                              className={`text-2xl font-black ${
+                                config.plan === "growth"
+                                  ? "text-white"
+                                  : "text-zinc-900"
+                              }`}
+                            >
+                              Growth Plan
+                            </h3>
+                            <p
+                              className={`font-medium ${
+                                config.plan === "growth"
+                                  ? "text-zinc-400"
+                                  : "text-zinc-500"
+                              }`}
+                            >
+                              GH₵ 250 / month
+                            </p>
+                          </div>
+                        </div>
+                        <ul className="space-y-2 text-black">
+                          {[
+                            "2% Transaction Fee (Reduced from 8%)",
+                            "Verified Badge (Blue Tick)",
+                            "Instant Withdrawals",
+                            "Priority Support",
+                          ].map((item, i) => (
+                            <li
+                              key={i}
+                              className="flex items-center gap-2 text-sm font-medium opacity-90"
+                            >
+                              <CheckCircle2 size={16} /> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {config.plan === "starter" ? (
+                        <div className="w-full md:w-auto">
+                          <button
+                            type="button"
+                            onClick={handleUpgrade}
+                            disabled={loading}
+                            className="w-full md:w-auto px-8 py-4 bg-black text-white rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-zinc-200"
+                          >
+                            Upgrade Now
+                          </button>
+                          <p className="text-xs text-center mt-2 text-zinc-400">
+                            Secured by Paystack
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/20">
+                          <div className="flex items-center gap-3 mb-2">
+                            <ShieldCheck size={20} className="text-green-400" />
+                            <span className="font-bold">Plan Active</span>
+                          </div>
+                          <div className="text-sm opacity-80">
+                            Verification Status:{" "}
+                            <strong className="capitalize">
+                              {config.isVerified === true
+                                ? "Verified (Blue Tick)"
+                                : config.isVerified === "pending"
+                                ? "Pending Review"
+                                : "Unverified"}
+                            </strong>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {config.plan === "growth" && config.isVerified !== true && (
+                    <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl text-amber-900">
+                      <h4 className="font-bold flex items-center gap-2 mb-2">
+                        <Loader2 size={16} className="animate-spin" />{" "}
+                        Verification In Progress
+                      </h4>
+                      <p className="text-sm">
+                        We are reviewing your Ghana Card against your payout
+                        details. Your Blue Tick will appear automatically once
+                        approved (usually within 24 hours).
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
             </AnimatePresence>
 
             <div className="sticky bottom-6 flex justify-end">
@@ -588,19 +789,22 @@ export default function StoreSettingsPage() {
                     {success}
                   </span>
                 )}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 inline-flex items-center gap-2"
-                >
-                  {loading ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <>
-                      <Save size={18} /> Save Changes
-                    </>
-                  )}
-                </button>
+                {/* Save button only visible on tabs that are forms. Billing handles its own save/upgrade */}
+                {activeTab !== "billing" && (
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 inline-flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <>
+                        <Save size={18} /> Save Changes
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           </form>

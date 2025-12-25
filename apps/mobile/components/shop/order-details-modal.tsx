@@ -1,7 +1,15 @@
 import { View, ScrollView, Modal, Pressable, Image } from "react-native";
-import { X, Package, MapPin, Calendar, CreditCard } from "lucide-react-native";
+import {
+  X,
+  Package,
+  MapPin,
+  Calendar,
+  CreditCard,
+  BadgeCheck,
+} from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useStore } from "@/context/store-context";
 
 interface OrderDetailsModalProps {
   order: any;
@@ -14,6 +22,8 @@ export function OrderDetailsModal({
   visible,
   onClose,
 }: OrderDetailsModalProps) {
+  const { store } = useStore();
+
   if (!order) return null;
 
   const formatDate = (timestamp: any) => {
@@ -54,6 +64,14 @@ export function OrderDetailsModal({
             {/* Header */}
             <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between">
               <View>
+                <View className="flex-row items-center gap-1 mb-1">
+                  <P className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                    {store?.name || "DROP."}
+                  </P>
+                  {store?.isVerified && (
+                    <BadgeCheck size={12} color="#3b82f6" fill="white" />
+                  )}
+                </View>
                 <H1 className="text-xl font-black uppercase">Order Details</H1>
                 <P className="text-zinc-400 text-xs font-bold tracking-wider">
                   #{order.id.slice(0, 8).toUpperCase()}

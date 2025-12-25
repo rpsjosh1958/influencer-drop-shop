@@ -50,6 +50,8 @@ export interface StoreConfig {
   logo?: string; // Root level logo
   theme: StoreTheme;
   status: "live" | "maintenance" | "unpaid";
+  isVerified?: boolean;
+  plan?: string;
 }
 
 interface StoreContextType {

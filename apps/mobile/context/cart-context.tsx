@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useStore } from "@/context/store-context";
 
 export type CartItem = {
   id: string;
@@ -32,29 +33,36 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const { storeId } = useStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   // Load from storage
   useEffect(() => {
-    AsyncStorage.getItem("cart").then((json) => {
+    if (!storeId) return;
+
+    setLoaded(false);
+    AsyncStorage.getItem(`cart-${storeId}`).then((json) => {
       if (json) {
         try {
           setCart(JSON.parse(json));
         } catch (e) {
           console.error("Failed to parse cart", e);
+          setCart([]);
         }
+      } else {
+        setCart([]);
       }
       setLoaded(true);
     });
-  }, []);
+  }, [storeId]);
 
   // Save to storage
   useEffect(() => {
-    if (loaded) {
-      AsyncStorage.setItem("cart", JSON.stringify(cart));
+    if (loaded && storeId) {
+      AsyncStorage.setItem(`cart-${storeId}`, JSON.stringify(cart));
     }
-  }, [cart, loaded]);
+  }, [cart, loaded, storeId]); // Added storeId dependency
 
   const addToCart = (newItem: Omit<CartItem, "quantity">) => {
     setCart((prev) => {

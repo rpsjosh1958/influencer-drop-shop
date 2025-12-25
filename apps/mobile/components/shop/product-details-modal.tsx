@@ -9,10 +9,11 @@ import {
 import { MotiView, MotiImage } from "moti";
 import { H1, P } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
-import { X, Check } from "lucide-react-native";
+import { X, Check, BadgeCheck } from "lucide-react-native";
 import { Product } from "./product-card";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useStore } from "@/context/store-context";
 
 const { width } = Dimensions.get("window");
 
@@ -30,6 +31,7 @@ export function ProductDetailsModal({
   onAddToCart,
 }: ProductDetailsModalProps) {
   const insets = useSafeAreaInsets();
+  const { store } = useStore();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Logic from Web
@@ -167,6 +169,14 @@ export function ProductDetailsModal({
 
           <View className="p-6 space-y-6">
             <View>
+              <View className="flex-row items-center gap-1 mb-2">
+                <P className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                  SOLD BY {store?.name || "DROP."}
+                </P>
+                {store?.isVerified && (
+                  <BadgeCheck size={14} color="#3b82f6" fill="white" />
+                )}
+              </View>
               <H1 className="text-3xl font-black uppercase tracking-tighter">
                 {product.name}
               </H1>
