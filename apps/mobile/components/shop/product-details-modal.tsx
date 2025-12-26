@@ -181,7 +181,7 @@ export function ProductDetailsModal({
                 {product.name}
               </H1>
               <P className="text-2xl font-medium text-zinc-500 mt-2">
-                ${currentPrice.toFixed(2)}
+                GHS {currentPrice.toFixed(2)}
               </P>
             </View>
 
@@ -189,7 +189,7 @@ export function ProductDetailsModal({
             <View>
               <P className="text-zinc-600 leading-relaxed text-base">
                 {product.description ||
-                  "Limited edition drop. 100% Cotton. Premium heavyweight fabric. Made in Portugal."}
+                  ""}
               </P>
             </View>
 
@@ -295,7 +295,7 @@ export function ProductDetailsModal({
                 ? "SOLD OUT"
                 : product.hasVariants && !selectedVariant
                 ? "SELECT OPTIONS"
-                : `ADD TO BAG • $${currentPrice.toFixed(2)}`
+                : `ADD TO BAG • GHS ${currentPrice.toFixed(2)}`
             }
             disabled={
               isOutOfStock || (!!product.hasVariants && !selectedVariant)

@@ -446,11 +446,6 @@ function ShopHero({ theme }: { theme: any }) {
         transition={{ duration: 0.8, ease: "circOut" }}
         className={`relative z-20 max-w-5xl mx-auto w-full flex flex-col ${alignClass}`}
       >
-        {/* Tagline */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black text-white text-xs font-bold uppercase tracking-widest mb-6">
-          <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-          Live Drop Now Active
-        </div>
 
         <h1
           className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase"
@@ -507,7 +502,7 @@ function ShopFooter({ theme, storeName }: { theme: any; storeName?: string }) {
               href="/?stay=true"
               className="text-xs font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest border-b border-transparent hover:border-current pb-0.5"
             >
-              Powered by CopDrop
+              Powered by The Drop
             </a>
           </div>
         </div>

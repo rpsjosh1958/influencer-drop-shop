@@ -34,6 +34,8 @@ export default function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
 
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+
   // Real-time listener for Store Config
   useEffect(() => {
     if (!storeId) return;
@@ -65,18 +67,45 @@ export default function AdminDashboard() {
 
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Assuming all orders in this collection are valid or check status
-        if (
-          data.status === "paid" ||
-          data.status === "processing" ||
-          data.status === "shipped"
-        ) {
-          totalRev += data.total || 0;
-          count++;
+
+        // 1. Status Check (Include ALL paid/fulfilled statuses)
+        const isPaidOrFulfilled = [
+          "paid",
+          "processing",
+          "packaged",
+          "sent-out",
+          "shipped",
+          "delivered",
+          "completed",
+        ].includes(data.status);
+
+        if (isPaidOrFulfilled) {
+          // 2. Month Filter
+          let matchesMonth = true;
+          if (selectedMonth && data.createdAt) {
+            const date = data.createdAt.toDate();
+            const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+            if (monthKey !== selectedMonth) matchesMonth = false;
+          }
+
+          if (matchesMonth) {
+            totalRev += data.total || 0;
+            count++;
+          }
         }
 
-        // Take top 5 for display (all orders, even unpaid for visibility?)
-        if (recent.length < 5) {
+        // Recent Orders Feed (Always show top 5 regardless of filter, or maybe filter? User asked specifically for revenue filtering)
+        // Leaving recent orders as "Live Feed" independent of revenue filter usually makes sense, but consistency is good.
+        // Let's filter Recent Orders too if a month is selected, so the dashboard reflects that timeframe.
+
+        let matchesRecentFilter = true;
+        if (selectedMonth && data.createdAt) {
+          const date = data.createdAt.toDate();
+          const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+          if (monthKey !== selectedMonth) matchesRecentFilter = false;
+        }
+
+        if (matchesRecentFilter && recent.length < 5) {
           recent.push({ id: doc.id, ...data });
         }
       });
@@ -85,7 +114,7 @@ export default function AdminDashboard() {
       setRecentOrders(recent);
     });
     return () => unsub();
-  }, [storeId]);
+  }, [storeId, selectedMonth]);
 
   // Real-time listener for Inventory Summary
   useEffect(() => {
@@ -157,30 +186,54 @@ export default function AdminDashboard() {
             Real-time command center
           </p>
         </div>
-
-        {/* The Big Switch */}
-        <div className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2 pr-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-          <div
-            className={`h-3 w-3 rounded-full animate-pulse ${
-              isLive ? "bg-green-500" : "bg-red-500"
-            }`}
-          />
-          <span className="font-medium text-sm text-zinc-600 dark:text-zinc-300">
-            Store is {isLive ? "OPEN" : "CLOSED"}
-          </span>
-          <button
-            onClick={toggleStore}
-            disabled={loading}
-            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:focus:ring-zinc-50 ${
-              isLive ? "bg-green-500" : "bg-zinc-200 dark:bg-zinc-700"
-            }`}
+        {/* Actions */}
+        <div className="flex flex-col md:flex-row items-center gap-3">
+          <select
+            value={selectedMonth || ""}
+            onChange={(e) => setSelectedMonth(e.target.value || null)}
+            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black h-12"
           >
-            <span
-              className={`${
-                isLive ? "translate-x-7" : "translate-x-1"
-              } inline-block h-6 w-6 transform rounded-full bg-white transition-transform`}
+            <option value="">All Time</option>
+            {Array.from({ length: 12 }).map((_, i) => {
+              const d = new Date();
+              d.setMonth(d.getMonth() - i);
+              const value = `${d.getFullYear()}-${d.getMonth()}`;
+              const label = d.toLocaleDateString("default", {
+                month: "short",
+                year: "numeric",
+              });
+              return (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              );
+            })}
+          </select>
+
+          {/* The Big Switch */}
+          <div className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2 pr-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+            <div
+              className={`h-3 w-3 rounded-full animate-pulse ${
+                isLive ? "bg-green-500" : "bg-red-500"
+              }`}
             />
-          </button>
+            <span className="font-medium text-sm text-zinc-600 dark:text-zinc-300">
+              Store is {isLive ? "OPEN" : "CLOSED"}
+            </span>
+            <button
+              onClick={toggleStore}
+              disabled={loading}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:focus:ring-zinc-50 ${
+                isLive ? "bg-green-500" : "bg-zinc-200 dark:bg-zinc-700"
+              }`}
+            >
+              <span
+                className={`${
+                  isLive ? "translate-x-7" : "translate-x-1"
+                } inline-block h-6 w-6 transform rounded-full bg-white transition-transform`}
+              />
+            </button>
+          </div>
         </div>
       </div>
 

@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Package, X, Loader2, ShoppingBag } from "lucide-react";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import {
+  collection,
+  collectionGroup,
+  query,
+  where,
+  orderBy,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { User } from "firebase/auth";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -14,6 +21,8 @@ interface Order {
   id: string;
   total: number;
   status: string;
+  storeName?: string;
+  storeId?: string;
   createdAt: any;
   items: {
     id: string;
@@ -43,12 +52,12 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
 
   useEffect(() => {
     async function fetchOrders() {
-      if (!user || !isOpen || !storeId) return;
+      if (!user || !isOpen) return;
 
       setLoading(true);
       try {
         const q = query(
-          collection(db, "stores", storeId, "orders"),
+          collectionGroup(db, "orders"),
           where("userId", "==", user.uid),
           orderBy("createdAt", "desc")
         );
@@ -66,7 +75,7 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
     }
 
     fetchOrders();
-  }, [user, isOpen, storeId]);
+  }, [user, isOpen]);
 
   return (
     <AnimatePresence>
@@ -137,12 +146,17 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                     key={order.id}
                     onClick={() => {
                       onClose();
-                      openOrderDetails(order.id);
+                      openOrderDetails(order.id, order.storeId);
                     }}
                     className="group p-4 rounded-xl border border-zinc-100 hover:border-zinc-200 hover:bg-zinc-50 transition-all cursor-pointer"
                   >
                     <div className="flex justify-between items-start mb-3">
                       <div>
+                        {order.storeName && (
+                          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider mb-1">
+                            {order.storeName}
+                          </p>
+                        )}
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600">
                             #{order.id.slice(0, 6).toUpperCase()}

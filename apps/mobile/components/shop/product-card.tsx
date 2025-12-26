@@ -1,6 +1,7 @@
 import { Pressable, View } from "react-native";
 import { MotiView, MotiImage } from "moti";
 import { P, H2 } from "@/components/ui/text";
+import { useStore } from "@/context/store-context";
 
 export type Product = {
   id: string;
@@ -22,6 +23,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index, onPress }: ProductCardProps) {
+  const { store } = useStore();
+  const primaryColor = store?.theme?.primaryColor || "black";
+
   // Logic from Web: images -> imageUrl -> fallback
   const images =
     product.images && product.images.length > 0
@@ -77,11 +81,12 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
             <H2
               className="text-base font-bold leading-tight flex-1 mr-2"
               numberOfLines={1}
+              style={{ color: primaryColor }}
             >
               {product.name}
             </H2>
-            <P className="font-medium text-zinc-900">
-              GHS{product.price.toFixed(2)}
+            <P className="font-medium" style={{ color: primaryColor }}>
+              GHS {product.price.toFixed(2)}
             </P>
           </View>
 

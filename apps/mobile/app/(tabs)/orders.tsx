@@ -13,7 +13,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, where, orderBy, getDocs } from "firebase/firestore";
+import {
+  collection,
+  collectionGroup,
+  query,
+  where,
+  orderBy,
+  getDocs,
+} from "firebase/firestore";
 import { Package, ShoppingBag, ChevronRight, Clock } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { OrderDetailsModal } from "@/components/shop/order-details-modal";
@@ -37,10 +44,9 @@ export default function OrdersScreen() {
   const FILTERS = ["all", "paid", "packaged", "sent-out", "delivered"];
 
   const fetchOrders = async (userId: string) => {
-    if (!storeId) return;
     try {
       const q = query(
-        collection(db, "stores", storeId, "orders"), // Updated path
+        collectionGroup(db, "orders"), // Unified Query
         where("userId", "==", userId),
         orderBy("createdAt", "desc")
       );
@@ -48,6 +54,7 @@ export default function OrdersScreen() {
       const data = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        storeId: doc.data().storeId || doc.ref.parent.parent?.id,
       }));
       setOrders(data);
     } catch (e) {
@@ -64,7 +71,7 @@ export default function OrdersScreen() {
       setLoading(false);
     });
     return unsub;
-  }, [storeId]); // Re-fetch if store changes
+  }, []);
 
   // Deep Link Handling
   useEffect(() => {
@@ -225,9 +232,16 @@ export default function OrdersScreen() {
               >
                 {/* Header: ID, Price */}
                 <View className="flex-row justify-between items-center mb-4">
-                  <P className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600 overflow-hidden">
-                    #{item.id.slice(0, 6).toUpperCase()}
-                  </P>
+                  <View>
+                    {item.storeName && (
+                      <P className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
+                        {item.storeName}
+                      </P>
+                    )}
+                    <P className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600 overflow-hidden self-start">
+                      #{item.id.slice(0, 6).toUpperCase()}
+                    </P>
+                  </View>
                   <H1 className="text-lg font-black">
                     {typeof item.total === "number"
                       ? `GHS ${item.total.toFixed(2)}`

@@ -33,6 +33,7 @@ import { HeaderSearch } from "./header-search";
 import { ShopUIProvider } from "@/context/shop-ui-context";
 import { OrderDetailsModal } from "./order-details-modal";
 import { SnowfallEffect } from "./snowfall-effect";
+import { StoreLoader } from "./store-loader";
 
 export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isLive, setIsLive] = useState<boolean | null>(null);
@@ -139,13 +140,13 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
     }
   }, [user, isAuthPage, router]);
 
+  
+
+  // ...
+
   // Loading State
   if (isLive === null || user === undefined) {
-    return (
-      <div className="h-screen w-screen flex items-center justify-center bg-black text-white">
-        <Loader2 className="animate-spin" size={48} />
-      </div>
-    );
+    return <StoreLoader />;
   }
 
   // If redirecting, we can return null (or a loader) to avoid flashing content
@@ -164,7 +165,6 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   return (
     <NotificationProvider>
       <ShopUIProvider>
-        <SnowfallEffect />
         <NotificationToast />
 
         {/* Closed State Overlay */}

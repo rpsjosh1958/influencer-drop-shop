@@ -18,6 +18,7 @@ import { View, useColorScheme } from "react-native";
 import { PaystackProvider } from "react-native-paystack-webview";
 import { NotificationProvider } from "@/context/notification-context";
 import { InAppNotificationBanner } from "@/components/in-app-notification-banner";
+import { FontLoader } from "@/components/font-loader";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -79,53 +80,58 @@ export default function RootLayout() {
         <NotificationProvider>
           <AlertProvider>
             <StoreProvider>
-              <CartProvider>
-                <InAppNotificationBanner />
-                <ThemeProvider
-                  value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Stack>
-                      <Stack.Screen
-                        name="(tabs)"
-                        options={{ headerShown: false, gestureEnabled: false }}
-                      />
-                      <Stack.Screen
-                        name="(auth)"
-                        options={{ headerShown: false }}
-                      />
-                      <Stack.Screen name="+not-found" />
-                      <Stack.Screen
-                        name="modal"
-                        options={{ presentation: "modal", title: "Modal" }}
-                      />
-                      <Stack.Screen
-                        name="checkout"
-                        options={{ headerShown: false }}
-                      />
-                    </Stack>
-
-                    {/* Splash Overlay */}
-                    {!splashFinished && (
-                      <View
-                        style={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          zIndex: 50,
-                        }}
-                      >
-                        <AnimatedSplash
-                          onFinish={() => setSplashFinished(true)}
+              <FontLoader>
+                <CartProvider>
+                  <InAppNotificationBanner />
+                  <ThemeProvider
+                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Stack>
+                        <Stack.Screen
+                          name="(tabs)"
+                          options={{
+                            headerShown: false,
+                            gestureEnabled: false,
+                          }}
                         />
-                      </View>
-                    )}
-                  </View>
-                  <StatusBar style="auto" />
-                </ThemeProvider>
-              </CartProvider>
+                        <Stack.Screen
+                          name="(auth)"
+                          options={{ headerShown: false }}
+                        />
+                        <Stack.Screen name="+not-found" />
+                        <Stack.Screen
+                          name="modal"
+                          options={{ presentation: "modal", title: "Modal" }}
+                        />
+                        <Stack.Screen
+                          name="checkout"
+                          options={{ headerShown: false }}
+                        />
+                      </Stack>
+
+                      {/* Splash Overlay */}
+                      {!splashFinished && (
+                        <View
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 50,
+                          }}
+                        >
+                          <AnimatedSplash
+                            onFinish={() => setSplashFinished(true)}
+                          />
+                        </View>
+                      )}
+                    </View>
+                    <StatusBar style="auto" />
+                  </ThemeProvider>
+                </CartProvider>
+              </FontLoader>
             </StoreProvider>
           </AlertProvider>
         </NotificationProvider>

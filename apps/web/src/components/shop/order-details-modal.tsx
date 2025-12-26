@@ -37,6 +37,7 @@ interface Order {
   total: number;
   subtotal: number;
   shipping: number;
+  storeName?: string;
   status:
     | "pending"
     | "paid"
@@ -55,25 +56,55 @@ interface Order {
 }
 
 export function OrderDetailsModal() {
-  const { isOrderDetailsOpen, selectedOrderId, closeOrderDetails } =
-    useShopUI();
+  const {
+    isOrderDetailsOpen,
+    selectedOrderId,
+    closeOrderDetails,
+    selectedStoreId,
+  } = useShopUI();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
   const { store } = useStore();
   const params = useParams();
-  const storeId = params.storeId as string;
 
   useBodyScrollLock(isOrderDetailsOpen);
 
   useEffect(() => {
     async function fetchOrder() {
-      if (!selectedOrderId || !storeId) return;
+      const targetStoreId = selectedStoreId || (params.storeId as string);
+
+      if (!selectedOrderId || !targetStoreId) return;
       setLoading(true);
       try {
-        const docRef = doc(db, "stores", storeId, "orders", selectedOrderId);
+        const docRef = doc(
+          db,
+          "stores",
+          targetStoreId,
+          "orders",
+          selectedOrderId
+        );
         const snap = await getDoc(docRef);
         if (snap.exists()) {
-          setOrder({ id: snap.id, ...snap.data() } as Order);
+          const orderData = snap.data();
+          let finalStoreName = orderData.storeName;
+
+          // Backfill name if missing (for legacy orders)
+          if (!finalStoreName && targetStoreId) {
+            try {
+              const storeSnap = await getDoc(doc(db, "stores", targetStoreId));
+              if (storeSnap.exists()) {
+                finalStoreName = storeSnap.data().name;
+              }
+            } catch (err) {
+              console.error("Error fetching store name fallback", err);
+            }
+          }
+
+          setOrder({
+            id: snap.id,
+            ...orderData,
+            storeName: finalStoreName,
+          } as Order);
         }
       } catch (e) {
         console.error("Failed to fetch order", e);
@@ -87,7 +118,7 @@ export function OrderDetailsModal() {
     } else {
       setOrder(null);
     }
-  }, [isOrderDetailsOpen, selectedOrderId, storeId]);
+  }, [isOrderDetailsOpen, selectedOrderId, selectedStoreId, params.storeId]);
 
   return (
     <AnimatePresence>
@@ -112,7 +143,7 @@ export function OrderDetailsModal() {
                 <div>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                      SOLD BY {store?.name}
+                      SOLD BY {order?.storeName || "Unknown Store"}
                     </span>
                     {store?.isVerified && (
                       <BadgeCheck

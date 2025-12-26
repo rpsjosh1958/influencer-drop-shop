@@ -8,7 +8,9 @@ import {
   query,
   doc,
   updateDoc,
+  getDoc,
 } from "firebase/firestore";
+import { generateOrdersPDF } from "@/lib/pdf-generator";
 import { db } from "@/lib/firebase";
 import { Order } from "@/types";
 import {
@@ -35,8 +37,10 @@ const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
 
 export default function OrdersPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
+  const [storeConfig, setStoreConfig] = useState<any>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showExportMenu, setShowExportMenu] = useState(false); // NEW
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -67,6 +71,12 @@ export default function OrdersPage() {
       setOrders(items);
       setLoading(false);
     });
+
+    // Fetch Store Config for PDF
+    getDoc(doc(db, "stores", storeId)).then((snap) => {
+      if (snap.exists()) setStoreConfig(snap.data());
+    });
+
     return () => unsub();
   }, [storeId]);
 
@@ -126,6 +136,39 @@ export default function OrdersPage() {
     currentPage * itemsPerPage
   );
 
+  const handleExportPDF = (scope: "current" | "filtered" | "all") => {
+    if (!storeConfig) return;
+
+    let ordersToExport: Order[] = [];
+    switch (scope) {
+      case "current":
+        ordersToExport = paginatedOrders;
+        break;
+      case "filtered":
+        ordersToExport = filteredOrders;
+        break;
+      case "all":
+        ordersToExport = orders;
+        break;
+    }
+
+    generateOrdersPDF(ordersToExport, {
+      fileName: `orders-${scope}-${new Date().toISOString().split("T")[0]}.pdf`,
+      storeName: storeConfig.name,
+      storeAddress: storeConfig.address,
+      storePhone: storeConfig.phone,
+      storeIcon: storeConfig.logo || storeConfig.icon,
+      columns: [
+        { header: "#", dataKey: "id" },
+        { header: "Customer", dataKey: "customerInfo" },
+        { header: "Date", dataKey: "orderDate" },
+        { header: "Items", dataKey: "itemsSummary" },
+        { header: "Total", dataKey: "total" },
+        { header: "Status", dataKey: "status" },
+      ],
+    });
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "open":
@@ -162,26 +205,29 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col h-[calc(100vh-100px)] lg:h-[calc(100vh-120px)] space-y-4">
       {/* Header & Filters */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
-          <p className="text-zinc-500">Manage and track customer orders</p>
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm shrink-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+            <p className="text-zinc-500 text-sm">Manage customer orders</p>
+          </div>
+          {/* Mobile Export Actions could go here or hide */}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
-          <div className="relative h-10">
+          <div className="relative h-9">
             <Search
               className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-              size={16}
+              size={14}
             />
             <input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search orders..."
-              className="h-full pl-9 pr-4 rounded-lg border border-zinc-200 bg-zinc-50 text-sm outline-none focus:ring-2 focus:ring-black w-48"
+              placeholder="Search..."
+              className="h-full pl-9 pr-3 rounded-lg border border-zinc-200 bg-zinc-50 text-sm text-black outline-none focus:ring-2 focus:ring-black w-40 lg:w-48"
             />
           </div>
 
@@ -189,9 +235,9 @@ export default function OrdersPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 text-black px-3 rounded-lg border border-zinc-200 bg-zinc-50 text-sm outline-none focus:ring-2 focus:ring-black"
+            className="h-9 px-2 text-black rounded-lg border border-zinc-200 bg-zinc-50 text-sm outline-none focus:ring-2 focus:ring-black"
           >
-            <option value="all">All Status</option>
+            <option value="all">Status: All</option>
             <option value="open">Open / Paid</option>
             <option value="packaged">Packaged</option>
             <option value="sent-out">Sent Out</option>
@@ -199,24 +245,18 @@ export default function OrdersPage() {
           </select>
 
           {/* Date Range */}
-          <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg p-1 px-2 h-10 w-fit">
-            <span className="text-xs font-bold text-zinc-400 uppercase whitespace-nowrap">
-              From
-            </span>
+          <div className="flex items-center gap-1 bg-zinc-50 border border-zinc-200 rounded-lg px-2 h-9 z-20">
             <ReactDatePicker
               selected={startDate}
               onChange={(date) => setStartDate(date)}
               selectsStart
               startDate={startDate}
               endDate={endDate}
-              placeholderText="Select date"
-              className="bg-transparent text-sm outline-none w-24 text-black cursor-pointer"
+              placeholderText="From"
+              className="bg-transparent text-sm outline-none w-20 text-black cursor-pointer text-center"
+              popperClassName="!z-[60]"
             />
-          </div>
-          <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 rounded-lg p-1 px-2 h-10 w-fit">
-            <span className="text-xs font-bold text-zinc-400 uppercase whitespace-nowrap">
-              To
-            </span>
+            <span className="text-zinc-300">-</span>
             <ReactDatePicker
               selected={endDate}
               onChange={(date) => setEndDate(date)}
@@ -224,83 +264,140 @@ export default function OrdersPage() {
               startDate={startDate}
               endDate={endDate}
               minDate={startDate ?? undefined}
-              placeholderText="Select date"
-              className="bg-transparent text-sm outline-none w-24 text-black cursor-pointer"
+              placeholderText="To"
+              className="bg-transparent text-sm outline-none w-20 text-black cursor-pointer text-center"
+              popperClassName="!z-[60]"
             />
+          </div>
+
+          {/* Export Actions */}
+          <div className="relative ml-2 z-20">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="h-9 px-4 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-2"
+            >
+              Export PDF
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl p-1 flex flex-col gap-1 z-50">
+                <button
+                  onClick={() => {
+                    handleExportPDF("current");
+                    setShowExportMenu(false);
+                  }}
+                  className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
+                >
+                  <span>Current Page</span>
+                  <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                    {paginatedOrders.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleExportPDF("filtered");
+                    setShowExportMenu(false);
+                  }}
+                  className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
+                >
+                  <span>Filtered Results</span>
+                  <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                    {filteredOrders.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleExportPDF("all");
+                    setShowExportMenu(false);
+                  }}
+                  className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
+                >
+                  <span>All Orders (Total)</span>
+                  <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                    {orders.length}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-20 text-zinc-500">Loading orders...</div>
+        <div className="flex-1 flex items-center justify-center text-zinc-500">
+          Loading orders...
+        </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200">
+        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200">
           <ShoppingBag className="w-12 h-12 text-zinc-300 mb-4" />
           <h3 className="text-lg font-medium">No orders found</h3>
           <p className="text-zinc-500">Try adjusting your filters</p>
         </div>
       ) : (
         <>
-          {/* Table Header */}
-          <div className="flex items-center justify-between px-2 pb-2 text-xs font-bold uppercase text-zinc-400 tracking-wider">
-            <span className="pl-6">Customer</span>
-            <span className="pr-6">Order Info</span>
-          </div>
+          {/* Scrollable List Container */}
+          <div className="flex-1 overflow-y-auto min-h-0 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900 scrollbar-thin scrollbar-thumb-zinc-200">
+            {/* Table Header (Sticky) */}
+            <div className="sticky top-0 z-10 px-6 py-3 flex items-center justify-between text-xs font-bold uppercase text-zinc-400 tracking-wider">
+              <span>Customer</span>
+              <span className="text-right">Order Info</span>
+            </div>
 
-          {/* List */}
-          <div className="space-y-3">
-            {paginatedOrders.map((order) => (
-              <div
-                key={order.id}
-                onClick={() => setSelectedOrder(order)}
-                className="group bg-white dark:bg-zinc-900 p-4 px-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between hover:border-black/20 dark:hover:border-white/20 transition-all cursor-pointer"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 bg-zinc-100 rounded-full flex items-center justify-center font-black text-xs">
-                    {order.customerName ? order.customerName.charAt(0) : "@"}
+            {/* List Items */}
+            <div className="p-2 space-y-2">
+              {paginatedOrders.map((order) => (
+                <div
+                  key={order.id}
+                  onClick={() => setSelectedOrder(order)}
+                  className="group bg-white dark:bg-zinc-900 p-4 px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between hover:border-black/20 dark:hover:border-white/20 transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 bg-zinc-100 rounded-full flex items-center justify-center font-black text-xs text-zinc-600">
+                      {order.customerName ? order.customerName.charAt(0) : "@"}
+                    </div>
+                    {getCustomerDisplay(order)}
                   </div>
-                  {getCustomerDisplay(order)}
+
+                  <div className="flex items-center gap-6 text-right">
+                    <div>
+                      <p className="font-bold">GHS {order.total.toFixed(2)}</p>
+                      <p className="text-xs text-zinc-400">
+                        {order.items.length} items
+                      </p>
+                    </div>
+
+                    <div className="hidden md:flex flex-col items-end gap-1 min-w-[100px]">
+                      <span className="text-xs text-zinc-400">
+                        {new Date(
+                          order.createdAt?.seconds * 1000
+                        ).toLocaleDateString()}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        {order.status === "paid" ? "OPEN" : order.status}
+                      </span>
+                    </div>
+
+                    <div className="md:hidden">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        {order.status === "paid" ? "OPEN" : order.status}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-
-                <div className="flex items-center gap-6 text-right">
-                  <div>
-                    <p className="font-bold">GHS {order.total.toFixed(2)}</p>
-                    <p className="text-xs text-zinc-400">
-                      {order.items.length} items
-                    </p>
-                  </div>
-
-                  <div className="hidden md:flex flex-col items-end gap-1 min-w-[100px]">
-                    <span className="text-xs text-zinc-400">
-                      {new Date(
-                        order.createdAt?.seconds * 1000
-                      ).toLocaleDateString()}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
-                      {order.status === "paid" ? "OPEN" : order.status}
-                    </span>
-                  </div>
-
-                  <div className="md:hidden">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
-                      {order.status === "paid" ? "OPEN" : order.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
           {/* Pagination Controls */}
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-2">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-4 px-2 shrink-0 border-t border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center gap-2 text-sm text-zinc-500">
               <span>Show</span>
               <select

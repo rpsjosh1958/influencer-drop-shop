@@ -1,6 +1,7 @@
 "use client";
 
 import { useCart } from "@/components/shop/cart-provider";
+import { useStore } from "@/components/shop/store-provider";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePaystackPayment } from "react-paystack";
@@ -47,6 +48,7 @@ const CITIES: Record<string, string[]> = {
 
 export default function CheckoutPage() {
   const { cart, total, clearCart } = useCart();
+  const { store } = useStore();
   const router = useRouter();
   const params = useParams();
   const [user, setUser] = useState<User | null>(null);
@@ -303,6 +305,8 @@ export default function CheckoutPage() {
         userId: user?.uid || "guest",
         customerEmail: user?.email || email,
         customerName: name,
+        storeId: store?.id,
+        storeName: store?.name || "Unknown Store",
       };
 
       await addDoc(collection(db, "stores", storeId, "orders"), orderData);

@@ -25,7 +25,7 @@ import { FloatingCart } from "@/components/shop/floating-cart";
 import { SwipeableNotificationRow } from "@/components/swipeable-notification-row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/context/cart-context";
-import { MotiView } from "moti";
+import { MotiView, MotiImage, AnimatePresence } from "moti";
 import { ShopClosed } from "@/components/shop/shop-closed";
 import {
   Bell,
@@ -73,6 +73,9 @@ export default function ShopHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // Hero Slideshow
+  const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
+
   // Use store status instead of system config
   const isLive = store?.status === "live";
 
@@ -84,6 +87,18 @@ export default function ShopHome() {
       );
     }
   }, [store?.theme]);
+
+  // Slideshow Effect
+  useEffect(() => {
+    const images = store?.theme?.hero?.backgroundImages;
+    if (!images || images.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setCurrentHeroImageIndex((prev) => (prev + 1) % images.length);
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [store?.theme?.hero?.backgroundImages]);
 
   // Search State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -522,7 +537,10 @@ export default function ShopHome() {
                       onPress={() => setIsSearchOpen(true)}
                       className="p-1"
                     >
-                      <Search color="black" size={24} />
+                      <Search
+                        color={store?.theme?.primaryColor || "black"}
+                        size={24}
+                      />
                     </Pressable>
                   )}
 
@@ -531,7 +549,10 @@ export default function ShopHome() {
                     <Pressable
                       onPress={() => setIsNotificationOpen(!isNotificationOpen)}
                     >
-                      <Bell color="black" size={24} />
+                      <Bell
+                        color={store?.theme?.primaryColor || "black"}
+                        size={24}
+                      />
                       {unreadCount > 0 && (
                         <View className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full items-center justify-center border border-white">
                           <P className="text-[8px] text-white font-bold">
@@ -595,61 +616,93 @@ export default function ShopHome() {
                 scrollEnabled={!isSearchOpen || suggestions.length === 0}
               >
                 {!isSearching && store?.theme?.hero?.enabled !== false && (
-                  <View className="px-6 pt-4 pb-6">
-                    <MotiView
-                      from={{ opacity: 0, translateY: 30 }}
-                      animate={{ opacity: 1, translateY: 0 }}
-                      transition={{ delay: 200 }}
-                      className={cn(
-                        "flex-col",
-                        store?.theme?.hero?.layout === "left"
-                          ? "items-start"
-                          : store?.theme?.hero?.layout === "right"
-                          ? "items-end"
-                          : "items-center"
-                      )}
-                    >
-                      <View
-                        className="flex-row items-center gap-2 mb-4 bg-black px-3 py-1.5 rounded-full"
-                        style={{
-                          backgroundColor:
-                            store?.theme?.primaryColor || "black",
-                        }}
-                      >
-                        <Zap size={12} color="white" fill="white" />
-                        <P className="text-white text-[10px] font-bold uppercase tracking-widest">
-                          Live Drop Now Active
-                        </P>
+                  <View className="relative w-full mb-6 overflow-hidden h-40 justify-center">
+                    {/* Background Image Logic */}
+                    {(store?.theme?.hero?.backgroundImages?.length ?? 0) >
+                      0 && (
+                      <View className="absolute inset-0 bg-zinc-200">
+                        <AnimatePresence>
+                          <MotiImage
+                            key={currentHeroImageIndex}
+                            from={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ type: "timing", duration: 1500 }}
+                            source={{
+                              uri: store?.theme?.hero?.backgroundImages?.[
+                                currentHeroImageIndex
+                              ],
+                            }}
+                            className="absolute inset-0 w-full h-full"
+                            style={{
+                              resizeMode: "cover",
+                              position: "absolute",
+                            }}
+                          />
+                        </AnimatePresence>
+                        <View
+                          className="absolute inset-0"
+                          style={{
+                            backgroundColor: `rgba(0,0,0,${
+                              store?.theme?.hero?.overlayOpacity ?? 0.2
+                            })`,
+                          }}
+                        />
                       </View>
-                      <H1
+                    )}
+
+                    <View className="px-6 py-12 relative z-10">
+                      <MotiView
+                        from={{ opacity: 0, translateY: 30 }}
+                        animate={{ opacity: 1, translateY: 0 }}
+                        transition={{ delay: 200 }}
                         className={cn(
-                          "text-6xl font-black tracking-tighter leading-none mb-4 uppercase",
+                          "flex-col",
                           store?.theme?.hero?.layout === "left"
-                            ? "text-left"
+                            ? "items-start"
                             : store?.theme?.hero?.layout === "right"
-                            ? "text-right"
-                            : "text-center"
-                        )}
-                        style={{
-                          color: store?.theme?.hero?.headlineColor || "black",
-                        }}
-                      >
-                        {store?.theme?.hero?.headline || "SECURE THE BAG."}
-                      </H1>
-                      <P
-                        className={cn(
-                          "text-lg text-zinc-500",
-                          store?.theme?.hero?.layout === "left"
-                            ? "text-left"
-                            : store?.theme?.hero?.layout === "right"
-                            ? "text-right"
-                            : "text-center"
+                            ? "items-end"
+                            : "items-center"
                         )}
                       >
-                        {store?.theme?.hero?.subheadline ||
-                          "Limited edition drops. Once they're gone, they're gone forever. Don't lack."}
-                      </P>
-                    </MotiView>
+                        {!!store?.theme?.hero?.headline && (
+                          <H1
+                            className={cn(
+                              "text-3xl font-black tracking-tighter leading-none mb-4 uppercase",
+                              store?.theme?.hero?.layout === "left"
+                                ? "text-left"
+                                : store?.theme?.hero?.layout === "right"
+                                ? "text-right"
+                                : "text-center"
+                            )}
+                            style={{
+                              color:
+                                store?.theme?.hero?.headlineColor || "white",
+                            }}
+                          >
+                            {store.theme.hero.headline}
+                          </H1>
+                        )}
+                        {!!store?.theme?.hero?.subheadline && (
+                          <P
+                            className={cn(
+                              "text-lg",
+                              store?.theme?.hero?.layout === "left"
+                                ? "text-left"
+                                : store?.theme?.hero?.layout === "right"
+                                ? "text-right"
+                                : "text-center"
+                            )}
+                            style={{
+                              color:
+                                store?.theme?.hero?.headlineColor || "white",
+                            }}
+                          >
+                            {store.theme.hero.subheadline}
+                          </P>
+                        )}
+                      </MotiView>
+                    </View>
                   </View>
                 )}
 
@@ -821,7 +874,7 @@ export default function ShopHome() {
                       </View>
 
                       <P className="text-[10px] text-zinc-300 uppercase tracking-widest mt-3">
-                        Powered by CopDrop
+                        Powered by The Drop
                       </P>
                     </View>
                   </View>

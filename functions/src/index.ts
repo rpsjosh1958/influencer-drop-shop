@@ -161,7 +161,7 @@ export const onStoreCreated = onDocumentCreated(
       const { data, error } = await resend.emails.send({
         from: "Drop <onboarding@resend.dev>", // TODO: Change to your verified domain (e.g. welcome@copdrop.io)
         to: [user.email],
-        subject: `WELCOME TO THE FAMILY 🚀`,
+        subject: `WELCOME TO THE FAMILY`,
         html: `
           <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto;">
@@ -169,18 +169,18 @@ export const onStoreCreated = onDocumentCreated(
               <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
               
               <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 40px;">
-                Yo <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
+                Hi <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
                 Your store <strong>${
                   store.name
                 }</strong> is officially live. You operate on your own terms now.
               </p>
 
               <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left;">
-                <h3 style="margin-top: 0; margin-bottom: 15px;">🚀 Your Launch Checklist:</h3>
+                <h3 style="margin-top: 0; margin-bottom: 15px;">Your Launch Checklist:</h3>
                 <ul style="color: #ccc; padding-left: 20px;">
                   <li style="margin-bottom: 10px;">Login to your Dashboard</li>
                   <li style="margin-bottom: 10px;">Add your first Product</li>
-                  <li style="margin-bottom: 10px;">Share your link: <strong>drop.io/shop/${
+                  <li style="margin-bottom: 10px;">Share your link: <strong>copdrop.io/shop/${
                     store.slug
                   }</strong></li>
                 </ul>
@@ -191,7 +191,7 @@ export const onStoreCreated = onDocumentCreated(
               </a>
 
               <p style="margin-top: 60px; font-size: 12px; color: #666666;">
-                © 2025 CopDrop Inc. • Accra, Ghana
+                © 2025 The Drop. • Accra, Ghana
               </p>
             </div>
           </div>

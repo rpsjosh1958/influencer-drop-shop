@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { View, ScrollView, Modal, Pressable, Image } from "react-native";
 import {
   X,
@@ -10,6 +11,8 @@ import {
 import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useStore } from "@/context/store-context";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface OrderDetailsModalProps {
   order: any;
@@ -23,6 +26,21 @@ export function OrderDetailsModal({
   onClose,
 }: OrderDetailsModalProps) {
   const { store } = useStore();
+  const [fetchedStoreName, setFetchedStoreName] = useState("");
+
+  useEffect(() => {
+    if (visible && order && !order.storeName && order.storeId) {
+      getDoc(doc(db, "stores", order.storeId))
+        .then((snap) => {
+          if (snap.exists()) {
+            setFetchedStoreName(snap.data().name);
+          }
+        })
+        .catch((err) => console.log("Failed to fetch store name", err));
+    } else {
+      setFetchedStoreName("");
+    }
+  }, [visible, order]);
 
   if (!order) return null;
 
@@ -66,7 +84,7 @@ export function OrderDetailsModal({
               <View>
                 <View className="flex-row items-center gap-1 mb-1">
                   <P className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                    {store?.name || "DROP."}
+                    {order?.storeName || fetchedStoreName || "Unknown Store"}
                   </P>
                   {store?.isVerified && (
                     <BadgeCheck size={12} color="#3b82f6" fill="white" />

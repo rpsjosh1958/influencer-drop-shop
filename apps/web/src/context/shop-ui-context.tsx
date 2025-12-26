@@ -5,7 +5,8 @@ import React, { createContext, useContext, useState } from "react";
 interface ShopUIContextType {
   isOrderDetailsOpen: boolean;
   selectedOrderId: string | null;
-  openOrderDetails: (orderId: string) => void;
+  selectedStoreId: string | null;
+  openOrderDetails: (orderId: string, storeId?: string) => void;
   closeOrderDetails: () => void;
 }
 
@@ -13,13 +14,16 @@ const ShopUIContext = createContext<ShopUIContextType | undefined>(undefined);
 
 export function ShopUIProvider({ children }: { children: React.ReactNode }) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
-  const openOrderDetails = (orderId: string) => {
+  const openOrderDetails = (orderId: string, storeId?: string) => {
     setSelectedOrderId(orderId);
+    if (storeId) setSelectedStoreId(storeId);
   };
 
   const closeOrderDetails = () => {
     setSelectedOrderId(null);
+    setSelectedStoreId(null);
   };
 
   return (
@@ -27,6 +31,7 @@ export function ShopUIProvider({ children }: { children: React.ReactNode }) {
       value={{
         isOrderDetailsOpen: !!selectedOrderId,
         selectedOrderId,
+        selectedStoreId,
         openOrderDetails,
         closeOrderDetails,
       }}

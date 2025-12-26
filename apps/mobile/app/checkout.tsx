@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 // @ts-ignore
-import { Paystack } from "react-native-paystack-webview";
+import { usePaystack } from "react-native-paystack-webview";
 import {
   View,
   ScrollView,
@@ -26,7 +26,7 @@ import {
 } from "lucide-react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { SlideToPay } from "@/components/ui/slide-to-pay";
+import { SlideToPay, SlideToPayRef } from "@/components/ui/slide-to-pay";
 import { auth, db } from "@/lib/firebase";
 import {
   doc,
@@ -44,9 +44,11 @@ import { useStore } from "@/context/store-context";
 // ... inside component
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { storeId } = useStore(); // Get storeId
+  const { storeId, store } = useStore(); // Get storeId and store object
   const { cart, clearCart, total } = useCart();
   const { showAlert } = useAlert();
+
+  const sliderRef = React.useRef<SlideToPayRef>(null);
 
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState("");
@@ -58,12 +60,34 @@ export default function CheckoutScreen() {
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        // Pre-fill if available
+        // 1. Basic Auth Info
         if (u.displayName) setName(u.displayName);
         if (u.email) setEmail(u.email);
+
+        // 2. Fetch Extended Profile (Phone, Addresses)
+        try {
+          const docRef = doc(db, "users", u.uid);
+          const snap = await getDoc(docRef);
+          if (snap.exists()) {
+            const data = snap.data();
+            if (data.phone) setPhone(data.phone);
+
+            // Prefill address if available
+            const addresses = data.addresses || [];
+            const defaultAddress =
+              addresses.find((a: any) => a.isDefault) || addresses[0];
+
+            if (defaultAddress) {
+              if (defaultAddress.city) setCity(defaultAddress.city);
+              if (defaultAddress.street) setAddress(defaultAddress.street);
+            }
+          }
+        } catch (error) {
+          console.log("Error fetching user profile:", error);
+        }
       }
       setInitializing(false);
     });
@@ -222,6 +246,7 @@ export default function CheckoutScreen() {
         customerEmail: user?.email || email,
         customerName: name,
         storeId, // Tag with storeId
+        storeName: store?.name || "Unknown Store",
       };
 
       await addDoc(collection(db, "stores", storeId, "orders"), orderData);
@@ -262,10 +287,13 @@ export default function CheckoutScreen() {
     });
   };
 
-  const paystackWebViewRef = useRef<any>(null);
+  // Removed paystackWebViewRef
+
+  const { popup } = usePaystack();
 
   const handlePayPress = async () => {
     if (!name || !email || !phone || !address || !city) {
+      sliderRef.current?.reset();
       showAlert({
         title: "Missing Information",
         message: "Please fill in all shipping details.",
@@ -277,8 +305,18 @@ export default function CheckoutScreen() {
     setLoading(true);
     const stockReserved = await reserveStock();
     if (stockReserved) {
-      paystackWebViewRef.current?.startTransaction();
+      popup.checkout({
+        amount: total,
+        email,
+        metadata: {
+          name,
+          mobile: phone,
+        },
+        onSuccess: handleSuccess,
+        onCancel: handleCancel,
+      });
     } else {
+      sliderRef.current?.reset();
       setLoading(false);
     }
   };
@@ -428,21 +466,6 @@ export default function CheckoutScreen() {
                       className="flex-1 ml-3 font-medium text-base text-black"
                       placeholderTextColor="#a1a1aa"
                     />
-                    <Paystack
-                      paystackKey={
-                        process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY || ""
-                      }
-                      billingEmail={email}
-                      billingName={name}
-                      billingMobile={phone}
-                      amount={total}
-                      onCancel={handleCancel}
-                      onSuccess={handleSuccess}
-                      ref={paystackWebViewRef}
-                      currency="GHS"
-                      channels={["card", "mobile_money"]}
-                      autoStart={false}
-                    />
                   </View>
                 </View>
               </View>
@@ -461,6 +484,7 @@ export default function CheckoutScreen() {
           {/* Footer */}
           <View className="px-6 py-6 border-t border-zinc-100 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
             <SlideToPay
+              ref={sliderRef}
               amount={total}
               onSuccess={handlePayPress}
               isLoading={loading}

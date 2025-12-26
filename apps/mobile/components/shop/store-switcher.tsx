@@ -88,17 +88,23 @@ export function StoreSwitcher() {
             className="h-8 w-8 rounded-full bg-zinc-100"
           />
         ) : (
-          <View className="h-8 w-8 bg-black rounded-full items-center justify-center">
+          <View
+            className="h-8 w-8 rounded-full items-center justify-center"
+            style={{ backgroundColor: store?.theme?.primaryColor || "black" }}
+          >
             <StoreIcon size={14} color="white" />
           </View>
         )}
-        <H1 className="text-xl tracking-tighter uppercase">
+        <H1
+          className="text-xl tracking-tighter uppercase"
+          style={{ color: store?.theme?.primaryColor || "black" }}
+        >
           {store?.name || "DROP."}
         </H1>
         {store?.isVerified && (
           <BadgeCheck size={16} color="#3b82f6" fill="white" />
         )}
-        <ChevronDown size={16} color="black" />
+        <ChevronDown size={16} color={store?.theme?.primaryColor || "black"} />
       </Pressable>
 
       <Modal
