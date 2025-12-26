@@ -52,6 +52,15 @@ export interface StoreConfig {
   status: "live" | "maintenance" | "unpaid";
   isVerified?: boolean;
   plan?: string;
+  payoutConfig?: {
+    bankName: string;
+    bankCode: string;
+    accountNumber: string;
+    accountName: string;
+    recipientCode: string;
+    provider: "momo" | "bank";
+    network?: string;
+  };
 }
 
 interface StoreContextType {

@@ -14,6 +14,7 @@ import {
   Megaphone,
   Tag,
   Settings,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers";
@@ -123,6 +124,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     { name: "Products", href: "/admin/products", icon: Package },
     { name: "Categories", href: "/admin/categories", icon: Tag },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+    { name: "Finance", href: "/admin/finance", icon: Wallet },
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ];
 

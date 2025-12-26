@@ -21,7 +21,10 @@ import {
   CheckCircle2,
   ShieldCheck,
   Zap,
+  Wallet,
 } from "lucide-react";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
@@ -32,6 +35,7 @@ const TABS = [
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "footer", label: "Footer", icon: LinkIcon },
   { id: "billing", label: "Billing & Plan", icon: CreditCard },
+  { id: "payouts", label: "Payout Settings", icon: Wallet },
 ];
 
 export default function StoreSettingsPage() {
@@ -187,6 +191,101 @@ export default function StoreSettingsPage() {
 
   const handleUpgrade = () => {
     initializePayment({ onSuccess, onClose });
+  };
+
+  // --- PAYOUTS LOGIC ---
+  const [payoutState, setPayoutState] = useState({
+    provider: "momo",
+    bankCode: "MTN",
+    accountNumber: "",
+    accountName: "",
+    verifiedName: "",
+    isVerified: false,
+    loading: false,
+  });
+
+  const MOMO_NETWORKS = [
+    { name: "MTN Mobile Money", code: "MTN" },
+    { name: "Vodafone Cash", code: "VOD" },
+    { name: "AirtelTigo Money", code: "ATM" },
+  ];
+
+  const verifyAccount = async () => {
+    setPayoutState((prev) => ({
+      ...prev,
+      loading: true,
+      verifiedName: "",
+      isVerified: false,
+    }));
+    try {
+      const verifyFn = httpsCallable(functions, "verifyBankAccount");
+      const result: any = await verifyFn({
+        accountNumber: payoutState.accountNumber,
+        bankCode: payoutState.bankCode,
+      });
+      console.log("Verify Result:", result);
+      // Determine account name from result.data
+      const account_name = result.data.account_name;
+
+      setPayoutState((prev) => ({
+        ...prev,
+        verifiedName: account_name,
+        isVerified: true,
+        loading: false,
+      }));
+    } catch (err) {
+      console.error("Verification failed", err);
+      // alert("Could not verify account. Please check details.");
+      setSuccess("Failed to verify. Check details.");
+      setPayoutState((prev) => ({ ...prev, loading: false }));
+    }
+  };
+
+  const savePayoutMethod = async () => {
+    if (!payoutState.isVerified) return;
+    setLoading(true);
+    try {
+      // 1. Create Recipient
+      const createRecipientFn = httpsCallable(
+        functions,
+        "createTransferRecipient"
+      );
+      const recipient: any = await createRecipientFn({
+        type: payoutState.provider === "momo" ? "mobile_money" : "nuban",
+        name: payoutState.verifiedName,
+        accountNumber: payoutState.accountNumber,
+        bankCode: payoutState.bankCode,
+      });
+
+      console.log("Recipient Created:", recipient);
+      const recipientCode = recipient.data.recipient_code;
+
+      // 2. Save to Firestore
+      const payoutConfig = {
+        provider: payoutState.provider,
+        bankCode: payoutState.bankCode,
+        bankName:
+          MOMO_NETWORKS.find((n) => n.code === payoutState.bankCode)?.name ||
+          "Bank",
+        accountNumber: payoutState.accountNumber,
+        accountName: payoutState.verifiedName,
+        recipientCode, // Critical for transfers
+      };
+
+      await updateDoc(doc(db, "stores", storeId!), {
+        payoutConfig,
+      });
+
+      setSuccess("Payout Method Verified & Saved!");
+      // Update local config
+      setConfig((prev: any) => ({ ...prev, payoutConfig }));
+      // Reset form state slightly to showing saved state logic handled in render
+    } catch (err: any) {
+      console.error(err);
+      setSuccess("Error saving payout method: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (storeLoading || fetching)
@@ -780,6 +879,185 @@ export default function StoreSettingsPage() {
                   )}
                 </motion.div>
               )}
+              {activeTab === "payouts" && (
+                <motion.div
+                  key="payouts"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
+                >
+                  <div>
+                    <h2 className="text-xl font-bold text-zinc-900">
+                      Payout Settings
+                    </h2>
+                    <p className="text-zinc-500 text-sm">
+                      Where should we send your earnings?
+                      <br />
+                      <span className="text-xs text-zinc-400">
+                        * Supported: MTN MoMo, Vodafone Cash, AirtelTigo.
+                      </span>
+                    </p>
+                  </div>
+
+                  {config.payoutConfig?.recipientCode ? (
+                    <div className="bg-green-50 border border-green-200 p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle2 size={18} className="text-green-600" />
+                          <h3 className="font-bold text-green-900">
+                            Active Payout Method
+                          </h3>
+                        </div>
+                        <p className="text-green-800 font-mono text-lg tracking-tight">
+                          {config.payoutConfig.bankName} •{" "}
+                          {config.payoutConfig.accountNumber}
+                        </p>
+                        <p className="text-green-700 text-sm font-bold uppercase mt-1">
+                          {config.payoutConfig.accountName}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfig((prev: any) => ({
+                            ...prev,
+                            payoutConfig: null,
+                          }));
+                          setPayoutState({
+                            provider: "momo",
+                            bankCode: "MTN",
+                            accountNumber: "",
+                            accountName: "",
+                            verifiedName: "",
+                            isVerified: false,
+                            loading: false,
+                          });
+                        }}
+                        className="text-sm font-bold underline hover:text-green-900"
+                      >
+                        Change / Update
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-6 max-w-md">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="text-sm font-bold block mb-2">
+                            Provider
+                          </label>
+                          <select
+                            value={payoutState.provider}
+                            onChange={(e) =>
+                              setPayoutState((prev) => ({
+                                ...prev,
+                                provider: e.target.value,
+                                isVerified: false,
+                              }))
+                            }
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:ring-2 focus:ring-black"
+                          >
+                            <option value="momo">Mobile Money</option>
+                            <option value="bank" disabled>
+                              Bank Account (Coming Soon)
+                            </option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-bold block mb-2">
+                            Network
+                          </label>
+                          <select
+                            value={payoutState.bankCode}
+                            onChange={(e) =>
+                              setPayoutState((prev) => ({
+                                ...prev,
+                                bankCode: e.target.value,
+                                isVerified: false,
+                              }))
+                            }
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl outline-none focus:ring-2 focus:ring-black"
+                          >
+                            {MOMO_NETWORKS.map((net) => (
+                              <option key={net.code} value={net.code}>
+                                {net.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-bold block mb-2">
+                            Mobile Number
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="024xxxxxxx"
+                            value={payoutState.accountNumber}
+                            onChange={(e) =>
+                              setPayoutState((prev) => ({
+                                ...prev,
+                                accountNumber: e.target.value,
+                                isVerified: false,
+                              }))
+                            }
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-mono outline-none focus:ring-2 focus:ring-black"
+                          />
+                        </div>
+                      </div>
+
+                      {payoutState.isVerified ? (
+                        <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200">
+                          <p className="text-xs text-zinc-500 font-bold uppercase mb-1">
+                            Verified Name
+                          </p>
+                          <p className="text-lg font-black text-green-600 flex items-center gap-2">
+                            <CheckCircle2
+                              size={24}
+                              fill="currentColor"
+                              className="text-white"
+                            />
+                            {payoutState.verifiedName}
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={verifyAccount}
+                          disabled={
+                            payoutState.loading ||
+                            !payoutState.accountNumber ||
+                            payoutState.accountNumber.length < 10
+                          }
+                          className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-black transition-colors"
+                        >
+                          {payoutState.loading ? (
+                            <Loader2 className="animate-spin mx-auto" />
+                          ) : (
+                            "Verify Account"
+                          )}
+                        </button>
+                      )}
+
+                      {payoutState.isVerified && (
+                        <button
+                          type="button"
+                          onClick={savePayoutMethod}
+                          disabled={loading}
+                          className="w-full py-4 bg-black text-white rounded-xl font-bold shadow-xl hover:scale-105 transition-transform"
+                        >
+                          {loading ? (
+                            <Loader2 className="animate-spin mx-auto" />
+                          ) : (
+                            "Save Payout Method"
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
             </AnimatePresence>
 
             <div className="sticky bottom-6 flex justify-end">
@@ -789,8 +1067,8 @@ export default function StoreSettingsPage() {
                     {success}
                   </span>
                 )}
-                {/* Save button only visible on tabs that are forms. Billing handles its own save/upgrade */}
-                {activeTab !== "billing" && (
+                {/* Save button only visible on tabs that are forms. Billing & Payouts handle their own save */}
+                {activeTab !== "billing" && activeTab !== "payouts" && (
                   <button
                     type="submit"
                     disabled={loading}

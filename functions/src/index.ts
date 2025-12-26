@@ -1,15 +1,15 @@
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { Expo, ExpoPushMessage } from "expo-server-sdk";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
+import { resolveAccount, createRecipient, listBanks } from "./paystack";
+import { processOrderWallet, handleWithdrawal } from "./wallet";
 
 admin.initializeApp();
 
 const expo = new Expo();
-// TODO: Set this in your Firebase Functions environment secrets
-// firebase functions:secrets:set RESEND_API_KEY
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 export const onNotificationCreated = onDocumentCreated(
   "notifications/{notificationId}",
@@ -157,6 +157,7 @@ export const onStoreCreated = onDocumentCreated(
       }
 
       // 2. Send Email via Resend
+      const resend = new Resend(process.env.RESEND_API_KEY); // Lazy Init
       const { data, error } = await resend.emails.send({
         from: "Drop <onboarding@resend.dev>", // TODO: Change to your verified domain (e.g. welcome@copdrop.io)
         to: [user.email],
@@ -207,5 +208,80 @@ export const onStoreCreated = onDocumentCreated(
     }
   }
 );
+
+// --- ORDER TRIGGER ---
+
+export const onOrderCreated = onDocumentCreated(
+  "stores/{storeId}/orders/{orderId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const order = snapshot.data();
+    const orderId = event.params.orderId;
+    const storeId = event.params.storeId;
+
+    if (!storeId) {
+      logger.warn(`Order ${orderId} has no storeId in path`);
+      return;
+    }
+
+    await processOrderWallet(orderId, order, storeId);
+  }
+);
+
+// --- PAYOUT SYSTEM ---
+
+export const getBanks = onCall(async () => {
+  return await listBanks();
+});
+
+export const verifyBankAccount = onCall(async (request) => {
+  const { accountNumber, bankCode } = request.data;
+  if (!accountNumber || !bankCode) {
+    throw new HttpsError("invalid-argument", "Missing account details");
+  }
+  return await resolveAccount(accountNumber, bankCode);
+});
+
+export const createTransferRecipient = onCall(async (request) => {
+  const { type, name, accountNumber, bankCode } = request.data;
+  // type should be "nuban" or "mobile_money"
+  return await createRecipient({
+    type,
+    name,
+    account_number: accountNumber,
+    bank_code: bankCode,
+  });
+});
+
+export const initiateWithdrawal = onCall(async (request) => {
+  const { amount, storeId } = request.data;
+  const auth = request.auth;
+
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+
+  if (!storeId || !amount) {
+    throw new HttpsError("invalid-argument", "Missing storeId or amount");
+  }
+
+  // Verify Ownership
+  const storeDoc = await admin
+    .firestore()
+    .collection("stores")
+    .doc(storeId)
+    .get();
+
+  if (!storeDoc.exists || storeDoc.data()?.ownerId !== auth.uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Not authorized to withdraw from this store"
+    );
+  }
+
+  return await handleWithdrawal(storeId, amount);
+});
 
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
