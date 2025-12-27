@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-const resend = new Resend(
-  process.env.RESEND_API_KEY || process.env.NEXT_PUBLIC_RESEND_API_KEY
-);
+const resendApiKey = process.env.RESEND_API_KEY;
 
 export async function POST(req: Request) {
   try {
     const { subject, message, target } = await req.json();
+
+    if (!resendApiKey) {
+      console.error("Missing RESEND_API_KEY");
+      return NextResponse.json(
+        { error: "Server configuration error" },
+        { status: 500 }
+      );
+    }
+
+    const resend = new Resend(resendApiKey);
 
     // Mocking Sending Process for now
     console.log(`[BROADCAST] Target: ${target}, Subject: ${subject}`);
