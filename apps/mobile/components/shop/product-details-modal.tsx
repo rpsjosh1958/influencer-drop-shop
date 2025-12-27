@@ -34,49 +34,94 @@ export function ProductDetailsModal({
   const { store } = useStore();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // Logic from Web
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+  // Dynamic Selections
+  const [selections, setSelections] = useState<Record<string, string>>({});
   const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
 
   // Reset on open
   useEffect(() => {
     if (isVisible) {
       setCurrentImageIndex(0);
-      setSelectedColor(null);
-      setSelectedSize(null);
+      setSelections({});
       setSelectedVariant(null);
     }
   }, [isVisible, product]);
 
-  // Derived State
-  const variants = useMemo(() => product?.variants || [], [product]);
-  const uniqueColors = useMemo(
-    () =>
-      Array.from(new Set(variants.map((v: any) => v.color).filter(Boolean))),
-    [variants]
-  );
-  const uniqueSizes = useMemo(
-    () => Array.from(new Set(variants.map((v: any) => v.size).filter(Boolean))),
-    [variants]
-  );
+  // Derived Options (Legacy Support)
+  const displayOptions = useMemo((): {
+    id?: string;
+    name: string;
+    values: string[];
+  }[] => {
+    if (!product) return [];
+    if (product.options && product.options.length > 0) return product.options;
+
+    // Fallback: Infer from variants (Legacy)
+    if (product.hasVariants && product.variants) {
+      const options: { id: string; name: string; values: string[] }[] = [];
+      const colors = Array.from(
+        new Set(product.variants.map((v: any) => v.color).filter(Boolean))
+      ) as string[];
+      const sizes = Array.from(
+        new Set(product.variants.map((v: any) => v.size).filter(Boolean))
+      ) as string[];
+
+      if (colors.length)
+        options.push({ id: "color", name: "Color", values: colors });
+      if (sizes.length)
+        options.push({ id: "size", name: "Size", values: sizes });
+      return options;
+    }
+    return [];
+  }, [product]);
 
   // Variant Matching
   useEffect(() => {
-    if (!product || !product.hasVariants) return;
+    if (!product || !product.hasVariants || !product.variants) return;
 
-    let match = null;
-    if (selectedColor && selectedSize) {
-      match = variants.find(
-        (v: any) => v.color === selectedColor && v.size === selectedSize
-      );
-    } else if (selectedColor && uniqueSizes.length === 0) {
-      match = variants.find((v: any) => v.color === selectedColor);
-    } else if (selectedSize && uniqueColors.length === 0) {
-      match = variants.find((v: any) => v.size === selectedSize);
+    // Check completeness
+    const requiredOptions = displayOptions;
+    const isComplete = requiredOptions.every((opt) => selections[opt.name]);
+
+    if (isComplete) {
+      const match = product.variants.find((v: any) => {
+        // Modern check
+        if (v.options) {
+          return Object.entries(selections).every(
+            ([key, val]) => v.options[key] === val
+          );
+        }
+        // Legacy check
+        const mock: Record<string, string> = {
+          ...(v.color && { Color: v.color }),
+          ...(v.size && { Size: v.size }),
+        };
+        return Object.entries(selections).every(([k, val]) => mock[k] === val);
+      });
+      setSelectedVariant(match || null);
+    } else {
+      setSelectedVariant(null);
     }
-    setSelectedVariant(match || null);
-  }, [selectedColor, selectedSize, product, variants]);
+  }, [selections, product, displayOptions]);
+
+  const handleOptionSelect = (name: string, value: string) => {
+    setSelections((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const isValueAvailable = (optionName: string, value: string) => {
+    if (!product?.variants) return false;
+    const nextSelections = { ...selections, [optionName]: value };
+    return product.variants.some((v: any) => {
+      if (v.stock <= 0) return false;
+      const vOptions = v.options || {
+        ...(v.color && { Color: v.color }),
+        ...(v.size && { Size: v.size }),
+      };
+      return Object.entries(nextSelections).every(
+        ([k, val]) => vOptions[k] === val
+      );
+    });
+  };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems && viewableItems.length > 0) {
@@ -188,95 +233,112 @@ export function ProductDetailsModal({
             {/* Description */}
             <View>
               <P className="text-zinc-600 leading-relaxed text-base">
-                {product.description ||
-                  ""}
+                {product.description || ""}
               </P>
             </View>
 
-            {/* Variants */}
+            {/* Dynamic Options */}
             {product.hasVariants && (
               <View className="space-y-6">
-                {/* Colors */}
-                {uniqueColors.length > 0 && (
-                  <View>
+                {displayOptions.map((option) => (
+                  <View key={option.name}>
                     <P className="text-xs font-bold uppercase text-zinc-400 mb-3">
-                      Color: {selectedColor}
+                      {option.name}: {selections[option.name]}
                     </P>
                     <View className="flex-row gap-3 flex-wrap">
-                      {uniqueColors.map((color: any) => (
-                        <Pressable
-                          key={color}
-                          onPress={() => setSelectedColor(color)}
-                          className={`h-10 w-10 rounded-full border-2 items-center justify-center ${
-                            selectedColor === color
-                              ? "border-black"
-                              : "border-zinc-200"
-                          }`}
-                        >
-                          <View
-                            className="h-8 w-8 rounded-full bg-gray-200"
-                            style={{ backgroundColor: color.toLowerCase() }}
-                          />
-                          {selectedColor === color && (
-                            <View className="absolute inset-0 items-center justify-center bg-black/20 rounded-full">
-                              <Check size={14} color="white" />
-                            </View>
-                          )}
-                        </Pressable>
-                      ))}
-                    </View>
-                  </View>
-                )}
+                      {option.values.map((value: string) => {
+                        const isSelected = selections[option.name] === value;
+                        const isAvailable = isValueAvailable(
+                          option.name,
+                          value
+                        );
 
-                {/* Sizes */}
-                {uniqueSizes.length > 0 && (
-                  <View>
-                    <P className="text-xs font-bold uppercase text-zinc-400 mb-3">
-                      Size: {selectedSize}
-                    </P>
-                    <View className="flex-row gap-3 flex-wrap">
-                      {uniqueSizes.map((size: any) => {
-                        // Check availability logic
-                        let disabled = false;
-                        if (selectedColor) {
-                          const exists = variants.find(
+                        // Special Render for Color
+                        const isColor =
+                          option.name.toLowerCase() === "color" ||
+                          option.name.toLowerCase() === "colour";
+
+                        // Try to find hex code
+                        let colorCode = null;
+                        if (isColor && product.variants) {
+                          const v = product.variants.find(
                             (v: any) =>
-                              v.color === selectedColor &&
-                              v.size === size &&
-                              v.stock > 0
+                              v.options?.[option.name] === value ||
+                              v.color === value
                           );
-                          if (!exists) disabled = true;
+                          if (v?.colorCode) colorCode = v.colorCode;
+                          // Fallback to value if it's a valid color Code?
+                          // Usually value is "Red", code is "#f00".
+                        }
+
+                        if (isColor) {
+                          return (
+                            <Pressable
+                              key={value}
+                              onPress={() =>
+                                handleOptionSelect(option.name, value)
+                              }
+                              disabled={!isAvailable && !isSelected}
+                              className={`h-10 w-10 rounded-full border-2 items-center justify-center ${
+                                isSelected ? "border-black" : "border-zinc-200"
+                              } ${
+                                !isAvailable && !isSelected ? "opacity-30" : ""
+                              }`}
+                            >
+                              {colorCode ? (
+                                <View
+                                  className="h-8 w-8 rounded-full border border-black/5"
+                                  style={{ backgroundColor: colorCode }}
+                                />
+                              ) : (
+                                <View className="h-8 w-8 rounded-full bg-gray-100 items-center justify-center">
+                                  <P className="text-[10px] font-bold">
+                                    {value.substring(0, 1)}
+                                  </P>
+                                </View>
+                              )}
+
+                              {isSelected && (
+                                <View className="absolute inset-0 items-center justify-center bg-black/20 rounded-full">
+                                  <Check size={14} color="white" />
+                                </View>
+                              )}
+                            </Pressable>
+                          );
                         }
 
                         return (
                           <Pressable
-                            key={size}
-                            onPress={() => !disabled && setSelectedSize(size)}
-                            className={`min-w-[48px] px-3 py-2 rounded-xl border border-zinc-200 items-center justify-center ${
-                              selectedSize === size
+                            key={value}
+                            onPress={() =>
+                              !(!isAvailable && !isSelected) &&
+                              handleOptionSelect(option.name, value)
+                            }
+                            className={`min-w-[48px] px-3 py-2 rounded-xl border items-center justify-center ${
+                              isSelected
                                 ? "bg-black border-black"
-                                : disabled
-                                ? "bg-zinc-50 opacity-50"
-                                : "bg-white"
+                                : !isAvailable
+                                ? "bg-zinc-50 border-zinc-100 opacity-50"
+                                : "bg-white border-zinc-200"
                             }`}
                           >
                             <P
                               className={`${
-                                selectedSize === size
+                                isSelected
                                   ? "text-white font-bold"
-                                  : disabled
+                                  : !isAvailable
                                   ? "text-zinc-300 line-through"
                                   : "text-black"
                               }`}
                             >
-                              {size}
+                              {value}
                             </P>
                           </Pressable>
                         );
                       })}
                     </View>
                   </View>
-                )}
+                ))}
               </View>
             )}
           </View>

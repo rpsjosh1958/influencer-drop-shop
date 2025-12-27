@@ -196,7 +196,7 @@ export default function FinancePage() {
                className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6"
              >
                 <div>
-                    <h2 className="text-2xl font-black">Cash Out</h2>
+                    <h2 className="text-2xl text-black font-bold">Cash Out</h2>
                     <p className="text-zinc-500">Enter amount to withdraw.</p>
                 </div>
 
@@ -208,7 +208,7 @@ export default function FinancePage() {
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
                             placeholder="0.00"
-                            className="w-full text-3xl font-black p-4 bg-zinc-50 rounded-2xl border border-zinc-200 outline-none focus:ring-2 focus:ring-black"
+                            className="w-full text-3xl font-bold text-black p-4 bg-zinc-50 rounded-2xl border border-zinc-200 outline-none focus:ring-2 focus:ring-black"
                         />
                         <p className="text-right text-xs font-bold text-zinc-400 mt-2">
                             Max: {formatCurrency(wallet.currentBalance)}

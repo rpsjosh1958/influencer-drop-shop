@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Zap,
   Wallet,
+  BadgeCheck,
 } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
@@ -165,14 +166,20 @@ export default function StoreSettingsPage() {
     // On success, upgrade the plan
     setLoading(true);
     try {
+      const now = new Date();
+      const expiresAt = new Date();
+      expiresAt.setDate(now.getDate() + 30); // 30 Day Subscription
+
       await updateDoc(doc(db, "stores", storeId!), {
         plan: "growth",
-        isVerified: "pending", // Flag for manual review
+        isVerified: true, // Immediate verification
+        planStartedAt: now,
+        planExpiresAt: expiresAt,
       });
       setConfig((prev: any) => ({
         ...prev,
         plan: "growth",
-        isVerified: "pending",
+        isVerified: true,
       }));
       setSuccess("Upgrade Successful! Welcome to Growth.");
     } catch (err) {
@@ -852,31 +859,25 @@ export default function StoreSettingsPage() {
                           <div className="text-sm opacity-80">
                             Verification Status:{" "}
                             <strong className="capitalize">
-                              {config.isVerified === true
-                                ? "Verified (Blue Tick)"
-                                : config.isVerified === "pending"
-                                ? "Pending Review"
-                                : "Unverified"}
+                              <strong className="capitalize flex items-center gap-1">
+                                {config.plan === "growth" ? (
+                                  <>
+                                    Verified{" "}
+                                    <BadgeCheck
+                                      size={14}
+                                      className="text-blue-500"
+                                    />
+                                  </>
+                                ) : (
+                                  "Standard"
+                                )}
+                              </strong>
                             </strong>
                           </div>
                         </div>
                       )}
                     </div>
                   </div>
-
-                  {config.plan === "growth" && config.isVerified !== true && (
-                    <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl text-amber-900">
-                      <h4 className="font-bold flex items-center gap-2 mb-2">
-                        <Loader2 size={16} className="animate-spin" />{" "}
-                        Verification In Progress
-                      </h4>
-                      <p className="text-sm">
-                        We are reviewing your Ghana Card against your payout
-                        details. Your Blue Tick will appear automatically once
-                        approved (usually within 24 hours).
-                      </p>
-                    </div>
-                  )}
                 </motion.div>
               )}
               {activeTab === "payouts" && (

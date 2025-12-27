@@ -21,8 +21,9 @@ export function ProductDetailsModal({
   const { addToCart } = useCart();
   const { store } = useStore();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [selectedColor, setSelectedColor] = useState<string | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string | null>(null);
+
+  // Dynamic Selections
+  const [selections, setSelections] = useState<Record<string, string>>({});
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
     null
   );
@@ -31,47 +32,43 @@ export function ProductDetailsModal({
   useEffect(() => {
     if (isOpen) {
       setCurrentImageIndex(0);
-      setSelectedColor(null);
-      setSelectedSize(null);
+      setSelections({});
       setSelectedVariant(null);
     }
   }, [isOpen, product]);
 
-  // Determine available colors and sizes
-  const variants = product?.variants || [];
-  const uniqueColors = Array.from(
-    new Set(variants.map((v) => v.color).filter(Boolean))
-  ) as string[];
-  const uniqueSizes = Array.from(
-    new Set(variants.map((v) => v.size).filter(Boolean))
-  ) as string[];
-
-  // Update selected variant when choices change
+  // Find matching variant
   useEffect(() => {
-    if (!product || !product.hasVariants) return;
+    if (!product || !product.hasVariants || !product.variants) return;
 
-    if (selectedColor && selectedSize) {
-      const match = variants.find(
-        (v) => v.color === selectedColor && v.size === selectedSize
-      );
+    // Check if all options are selected
+    const requiredOptions = product.options || [];
+    const isComplete = requiredOptions.every((opt) => selections[opt.name]);
+
+    if (isComplete) {
+      const match = product.variants.find((v) => {
+        // Match against v.options map
+        // Note: Legacy variants might rely on 'color'/'size' fields if 'options' map is empty
+        if (!v.options) {
+          // Fallback for legacy (unlikely with new form, but good for safety)
+          // Construct mock options from v.color/v.size
+          const mock: Record<string, string> = {
+            ...(v.color && { Color: v.color }),
+            ...(v.size && { Size: v.size }),
+          };
+          return Object.entries(selections).every(
+            ([k, val]) => mock[k] === val
+          );
+        }
+        return Object.entries(selections).every(
+          ([key, val]) => v.options[key] === val
+        );
+      });
       setSelectedVariant(match || null);
-    } else if (selectedColor && uniqueSizes.length === 0) {
-      // Color only
-      const match = variants.find((v) => v.color === selectedColor);
-      setSelectedVariant(match || null);
-    } else if (selectedSize && uniqueColors.length === 0) {
-      // Size only
-      const match = variants.find((v) => v.size === selectedSize);
-      setSelectedVariant(match || null);
+    } else {
+      setSelectedVariant(null);
     }
-  }, [
-    selectedColor,
-    selectedSize,
-    product,
-    variants,
-    uniqueColors.length,
-    uniqueSizes.length,
-  ]);
+  }, [selections, product]);
 
   if (!product) return null;
 
@@ -92,17 +89,65 @@ export function ProductDetailsModal({
 
   const handleAddToCart = () => {
     if (product.hasVariants && !selectedVariant) {
-      return; // Should be disabled anyway
+      return;
     }
-
+    // Pass the variant with its specific price/id
     addToCart(product, selectedVariant || undefined);
     onClose();
+  };
+
+  const handleOptionSelect = (optionName: string, value: string) => {
+    setSelections((prev) => ({ ...prev, [optionName]: value }));
+  };
+
+  // Helper: check if a value should be disabled (no stock in ANY combo?)
+  // Strict: Disable if selecting this value creates a dead end based on CURRENT other selections.
+  const isValueAvailable = (optionName: string, value: string) => {
+    if (!product.variants) return false;
+
+    // Temporary selections with this new value
+    const nextSelections = { ...selections, [optionName]: value };
+
+    // Does ANY variant match this subset of selections with stock > 0?
+    return product.variants.some((v) => {
+      if (v.stock <= 0) return false;
+
+      // Legacy/New normalization logic
+      const vOptions = v.options || {
+        ...(v.color && { Color: v.color }),
+        ...(v.size && { Size: v.size }),
+      };
+
+      // Check if variant matches all specific keys in nextSelections
+      return Object.entries(nextSelections).every(
+        ([k, val]) => vOptions[k] === val
+      );
+    });
   };
 
   // Calculate price to show (variant price might override)
   const currentPrice = selectedVariant?.price || product.price;
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
   const isOutOfStock = currentStock <= 0;
+
+  // Normalized Options List (Legacy Support)
+  const displayOptions = product.options || [];
+
+  // Legacy Adapter: If no options but variants exist, infer structure (Color/Size)
+  // Only if product.options is missing/empty
+  if (product.hasVariants && displayOptions.length === 0 && product.variants) {
+    const colors = Array.from(
+      new Set(product.variants.map((v) => v.color).filter(Boolean))
+    ) as string[];
+    const sizes = Array.from(
+      new Set(product.variants.map((v) => v.size).filter(Boolean))
+    ) as string[];
+
+    if (colors.length)
+      displayOptions.push({ id: "color", name: "Color", values: colors });
+    if (sizes.length)
+      displayOptions.push({ id: "size", name: "Size", values: sizes });
+  }
 
   return (
     <AnimatePresence>
@@ -206,100 +251,103 @@ export function ProductDetailsModal({
                     {product.description}
                   </p>
 
-                  {/* Variants */}
+                  {/* Dynamic Options */}
                   {product.hasVariants && (
                     <div className="space-y-6">
-                      {/* Colors */}
-                      {uniqueColors.length > 0 && (
-                        <div>
+                      {displayOptions.map((option) => (
+                        <div key={option.id || option.name}>
                           <label className="text-xs font-bold uppercase text-zinc-400 mb-3 block">
-                            Color: {selectedColor}
+                            {option.name}: {selections[option.name]}
                           </label>
                           <div className="flex flex-wrap gap-3">
-                            {uniqueColors.map((color) => {
-                              // Find local variant info for this color to get hex if possible
-                              const v = variants.find((v) => v.color === color);
-                              const isSelected = selectedColor === color;
-                              return (
-                                <button
-                                  key={color}
-                                  onClick={() => setSelectedColor(color)}
-                                  className={`relative w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
-                                    isSelected
-                                      ? "border-black scale-110 ring-2 ring-black ring-offset-2"
-                                      : "border-zinc-200 hover:border-zinc-300"
-                                  }`}
-                                  title={color}
-                                >
-                                  {v?.colorCode ? (
-                                    <div
-                                      className="w-8 h-8 rounded-full"
-                                      style={{ background: v.colorCode }}
-                                    />
-                                  ) : (
-                                    <span className="text-[10px] font-bold">
-                                      {color.substring(0, 1)}
-                                    </span>
-                                  )}
-                                  {isSelected && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
-                                      <Check
-                                        size={14}
-                                        className="text-white drop-shadow-md"
-                                      />
-                                    </div>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                            {option.values.map((value) => {
+                              const isSelected =
+                                selections[option.name] === value;
+                              // Special render for "Color"
+                              const isColor =
+                                option.name.toLowerCase() === "color" ||
+                                option.name.toLowerCase() === "colour";
 
-                      {/* Sizes */}
-                      {uniqueSizes.length > 0 && (
-                        <div>
-                          <label className="text-xs font-bold uppercase text-zinc-400 mb-3 block">
-                            Size: {selectedSize}
-                          </label>
-                          <div className="flex flex-wrap gap-3">
-                            {uniqueSizes.map((size) => {
-                              const isSelected = selectedSize === size;
-
-                              // Check if this size is available for the selected color (if color selected)
-                              let isDisabled = false;
-                              if (selectedColor) {
-                                const exists = variants.some(
+                              // Find exact color code if possible for Color
+                              let colorCode = null;
+                              if (isColor && product.variants) {
+                                const v = product.variants.find(
                                   (v) =>
-                                    v.color === selectedColor &&
-                                    v.size === size &&
-                                    v.stock > 0
+                                    v.options?.[option.name] === value ||
+                                    v.color === value
                                 );
-                                if (!exists) isDisabled = true;
+                                if (v?.colorCode) colorCode = v.colorCode;
+                              }
+
+                              // Check availability (stock)
+                              const isAvailable = isValueAvailable(
+                                option.name,
+                                value
+                              );
+
+                              if (isColor) {
+                                return (
+                                  <button
+                                    key={value}
+                                    onClick={() =>
+                                      handleOptionSelect(option.name, value)
+                                    }
+                                    className={`relative w-10 h-10 rounded-full border-2 flex items-center justify-center transition-all ${
+                                      isSelected
+                                        ? "border-black scale-110 ring-2 ring-black ring-offset-2"
+                                        : "border-zinc-200 hover:border-zinc-300"
+                                    } ${
+                                      !isAvailable && !isSelected
+                                        ? "opacity-30 cursor-not-allowed"
+                                        : ""
+                                    }`}
+                                    title={value}
+                                    disabled={!isAvailable && !isSelected}
+                                  >
+                                    {colorCode ? (
+                                      <div
+                                        className="w-8 h-8 rounded-full"
+                                        style={{ background: colorCode }}
+                                      />
+                                    ) : (
+                                      <span className="text-[10px] font-bold">
+                                        {value.substring(0, 1)}
+                                      </span>
+                                    )}
+                                    {isSelected && (
+                                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-full">
+                                        <Check
+                                          size={14}
+                                          className="text-white drop-shadow-md"
+                                        />
+                                      </div>
+                                    )}
+                                  </button>
+                                );
                               }
 
                               return (
                                 <button
-                                  key={size}
+                                  key={value}
                                   onClick={() =>
-                                    !isDisabled && setSelectedSize(size)
+                                    handleOptionSelect(option.name, value)
                                   }
-                                  disabled={isDisabled}
+                                  disabled={!isAvailable && !isSelected}
                                   className={`min-w-[3rem] px-3 py-2 rounded-xl text-sm font-bold border-2 transition-all ${
                                     isSelected
                                       ? "border-black bg-black text-white"
-                                      : isDisabled
+                                      : !isAvailable
                                       ? "border-zinc-100 text-zinc-300 cursor-not-allowed line-through"
                                       : "border-zinc-200 text-zinc-600 hover:border-black"
                                   }`}
                                 >
-                                  {size}
+                                  {value}
                                 </button>
                               );
                             })}
                           </div>
                         </div>
-                      )}
+                      ))}
                     </div>
                   )}
                 </div>

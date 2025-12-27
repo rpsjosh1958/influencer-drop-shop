@@ -13,6 +13,7 @@ export type Product = {
   stock?: number;
   hasVariants?: boolean;
   variants?: any[];
+  options?: { id: string; name: string; values: string[] }[];
   category?: string;
 };
 

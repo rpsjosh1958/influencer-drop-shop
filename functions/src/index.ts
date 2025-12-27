@@ -6,6 +6,7 @@ import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import { resolveAccount, createRecipient, listBanks } from "./paystack";
 import { processOrderWallet, handleWithdrawal } from "./wallet";
+import { checkSubscriptionExpiry } from "./subscriptions";
 
 admin.initializeApp();
 
@@ -178,7 +179,7 @@ export const onStoreCreated = onDocumentCreated(
               <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left;">
                 <h3 style="margin-top: 0; margin-bottom: 15px;">Your Launch Checklist:</h3>
                 <ul style="color: #ccc; padding-left: 20px;">
-                  <li style="margin-bottom: 10px;">Login to your Dashboard</li>
+                  <li style="margin-bottom: 10px;">Login to your Dashboard: <strong>copdrop.io/admin</strong></li>
                   <li style="margin-bottom: 10px;">Add your first Product</li>
                   <li style="margin-bottom: 10px;">Share your link: <strong>copdrop.io/shop/${
                     store.slug
@@ -285,3 +286,4 @@ export const initiateWithdrawal = onCall(async (request) => {
 });
 
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
+export { checkSubscriptionExpiry };

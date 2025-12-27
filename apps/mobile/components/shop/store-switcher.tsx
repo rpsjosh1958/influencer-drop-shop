@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -7,6 +6,8 @@ import {
   ScrollView,
   Text,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
@@ -24,6 +25,7 @@ import {
 import { BlurView } from "expo-blur";
 import { MotiView } from "moti";
 import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
 
 interface Store {
   id: string;
@@ -113,8 +115,12 @@ export function StoreSwitcher() {
         animationType="fade"
         onRequestClose={() => setIsOpen(false)}
       >
-        <BlurView intensity={20} tint="dark" className="flex-1">
-          <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <BlurView intensity={20} tint="dark" className="flex-1">
+            <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
 
           <MotiView
             from={{ translateY: 300, opacity: 0 }}
@@ -223,6 +229,7 @@ export function StoreSwitcher() {
             )}
           </MotiView>
         </BlurView>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

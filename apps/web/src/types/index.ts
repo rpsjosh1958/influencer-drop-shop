@@ -1,11 +1,21 @@
+export interface ProductOption {
+  id: string;
+  name: string; // e.g. "Size", "Color"
+  values: string[]; // e.g. ["S", "M", "L"]
+}
+
 export interface ProductVariant {
   id: string;
-  name: string; // e.g. "Red / L" or just "Red"
-  color?: string; // "Red"
-  colorCode?: string; // "#ff0000"
-  size?: string; // "L"
+  name: string; // e.g. "Red / L"
   stock: number;
-  price?: number; // Optional override
+  price: number; // Specific price for this variant
+  options: Record<string, string>; // { "Size": "L", "Color": "Red" }
+  imageIndex?: number; // Optional: Link to gallery image index
+
+  // Legacy fields (allow optional for backward compatibility or migration)
+  color?: string;
+  colorCode?: string;
+  size?: string;
 }
 
 export interface Product {
@@ -22,6 +32,7 @@ export interface Product {
   // Variants
   hasVariants: boolean;
   variants?: ProductVariant[];
+  options?: ProductOption[];
 
   // Stock (Total stock if variants exist)
   stock: number;

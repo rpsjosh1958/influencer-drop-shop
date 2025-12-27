@@ -21,12 +21,14 @@ import {
   Store,
   TrendingUp,
   ShoppingBag,
+  BadgeCheck,
 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 export default function AdminDashboard() {
   const { storeId, loading: storeLoading } = useAdminStore();
   const [storeName, setStoreName] = useState("");
+  const [isVerified, setIsVerified] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
@@ -46,6 +48,7 @@ export default function AdminDashboard() {
         const data = doc.data();
         setIsLive(data.status === "live");
         setStoreName(data.name);
+        setIsVerified(!!data.isVerified);
       }
       setLoading(false);
     });
@@ -181,6 +184,9 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
             {storeName || "Store"} Dashboard
+            {isVerified && (
+              <BadgeCheck className="inline-block ml-2 w-6 h-6 text-blue-500 fill-blue-500/10" />
+            )}
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Real-time command center
