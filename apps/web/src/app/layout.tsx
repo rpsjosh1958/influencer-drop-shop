@@ -42,8 +42,47 @@ const courier = Courier_Prime({
 });
 
 export const metadata: Metadata = {
-  title: "CopDrop",
-  description: "Secure the bag.",
+  metadataBase: new URL("https://copdrop.io"),
+  title: {
+    default: "THE DROP | Own The Hype",
+    template: "%s | CopDrop",
+  },
+  description:
+    "The ultimate platform for creators and influencers to drop exclusive merch. Secure the bag with your own custom store.",
+  keywords: [
+    "ecommerce",
+    "creator economy",
+    "merch drops",
+    "influencer store",
+    "sell online",
+    "ghana ecommerce",
+  ],
+  authors: [{ name: "The Drop Team" }],
+  openGraph: {
+    title: "THE DROP | Own The Hype",
+    description: "Launch your own store in seconds. The drop is yours.",
+    url: "https://copdrop.io",
+    siteName: "CopDrop",
+    locale: "en_US",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.jpg", // Ensure this exists or use a remote URL
+        width: 1200,
+        height: 630,
+        alt: "CopDrop Platform",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "THE DROP | Own The Hype",
+    description: "Launch your own store in seconds.",
+    creator: "@copdrop_io",
+  },
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
