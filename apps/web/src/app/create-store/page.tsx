@@ -46,12 +46,17 @@ export default function CreateStoreWizard() {
     category: "Fashion",
   });
 
+  // State
+  const [isLoginMode, setIsLoginMode] = useState(false);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
         // If user already logged in, autofill email and skip password
         setFormData((prev) => ({ ...prev, email: u.email || "" }));
+        // If they are logged in, we implicitly skip Step 1 validation in the UI usually,
+        // but here we just let them proceed to Step 2 if they click "Next".
       }
     });
     return () => unsub();
@@ -75,7 +80,30 @@ export default function CreateStoreWizard() {
     setError("");
   };
 
-  // --- Step 1: Create Vendor Account ---
+  // --- Step 1A: Login (Existing User) ---
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      if (!formData.email || !formData.password) {
+        throw new Error("Please enter email and password.");
+      }
+      // 1. Sign In
+      await import("firebase/auth").then(({ signInWithEmailAndPassword }) =>
+        signInWithEmailAndPassword(auth, formData.email, formData.password)
+      );
+      // 2. Proceed
+      setStep(2);
+    } catch (err: any) {
+      console.error(err);
+      setError("Invalid email or password.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Step 1B: Sign Up (New Vendor) ---
   const handleVendorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -89,12 +117,22 @@ export default function CreateStoreWizard() {
         if (!formData.email || !formData.password) {
           throw new Error("Email and Password are required.");
         }
-        const credential = await createUserWithEmailAndPassword(
-          auth,
-          formData.email,
-          formData.password
-        );
-        uid = credential.user.uid;
+        try {
+          const credential = await createUserWithEmailAndPassword(
+            auth,
+            formData.email,
+            formData.password
+          );
+          uid = credential.user.uid;
+        } catch (authErr: any) {
+          if (authErr.code === "auth/email-already-in-use") {
+            setIsLoginMode(true);
+            throw new Error(
+              "Looks like you already have an account! Please login to add a new store."
+            );
+          }
+          throw authErr;
+        }
       }
 
       // 2. Update Public Profile
@@ -105,23 +143,22 @@ export default function CreateStoreWizard() {
       }
 
       // 3. Save Sensitive Data (Securely)
-      // Ideally, specific security rules should protect 'private_profile'
-      await setDoc(
-        doc(db, "users", uid),
-        {
-          fullName: formData.fullName,
-          phone: formData.phone,
-          email: formData.email,
-          createdAt: serverTimestamp(),
-          // Store sensitive data in a nested object for easier security rule targeting?
-          // Or just root for now, assuming valid security rules.
-          identity: {
-            ghanaCard: formData.ghanaCard,
-            verified: false,
+      if (uid) {
+        await setDoc(
+          doc(db, "users", uid),
+          {
+            fullName: formData.fullName,
+            phone: formData.phone,
+            email: formData.email,
+            createdAt: serverTimestamp(),
+            identity: {
+              ghanaCard: formData.ghanaCard,
+              verified: false,
+            },
           },
-        },
-        { merge: true }
-      );
+          { merge: true }
+        );
+      }
 
       // 4. Move to Step 2
       setStep(2);
@@ -201,7 +238,12 @@ export default function CreateStoreWizard() {
               Build Your Store
             </h1>
             <p className="text-zinc-500 text-sm">
-              Step {step} of 2: {step === 1 ? "Vendor Details" : "Store Setup"}
+              Step {step} of 2:{" "}
+              {step === 1
+                ? isLoginMode
+                  ? "Vendor Login"
+                  : "Vendor Signup"
+                : "Store Setup"}
             </p>
           </div>
         </div>
@@ -216,118 +258,193 @@ export default function CreateStoreWizard() {
         </div>
 
         {error && (
-          <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-xl mb-6 border border-red-100">
-            {error}
+          <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-xl mb-6 border border-red-100 flex items-start gap-2">
+            <div className="shrink-0 mt-0.5">⚠️</div>
+            <span>{error}</span>
           </div>
         )}
 
         {step === 1 ? (
-          /* STEP 1: VENDOR FORM */
-          <form
-            onSubmit={handleVendorSubmit}
-            className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500"
-          >
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  Legal Full Name
-                </label>
-                <input
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  placeholder="e.g. Kwame Mensah"
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                  required
-                />
-                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs leading-relaxed text-amber-800 flex gap-2">
-                  <div className="shrink-0 mt-0.5">⚠️</div>
-                  <p>
-                    <strong>Important for Payouts:</strong> This name must match
-                    your Mobile Money or Bank Account name. We use this to
-                    verify withdrawals. Mismatches may delay your money.
-                  </p>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  Phone (Momo)
-                </label>
-                <input
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="054xxxxxxx"
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                Ghana Card (NIA)
-              </label>
-              <input
-                name="ghanaCard"
-                value={formData.ghanaCard}
-                onChange={handleChange}
-                placeholder="GHA-xxxxxxxxx-x"
-                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                required
-              />
-              <p className="text-[10px] text-zinc-400 mt-1 flex items-center gap-1">
-                <CheckCircle2 size={10} /> Securely encrypted. Used for identity
-                verification only.
-              </p>
-            </div>
-
-            {!user && (
-              <>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                    required
-                    minLength={6}
-                  />
-                </div>
-              </>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2 mt-4"
+          isLoginMode ? (
+            /* STEP 1: EXISTING USER LOGIN */
+            <form
+              onSubmit={handleLoginSubmit}
+              className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500"
             >
-              {loading ? <Loader2 className="animate-spin" /> : "Next Step"}
-            </button>
-
-            {user && (
-              <p className="text-xs text-center text-zinc-400">
-                Logged in as <b>{user.email}</b>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                  <User size={12} className="inline mr-1 mb-0.5" /> Email
+                  Address
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                  required
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  "Login & Continue"
+                )}
+              </button>
+              <p className="text-center text-sm text-zinc-500">
+                New here?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(false);
+                    setError("");
+                  }}
+                  className="font-bold underline"
+                >
+                  Create an account
+                </button>
               </p>
-            )}
-          </form>
+            </form>
+          ) : (
+            /* STEP 1: VENDOR FORM (SIGNUP) */
+            <form
+              onSubmit={handleVendorSubmit}
+              className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500"
+            >
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                    Legal Full Name
+                  </label>
+                  <input
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    placeholder="e.g. Kwame Mensah"
+                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                    required
+                  />
+                  <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs leading-relaxed text-amber-800 flex gap-2">
+                    <div className="shrink-0 mt-0.5">⚠️</div>
+                    <p>
+                      <strong>Important for Payouts:</strong> This name must
+                      match your Mobile Money or Bank Account name. We use this
+                      to verify withdrawals. Mismatches may delay your money.
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                    Phone (Momo)
+                  </label>
+                  <input
+                    name="phone"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    placeholder="054xxxxxxx"
+                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                  Ghana Card (NIA)
+                </label>
+                <input
+                  name="ghanaCard"
+                  value={formData.ghanaCard}
+                  onChange={handleChange}
+                  placeholder="GHA-xxxxxxxxx-x"
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                  required
+                />
+                <p className="text-[10px] text-zinc-400 mt-1 flex items-center gap-1">
+                  <CheckCircle2 size={10} /> Securely encrypted. Used for
+                  identity verification only.
+                </p>
+              </div>
+
+              {!user && (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2 mt-4"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : "Next Step"}
+              </button>
+
+              <p className="text-center text-sm text-zinc-500">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(true);
+                    setError("");
+                  }}
+                  className="font-bold underline"
+                >
+                  Login
+                </button>
+              </p>
+
+              {user && (
+                <p className="text-xs text-center text-zinc-400">
+                  Logged in as <b>{user.email}</b>
+                </p>
+              )}
+            </form>
+          )
         ) : (
           /* STEP 2: STORE FORM */
           <form

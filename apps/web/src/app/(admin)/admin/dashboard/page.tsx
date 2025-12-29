@@ -202,6 +202,7 @@ export default function AdminDashboard() {
             <option value="">All Time</option>
             {Array.from({ length: 12 }).map((_, i) => {
               const d = new Date();
+              d.setDate(1); // Avoid end-of-month rollover (e.g. Mar 31 -> Feb 28/Mar 3)
               d.setMonth(d.getMonth() - i);
               const value = `${d.getFullYear()}-${d.getMonth()}`;
               const label = d.toLocaleDateString("default", {
@@ -271,8 +272,8 @@ export default function AdminDashboard() {
       </div>
 
       {/* Main Action Area (Simulated Bento Grid) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-96">
-        <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto md:h-96">
+        <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group h-[500px] md:h-full">
           <div className="relative z-10 h-full flex flex-col">
             <h3 className="text-2xl font-bold mb-2">Live Orders</h3>
             <p className="text-zinc-400 mb-6">
@@ -314,7 +315,7 @@ export default function AdminDashboard() {
           <Zap className="absolute -bottom-10 -right-10 w-64 h-64 text-zinc-800/50 group-hover:text-zinc-800/80 transition-colors pointer-events-none" />
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 flex flex-col relative overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 flex flex-col relative overflow-hidden h-[400px] md:h-full">
           <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-50 mb-4 flex items-center gap-2">
             <Package className="w-5 h-5 text-blue-500" />
             Inventory Status

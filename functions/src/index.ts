@@ -144,6 +144,25 @@ export const onStoreCreated = onDocumentCreated(
     }
 
     try {
+      // 0. Activate 30-Day Free Trial (Growth Plan)
+      // We override whatever the client sent (usually 'starter')
+      const now = admin.firestore.Timestamp.now();
+      const trialDays = 30;
+      const expiresAt = new admin.firestore.Timestamp(
+        now.seconds + trialDays * 24 * 60 * 60,
+        now.nanoseconds
+      );
+
+      await snapshot.ref.update({
+        plan: "growth",
+        isTrial: true,
+        planExpiresAt: expiresAt,
+        isVerified: false, // Pending verification, but has Growth features
+      });
+      logger.info(
+        `Activated 30-Day Free Trial for Store ${event.params.storeId}`
+      );
+
       // 1. Fetch Owner's Email
       const userDoc = await admin
         .firestore()
@@ -160,21 +179,26 @@ export const onStoreCreated = onDocumentCreated(
       // 2. Send Email via Resend
       const resend = new Resend(process.env.RESEND_API_KEY); // Lazy Init
       const { data, error } = await resend.emails.send({
-        from: "Drop <onboarding@resend.dev>", // TODO: Change to your verified domain (e.g. welcome@copdrop.io)
+        from: "The Drop <welcome@copdrop.io>",
         to: [user.email],
-        subject: `WELCOME TO THE FAMILY`,
+        subject: `Welcome to the Family`,
         html: `
           <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
             <div style="max-width: 600px; margin: 0 auto;">
-              <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px;">OWN THE HYPE.</h1>
+              <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px;">Own The Hype.</h1>
               <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
               
-              <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 40px;">
+              <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
                 Hi <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
-                Your store <strong>${
-                  store.name
-                }</strong> is officially live. You operate on your own terms now.
+                Your store <strong>${store.name}</strong> is live.
               </p>
+
+              <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 40px; border: 1px solid #333;">
+                <p style="font-size: 16px; color: #fff; margin: 0;">
+                  🎁 <strong>You've unlocked a 30-Day Free Trial of Growth Plan.</strong><br/>
+                  <span style="color: #999; font-size: 14px;">Enjoy 0% platform fees, verified badge eligibility, and mobile app access.</span>
+                </p>
+              </div>
 
               <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left;">
                 <h3 style="margin-top: 0; margin-bottom: 15px;">Your Launch Checklist:</h3>
@@ -188,7 +212,7 @@ export const onStoreCreated = onDocumentCreated(
               </div>
 
               <a href="https://copdrop.io/admin" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 18px 40px; border-radius: 50px; text-decoration: none; font-weight: 900; font-size: 16px; transition: transform 0.2s;">
-                GO TO DASHBOARD
+                Go to Dashboard
               </a>
 
               <p style="margin-top: 60px; font-size: 12px; color: #666666;">

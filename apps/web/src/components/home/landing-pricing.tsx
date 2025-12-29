@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Check } from "lucide-react";
@@ -26,12 +25,13 @@ const PLANS = [
       "Maximum profit for high-volume sellers. Pay a flat rate and keep your margins.",
     features: [
       "Everything in Starter",
+      "30-Day Free Trial", // Highlight
       "2% Transaction Fee",
       "Instant Withdrawals",
       "Verified Store Badge",
       "Priority 24/7 Support",
     ],
-    cta: "Go Pro",
+    cta: "Start 30-Day Free Trial", // Update CTA
     popular: true,
   },
 ];

@@ -45,6 +45,15 @@ export default function StoreSettingsPage() {
   const [fetching, setFetching] = useState(true);
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("general");
+  const [billingCycle, setBillingCycle] = useState<
+    "monthly" | "quarterly" | "annual"
+  >("monthly");
+
+  const BILLING_PLANS = {
+    monthly: { label: "Monthly", price: 250, days: 30 },
+    quarterly: { label: "Quarterly (3 Months)", price: 700, days: 90 }, // Discounted from 750
+    annual: { label: "Annual (12 Months)", price: 2500, days: 365 }, // Discounted from 3000
+  };
 
   // State
   const [config, setConfig] = useState<any>({
@@ -91,6 +100,8 @@ export default function StoreSettingsPage() {
       },
     },
   });
+
+  const isFreePlan = config.plan === "starter";
 
   useEffect(() => {
     if (!storeId) return;
@@ -157,24 +168,26 @@ export default function StoreSettingsPage() {
   const paystackConfig = {
     reference: new Date().getTime().toString(),
     email: "vendor@copdrop.io", // Idealy fetch logged in user email
-    amount: 250 * 100, // GHS 250
+    amount: BILLING_PLANS[billingCycle].price * 100, // Dynamic Amount
     publicKey: PAYSTACK_KEY,
     currency: "GHS",
   };
 
   const onSuccess = async (reference: any) => {
     // On success, upgrade the plan
+    const planDetails = BILLING_PLANS[billingCycle];
     setLoading(true);
     try {
       const now = new Date();
       const expiresAt = new Date();
-      expiresAt.setDate(now.getDate() + 30); // 30 Day Subscription
+      expiresAt.setDate(now.getDate() + planDetails.days);
 
       await updateDoc(doc(db, "stores", storeId!), {
         plan: "growth",
         isVerified: true, // Immediate verification
         planStartedAt: now,
         planExpiresAt: expiresAt,
+        billingCycle: billingCycle, // Track cycle
       });
       setConfig((prev: any) => ({
         ...prev,
@@ -393,6 +406,31 @@ export default function StoreSettingsPage() {
                     Global Style
                   </h2>
 
+                  {isFreePlan && (
+                    <div className="mb-6 bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-zinc-200 rounded-full flex items-center justify-center">
+                          <Zap size={18} className="text-zinc-500" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">
+                            Customization Locked
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            Upgrade to Growth to change colors & fonts.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("billing")}
+                        className="text-xs font-bold bg-black text-white px-3 py-2 rounded-lg"
+                      >
+                        Upgrade
+                      </button>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-zinc-900">
@@ -401,6 +439,7 @@ export default function StoreSettingsPage() {
                       <div className="flex gap-2 items-center">
                         <input
                           type="color"
+                          disabled={isFreePlan}
                           value={config.theme.backgroundColor}
                           onChange={(e) =>
                             setNested(
@@ -408,7 +447,7 @@ export default function StoreSettingsPage() {
                               e.target.value
                             )
                           }
-                          className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer"
+                          className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <code className="bg-zinc-100 px-2 py-1 rounded text-sm text-zinc-900">
                           {config.theme.backgroundColor}
@@ -423,11 +462,12 @@ export default function StoreSettingsPage() {
                       <div className="flex gap-2 items-center">
                         <input
                           type="color"
+                          disabled={isFreePlan}
                           value={config.theme.primaryColor}
                           onChange={(e) =>
                             setNested(["theme", "primaryColor"], e.target.value)
                           }
-                          className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer"
+                          className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                         <code className="bg-zinc-100 px-2 py-1 rounded text-sm text-zinc-900">
                           {config.theme.primaryColor}
@@ -482,10 +522,38 @@ export default function StoreSettingsPage() {
                     <h2 className="text-xl font-bold text-zinc-900">
                       Hero Section
                     </h2>
+                    {isFreePlan && (
+                      <div className="mb-6 bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-zinc-200 rounded-full flex items-center justify-center">
+                            <LayoutTemplate
+                              size={18}
+                              className="text-zinc-500"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm">
+                              Hero Section Locked
+                            </p>
+                            <p className="text-xs text-zinc-500">
+                              Upgrade to Growth to add banners & images.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("billing")}
+                          className="text-xs font-bold bg-black text-white px-3 py-2 rounded-lg"
+                        >
+                          Upgrade
+                        </button>
+                      </div>
+                    )}
                     <label className="flex items-center gap-2 cursor-pointer text-zinc-900">
                       <span className="text-sm font-medium">Enable Hero</span>
                       <input
                         type="checkbox"
+                        disabled={isFreePlan}
                         checked={config.theme.hero.enabled}
                         onChange={(e) =>
                           setNested(
@@ -493,7 +561,7 @@ export default function StoreSettingsPage() {
                             e.target.checked
                           )
                         }
-                        className="w-5 h-5 accent-black"
+                        className="w-5 h-5 accent-black disabled:opacity-50"
                       />
                     </label>
                   </div>
@@ -642,10 +710,25 @@ export default function StoreSettingsPage() {
                 >
                   <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-zinc-900">Footer</h2>
+                    {isFreePlan && (
+                      <div className="ml-4 flex-1 bg-zinc-50 border border-zinc-200 p-2 rounded-lg flex items-center justify-between px-4">
+                        <p className="text-xs text-zinc-500 font-medium">
+                          Footer customization is locked.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("billing")}
+                          className="text-[10px] font-bold bg-black text-white px-2 py-1 rounded"
+                        >
+                          Upgrade
+                        </button>
+                      </div>
+                    )}
                     <label className="flex items-center gap-2 cursor-pointer text-zinc-900">
                       <span className="text-sm font-medium">Enable Footer</span>
                       <input
                         type="checkbox"
+                        disabled={isFreePlan}
                         checked={config.theme.footer.enabled}
                         onChange={(e) =>
                           setNested(
@@ -653,7 +736,7 @@ export default function StoreSettingsPage() {
                             e.target.checked
                           )
                         }
-                        className="w-5 h-5 accent-black"
+                        className="w-5 h-5 accent-black disabled:opacity-50"
                       />
                     </label>
                   </div>
@@ -781,6 +864,26 @@ export default function StoreSettingsPage() {
                         : "bg-white border-zinc-200"
                     }`}
                   >
+                    {/* Billing Cycle Selector - Only show if NOT on growth (or maybe allow extending?) - Let's allow extending/switching */}
+                    <div className="mb-6 bg-zinc-100 p-1.5 rounded-xl inline-flex">
+                      {(Object.entries(BILLING_PLANS) as [string, any][]).map(
+                        ([key, details]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setBillingCycle(key as any)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                              billingCycle === key
+                                ? "bg-white text-black shadow-sm"
+                                : "text-zinc-500 hover:text-zinc-900"
+                            }`}
+                          >
+                            {details.label}
+                          </button>
+                        )
+                      )}
+                    </div>
+
                     <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
                       <div className="space-y-4 max-w-lg">
                         <div className="flex items-center gap-3">
@@ -815,7 +918,10 @@ export default function StoreSettingsPage() {
                                   : "text-zinc-500"
                               }`}
                             >
-                              GH₵ 250 / month
+                              GHS {BILLING_PLANS[billingCycle].price}
+                            </p>
+                            <p className="text-xs text-zinc-400 mt-1">
+                              Billed {BILLING_PLANS[billingCycle].label}
                             </p>
                           </div>
                         </div>

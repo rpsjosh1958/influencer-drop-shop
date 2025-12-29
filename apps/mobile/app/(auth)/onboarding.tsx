@@ -46,6 +46,18 @@ export default function Onboarding() {
       const snap = await getDoc(docRef);
 
       if (snap.exists()) {
+        const storeData = snap.data();
+
+        // Growth Plan Gate
+        if (storeData.plan !== "growth") {
+          Alert.alert(
+            "Mobile Access Restricted",
+            "This store is on the Starter Plan. Please upgrade to Growth to access the mobile app."
+          );
+          setVerifying(false);
+          return;
+        }
+
         await setStoreId(cleanId);
         // Mark onboarding as seen
         await AsyncStorage.setItem("hasSeenOnboarding", "true");
