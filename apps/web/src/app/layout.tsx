@@ -67,7 +67,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og-image.jpg", // Ensure this exists or use a remote URL
+        url: "/assets/landing/site%20logo.png",
         width: 1200,
         height: 630,
         alt: "CopDrop Platform",
@@ -81,7 +81,7 @@ export const metadata: Metadata = {
     creator: "@copdrop_io",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: "/assets/landing/site%20logo.png",
   },
 };
 
