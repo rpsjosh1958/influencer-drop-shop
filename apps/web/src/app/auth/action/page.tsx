@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -8,6 +8,20 @@ import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 export default function AuthActionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
+          <Loader2 className="animate-spin text-zinc-400" size={32} />
+        </div>
+      }
+    >
+      <AuthActionContent />
+    </Suspense>
+  );
+}
+
+function AuthActionContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const mode = searchParams.get("mode");
@@ -137,7 +151,9 @@ export default function AuthActionPage() {
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
       <div className="max-w-md w-full bg-white dark:bg-zinc-900 p-8 rounded-3xl shadow-xl space-y-8">
         <div className="text-center">
-          <h1 className="text-2xl text-white font-black tracking-tight">New Password</h1>
+          <h1 className="text-2xl text-white font-black tracking-tight">
+            New Password
+          </h1>
           <p className="text-zinc-500 text-sm mt-1">
             Setting new password for{" "}
             <span className="font-bold text-black dark:text-white">
