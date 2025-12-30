@@ -109,9 +109,9 @@ function PlatformLandingContent() {
             </span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-white-400 font-medium max-w-2xl mx-auto leading-relaxed mb-12">
-            The all-in-one platform for stores to launch exclusive drops.
-            Limited stock. High demand. Zero friction.
+          <p className="text-xl md:text-2xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-12">
+            Launch your professional online store in seconds. Manage products,
+            accept payments, and sell directly to your audience.
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full md:w-auto">
