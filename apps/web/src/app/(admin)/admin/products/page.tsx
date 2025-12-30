@@ -251,103 +251,209 @@ export default function ProductsPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-xs uppercase text-zinc-500 font-medium border-b border-zinc-100 dark:border-zinc-800">
-              <tr>
-                <th className="px-6 py-4 w-[50px]">
-                  <input
-                    type="checkbox"
-                    checked={
-                      selectedIds.length === products.length &&
-                      products.length > 0
-                    }
-                    onChange={toggleSelectAll}
-                    className="w-4 h-4 rounded border-zinc-300 accent-black cursor-pointer"
-                  />
-                </th>
-                <th className="px-6 py-4">Product</th>
-                <th className="px-6 py-4">Price</th>
-                <th className="px-6 py-4">Stock</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {products.map((product) => (
-                <tr
-                  key={product.id}
-                  className={`transition-colors ${
-                    selectedIds.includes(product.id)
-                      ? "bg-zinc-50 dark:bg-zinc-800/80"
-                      : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-                  }`}
-                >
-                  <td className="px-6 py-4">
+        <>
+          {/* DESKTOP TABLE VIEW */}
+          <div className="hidden md:block bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+            <table className="w-full text-left">
+              <thead className="bg-zinc-50 dark:bg-zinc-800/50 text-xs uppercase text-zinc-500 font-medium border-b border-zinc-100 dark:border-zinc-800">
+                <tr>
+                  <th className="px-6 py-4 w-[50px]">
                     <input
                       type="checkbox"
-                      checked={selectedIds.includes(product.id)}
-                      onChange={() => toggleSelect(product.id)}
+                      checked={
+                        selectedIds.length === products.length &&
+                        products.length > 0
+                      }
+                      onChange={toggleSelectAll}
                       className="w-4 h-4 rounded border-zinc-300 accent-black cursor-pointer"
                     />
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-4">
-                      <div className="h-12 w-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <span className="font-medium">{product.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-mono">
-                    GHS {product.price.toFixed(2)}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        product.stock > 0
-                          ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                      }`}
-                    >
-                      {product.stock} in stock
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => handleShare(product)}
-                      className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                      title="Share Product"
-                    >
-                      <Share2 size={18} />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(product)}
-                      disabled={isLive}
-                      title={isLive ? "Cannot edit while LIVE" : "Edit Item"}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                        isLive
-                          ? "text-zinc-300 cursor-not-allowed"
-                          : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                      }`}
-                    >
-                      {isLive ? "Locked" : "Edit"}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
+                  </th>
+                  <th className="px-6 py-4">Product</th>
+                  <th className="px-6 py-4">Price</th>
+                  <th className="px-6 py-4">Stock</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {products.map((product) => (
+                  <tr
+                    key={product.id}
+                    className={`transition-colors ${
+                      selectedIds.includes(product.id)
+                        ? "bg-zinc-50 dark:bg-zinc-800/80"
+                        : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    }`}
+                  >
+                    <td className="px-6 py-4">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(product.id)}
+                        onChange={() => toggleSelect(product.id)}
+                        className="w-4 h-4 rounded border-zinc-300 accent-black cursor-pointer"
+                      />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-lg bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <span className="font-medium">{product.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-mono">
+                      GHS {product.price.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          product.stock > 0
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        }`}
+                      >
+                        {product.stock} in stock
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleShare(product)}
+                        className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                        title="Share Product"
+                      >
+                        <Share2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(product)}
+                        disabled={isLive}
+                        title={isLive ? "Cannot edit while LIVE" : "Edit Item"}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                          isLive
+                            ? "text-zinc-300 cursor-not-allowed"
+                            : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                        }`}
+                      >
+                        {isLive ? "Locked" : "Edit"}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* MOBILE CARD VIEW */}
+          <div className="md:hidden space-y-4">
+            {/* Mobile Select All Bar */}
+            {products.length > 0 && (
+              <div className="bg-white dark:bg-zinc-900 px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedIds.length === products.length &&
+                    products.length > 0
+                  }
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-zinc-300 accent-black cursor-pointer"
+                />
+                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                  Select All
+                </span>
+              </div>
+            )}
+
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className={`bg-white dark:bg-zinc-900 p-4 rounded-xl border transition-colors ${
+                  selectedIds.includes(product.id)
+                    ? "border-black dark:border-zinc-500 bg-zinc-50 dark:bg-zinc-800/30"
+                    : "border-zinc-200 dark:border-zinc-800"
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(product.id)}
+                    onChange={() => toggleSelect(product.id)}
+                    className="w-5 h-5 mt-1 rounded border-zinc-300 accent-black cursor-pointer flex-shrink-0"
+                  />
+
+                  {/* Image */}
+                  <div className="h-16 w-16 rounded-lg bg-zinc-100 dark:bg-zinc-800 overflow-hidden flex-shrink-0">
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h3 className="font-bold text-base truncate pr-2">
+                        {product.name}
+                      </h3>
+                      <span className="font-mono text-sm font-bold">
+                        GHS {product.price.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="mt-1 flex items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                          product.stock > 0
+                            ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                            : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                        }`}
+                      >
+                        {product.stock} Stock
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions Footer */}
+                <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => handleShare(product)}
+                    className="flex-1 py-2 flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
+                  >
+                    <Share2 size={16} />
+                    Share
+                  </button>
+                  <button
+                    onClick={() => handleEdit(product)}
+                    disabled={isLive}
+                    className={`flex-1 py-2 flex items-center justify-center gap-2 text-sm font-medium rounded-lg ${
+                      isLive
+                        ? "text-zinc-300 bg-zinc-50 cursor-not-allowed"
+                        : "text-blue-600 bg-blue-50 dark:bg-blue-900/20"
+                    }`}
+                  >
+                    {isLive ? "Locked" : "Edit"}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="flex-none p-2 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {isFormOpen && (

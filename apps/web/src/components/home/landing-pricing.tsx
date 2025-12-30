@@ -7,13 +7,13 @@ const PLANS = [
     name: "Starter",
     price: "Free",
     description:
-      "Launch your brand with zero upfront risk. We only make money when you do.",
+      "Launch your brand with zero upfront risk. perfect for testing the waters.",
     features: [
+      "Web Store Only", // Changed from Mobile App Listing
       "Unlimited Products",
+      "Basic Customization", // Added restriction
       "8% Transaction Fee",
-      "Payouts in 2 days",
-      "Mobile App Listing",
-      "Basic Analytics",
+      "Payouts in 48 Hours",
     ],
     cta: "Start Free",
     popular: false,
@@ -22,16 +22,17 @@ const PLANS = [
     name: "Growth",
     price: "GH₵ 250",
     description:
-      "Maximum profit for high-volume sellers. Pay a flat rate and keep your margins.",
+      "Maximum scale. Get your own mobile app presence and full branding control.",
     features: [
       "Everything in Starter",
-      "30-Day Free Trial", // Highlight
-      "2% Transaction Fee",
-      "Instant Withdrawals",
+      "30-Day Free Trial",
+      "Featured on Mobile App", // Key differentiator
+      "Full Brand Customization", // Key differentiator
       "Verified Store Badge",
-      "Priority 24/7 Support",
+      "2% Transaction Fee", // Lower fee
+      "Instant Withdrawals",
     ],
-    cta: "Start 30-Day Free Trial", // Update CTA
+    cta: "Start 30-Day Free Trial",
     popular: true,
   },
 ];

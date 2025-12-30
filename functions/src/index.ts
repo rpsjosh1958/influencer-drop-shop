@@ -311,3 +311,4 @@ export const initiateWithdrawal = onCall(async (request) => {
 
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
 export { checkSubscriptionExpiry };
+export { sendPasswordReset } from "./auth";

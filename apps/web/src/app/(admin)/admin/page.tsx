@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -64,6 +65,14 @@ export default function AdminLogin() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl outline-none focus:ring-2 focus:ring-white transition-all text-white placeholder-zinc-500"
             />
+          </div>
+          <div className="flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-sm font-bold text-zinc-400 hover:text-white transition-colors"
+            >
+              Forgot Password?
+            </Link>
           </div>
 
           {error && (

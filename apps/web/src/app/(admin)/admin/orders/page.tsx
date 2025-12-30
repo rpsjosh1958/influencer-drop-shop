@@ -381,7 +381,12 @@ export default function OrdersPage() {
                       </span>
                     </div>
 
-                    <div className="md:hidden">
+                    <div className="md:hidden flex flex-col items-end gap-1">
+                      <span className="text-[10px] text-zinc-400 font-medium">
+                        {new Date(
+                          order.createdAt?.seconds * 1000
+                        ).toLocaleDateString()}
+                      </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
                           order.status

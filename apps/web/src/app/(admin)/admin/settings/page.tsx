@@ -2,8 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase"; // Added auth
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import {
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
+} from "firebase/auth";
 import { usePaystackPayment } from "react-paystack";
 import {
   Loader2,
@@ -23,6 +28,7 @@ import {
   Zap,
   Wallet,
   BadgeCheck,
+  UserCog, // Added UserCog
 } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
@@ -32,6 +38,7 @@ import { FontPicker } from "@/components/admin/font-picker";
 
 const TABS = [
   { id: "general", label: "General", icon: Store },
+  { id: "profile", label: "Profile & Security", icon: UserCog },
   { id: "style", label: "Style", icon: Palette },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "footer", label: "Footer", icon: LinkIcon },
@@ -131,14 +138,24 @@ export default function StoreSettingsPage() {
     fetchConfig();
   }, [storeId]);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!storeId) return;
     setLoading(true);
     setSuccess("");
 
     try {
-      await updateDoc(doc(db, "stores", storeId), config);
+      const payload = { ...config };
+
+      // Enforce Hero Defaults for Free Plan
+      if (isFreePlan) {
+        if (!payload.theme.hero) payload.theme.hero = {};
+        payload.theme.hero.headline = `Welcome to ${config.name}`;
+        payload.theme.hero.subheadline = "Browse our latest collection.";
+        payload.theme.hero.enabled = true; // Ensure it's enabled
+      }
+
+      await updateDoc(doc(db, "stores", storeId), payload);
       setSuccess("Settings saved successfully.");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -343,7 +360,7 @@ export default function StoreSettingsPage() {
 
         {/* Content Area */}
         <div className="flex-1">
-          <form onSubmit={handleSave} className="space-y-6">
+          <div className="space-y-6">
             <AnimatePresence mode="wait">
               {activeTab === "general" && (
                 <motion.div
@@ -390,6 +407,62 @@ export default function StoreSettingsPage() {
                       <option value="live">Live (Open)</option>
                       <option value="maintenance">Maintenance (Closed)</option>
                     </select>
+                  </div>
+                </motion.div>
+              )}
+
+              {activeTab === "profile" && (
+                <motion.div
+                  key="profile"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-6"
+                >
+                  <div className="bg-white p-8 rounded-3xl border border-zinc-200">
+                    <h2 className="text-xl font-bold mb-6 text-zinc-900">
+                      Vendor Profile
+                    </h2>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200">
+                        <div className="flex items-center gap-3 mb-2">
+                          <CheckCircle2 size={18} className="text-green-500" />
+                          <span className="text-sm font-bold text-green-700">
+                            Verified Identity
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500">
+                          Your identity has been verified via Ghana Card (NIA).
+                          Critical details cannot be changed.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-zinc-500 uppercase">
+                            Full Name
+                          </label>
+                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-500 font-medium cursor-not-allowed">
+                            {auth.currentUser?.displayName || "Vendor"}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-zinc-500 uppercase">
+                            Email Address
+                          </label>
+                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-500 font-medium cursor-not-allowed">
+                            {auth.currentUser?.email}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-8 rounded-3xl border border-zinc-200">
+                    <h2 className="text-xl font-bold mb-6 text-zinc-900">
+                      Security
+                    </h2>
+                    <ChangePasswordForm />
                   </div>
                 </motion.div>
               )}
@@ -575,26 +648,36 @@ export default function StoreSettingsPage() {
                         <input
                           type="text"
                           placeholder="Headline (e.g. SECURE THE BAG)"
-                          value={config.theme.hero.headline}
+                          disabled={isFreePlan}
+                          value={
+                            isFreePlan
+                              ? `Welcome to ${config.name}`
+                              : config.theme.hero.headline
+                          }
                           onChange={(e) =>
                             setNested(
                               ["theme", "hero", "headline"],
                               e.target.value
                             )
                           }
-                          className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-black uppercase tracking-tighter text-zinc-900"
+                          className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl font-black uppercase tracking-tighter text-zinc-900 disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                         <input
                           type="text"
                           placeholder="Subheadline (e.g. Limited drops only.)"
-                          value={config.theme.hero.subheadline}
+                          disabled={isFreePlan}
+                          value={
+                            isFreePlan
+                              ? "Browse our latest collection."
+                              : config.theme.hero.subheadline
+                          }
                           onChange={(e) =>
                             setNested(
                               ["theme", "hero", "subheadline"],
                               e.target.value
                             )
                           }
-                          className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                          className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 disabled:opacity-70 disabled:cursor-not-allowed"
                         />
                       </div>
 
@@ -1177,7 +1260,8 @@ export default function StoreSettingsPage() {
                 {/* Save button only visible on tabs that are forms. Billing & Payouts handle their own save */}
                 {activeTab !== "billing" && activeTab !== "payouts" && (
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={() => handleSave()}
                     disabled={loading}
                     className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 inline-flex items-center gap-2"
                   >
@@ -1192,9 +1276,149 @@ export default function StoreSettingsPage() {
                 )}
               </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function ChangePasswordForm() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: "error", text: "New passwords do not match." });
+      setLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setMessage({
+        type: "error",
+        text: "Password must be at least 6 characters.",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const user = auth.currentUser;
+    if (!user || !user.email) {
+      setMessage({ type: "error", text: "User not authenticated." });
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // 1. Re-authenticate
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        currentPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+
+      // 2. Update Password
+      await updatePassword(user, newPassword);
+
+      setMessage({ type: "success", text: "Password updated successfully." });
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err: any) {
+      console.error("Password change failed", err);
+      if (
+        err.code === "auth/invalid-credential" ||
+        err.code === "auth/wrong-password"
+      ) {
+        setMessage({ type: "error", text: "Current password is incorrect." });
+      } else {
+        setMessage({
+          type: "error",
+          text: "Failed to update password. Try again.",
+        });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleChangePassword} className="max-w-md space-y-4">
+      {message && (
+        <div
+          className={`p-3 rounded-xl text-sm font-bold ${
+            message.type === "success"
+              ? "bg-green-50 text-green-600 border border-green-200"
+              : "bg-red-50 text-red-600 border border-red-200"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-900">
+          Current Password
+        </label>
+        <input
+          type="password"
+          value={currentPassword}
+          onChange={(e) => setCurrentPassword(e.target.value)}
+          required
+          className="w-full p-3 text-black bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-900">New Password</label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          required
+          className="w-full text-black p-3 bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-zinc-900">
+          Confirm New Password
+        </label>
+        <input
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          className="w-full text-black p-3 bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="w-full py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+      >
+        {loading ? (
+          <Loader2 size={18} className="animate-spin mx-auto" />
+        ) : (
+          "Update Password"
+        )}
+      </button>
+
+      <p className="text-xs text-zinc-400 text-center">
+        You will stay logged in on this device.
+      </p>
+    </form>
   );
 }

@@ -83,6 +83,14 @@ export default function ShopLogin() {
               className="w-full bg-zinc-50 border border-zinc-200 p-4 rounded-xl outline-none focus:ring-2 focus:ring-black transition-all"
             />
           </div>
+          <div className="flex justify-end">
+            <Link
+              href={`/shop/${storeId}/forgot-password`}
+              className="text-sm font-bold text-zinc-400 hover:text-black transition-colors"
+            >
+              Forgot Password?
+            </Link>
+          </div>
 
           {error && (
             <p className="text-red-500 text-sm font-medium text-center bg-red-50 p-3 rounded-lg">
