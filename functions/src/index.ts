@@ -1,11 +1,18 @@
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentUpdated,
+} from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { Expo, ExpoPushMessage } from "expo-server-sdk";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import { resolveAccount, createRecipient, listBanks } from "./paystack";
-import { processOrderWallet, handleWithdrawal } from "./wallet";
+import {
+  processOrderWallet,
+  handleWithdrawal,
+  releasePendingFunds,
+} from "./wallet";
 import { checkSubscriptionExpiry } from "./subscriptions";
 
 admin.initializeApp();
@@ -230,6 +237,30 @@ export const onStoreCreated = onDocumentCreated(
       }
     } catch (err) {
       logger.error("Failed to execute onStoreCreated logic", err);
+    }
+  }
+);
+
+/*
+ * TRIGGER: When Store is Updated (e.g. Plan Upgrade)
+ * ACTION: If upgrading to Growth, release pending funds immediately.
+ */
+export const onStoreUpdated = onDocumentUpdated(
+  "stores/{storeId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const before = snapshot.before.data();
+    const after = snapshot.after.data();
+    const storeId = event.params.storeId;
+
+    // Check for Plan Upgrade: Starter -> Growth
+    if (before.plan === "starter" && after.plan === "growth") {
+      logger.info(
+        `Detected Plan Upgrade for Store ${storeId}. Releasing funds...`
+      );
+      await releasePendingFunds(storeId);
     }
   }
 );

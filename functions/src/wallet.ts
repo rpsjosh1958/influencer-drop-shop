@@ -242,3 +242,48 @@ export const handleWithdrawal = async (storeId: string, amount: number) => {
     );
   }
 };
+
+export const releasePendingFunds = async (storeId: string) => {
+  const db = admin.firestore();
+  const walletRef = db
+    .collection("stores")
+    .doc(storeId)
+    .collection("wallet")
+    .doc("main");
+
+  await db.runTransaction(async (t) => {
+    const walletDoc = await t.get(walletRef);
+    if (!walletDoc.exists) return;
+
+    const data = walletDoc.data();
+    const pending = data?.pendingBalance || 0;
+    const current = data?.currentBalance || 0;
+
+    if (pending > 0) {
+      t.update(walletRef, {
+        currentBalance: current + pending,
+        pendingBalance: 0,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Log the internal transfer
+      const txRef = db
+        .collection("stores")
+        .doc(storeId)
+        .collection("wallet_transactions")
+        .doc();
+
+      t.set(txRef, {
+        id: txRef.id,
+        type: "credit",
+        amount: pending,
+        description: "Funds Released (Plan Upgrade)",
+        status: "success",
+        createdAt: admin.firestore.Timestamp.now(),
+        balanceAfter: current + pending,
+      });
+    }
+  });
+
+  console.log(`Released pending funds for store ${storeId}`);
+};

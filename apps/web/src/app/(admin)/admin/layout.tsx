@@ -25,6 +25,7 @@ import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { BroadcastModal } from "@/components/admin/broadcast-modal";
 import { AdminStoreProvider } from "@/components/admin/admin-store-provider";
+import { AiAssistant } from "@/components/admin/ai-assistant";
 
 export default function AdminLayout({
   children,
@@ -330,6 +331,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             </div>
           </main>
         </AdminStoreProvider>
+        <AiAssistant />
       </ThemeProvider>
     </div>
   );
