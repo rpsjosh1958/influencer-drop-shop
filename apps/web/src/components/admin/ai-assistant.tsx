@@ -34,6 +34,16 @@ export function AiAssistant() {
     });
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus input when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100); // Small delay for animation
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -170,6 +180,7 @@ export function AiAssistant() {
             >
               <div className="relative">
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={handleInputChange}
                   placeholder="Ask anything..."
