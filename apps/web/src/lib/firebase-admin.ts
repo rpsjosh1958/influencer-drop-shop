@@ -29,16 +29,23 @@ if (!admin.apps.length) {
         } catch (e) {}
       }
     } else {
+      let rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
+      // 1. Remove surrounding whitespace
+      rawKey = rawKey.trim();
+      // 2. Remove outer quotes if present (common env var issue)
+      if (
+        (rawKey.startsWith('"') && rawKey.endsWith('"')) ||
+        (rawKey.startsWith("'") && rawKey.endsWith("'"))
+      ) {
+        rawKey = rawKey.slice(1, -1);
+      }
+      // 3. Fix escaped newlines (Netlify often escapes them as literals)
+      rawKey = rawKey.replace(/\\n/g, "\n");
+
       const minimalCreds = {
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        // Aggressively clean the key: remove surrounding quotes, fix escaped newlines
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(
-          /^['"]|['"]$/g,
-          ""
-        ) // Remove start/end quotes
-          .replace(/\\n/g, "\n") // Fix escaped newlines
-          .trim(),
+        privateKey: rawKey,
       };
 
       if (
