@@ -32,7 +32,13 @@ if (!admin.apps.length) {
       const minimalCreds = {
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+        // Aggressively clean the key: remove surrounding quotes, fix escaped newlines
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(
+          /^['"]|['"]$/g,
+          ""
+        ) // Remove start/end quotes
+          .replace(/\\n/g, "\n") // Fix escaped newlines
+          .trim(),
       };
 
       if (
