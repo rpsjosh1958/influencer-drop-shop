@@ -30,22 +30,22 @@ if (!admin.apps.length) {
       }
     } else {
       let rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
-      // 1. Remove surrounding whitespace
-      rawKey = rawKey.trim();
-      // 2. Remove outer quotes if present (common env var issue)
-      if (
-        (rawKey.startsWith('"') && rawKey.endsWith('"')) ||
-        (rawKey.startsWith("'") && rawKey.endsWith("'"))
-      ) {
-        rawKey = rawKey.slice(1, -1);
-      }
-      // 3. Fix escaped newlines (Netlify often escapes them as literals)
-      rawKey = rawKey.replace(/\\n/g, "\n");
+
+      // NUCLEAR OPTION: Reconstruct the key from scratch
+      // 1. Strip everything that looks like a header/footer or whitespace
+      const pureKey = rawKey
+        .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+        .replace(/-----END PRIVATE KEY-----/g, "")
+        .replace(/\\n/g, "") // remove literal \n
+        .replace(/\s+/g, ""); // remove actual spaces/newlines
+
+      // 2. Re-wrap correctly
+      const finalKey = `-----BEGIN PRIVATE KEY-----\n${pureKey}\n-----END PRIVATE KEY-----\n`;
 
       const minimalCreds = {
         projectId: process.env.FIREBASE_PROJECT_ID,
         clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: rawKey,
+        privateKey: finalKey,
       };
 
       if (
