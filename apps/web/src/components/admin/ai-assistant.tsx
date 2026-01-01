@@ -6,8 +6,10 @@ import { ShareModal } from "@/components/admin/share-modal";
 import { Bot, X, Send, Sparkles, ChevronDown, Loader2 } from "lucide-react";
 import { auth } from "@/lib/firebase";
 import { AnimatePresence, motion } from "framer-motion";
+import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 export function AiAssistant() {
+  const { storeId } = useAdminStore();
   const [isOpen, setIsOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
@@ -28,7 +30,7 @@ export function AiAssistant() {
   const { messages, input, handleInputChange, handleSubmit, isLoading } =
     useChat({
       api: "/api/chat",
-      body: { idToken: token },
+      body: { idToken: token, storeId: storeId || "unknown" },
     });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -202,8 +204,8 @@ export function AiAssistant() {
           isOpen={promoOpen}
           onClose={() => setPromoOpen(false)}
           product={promoProduct}
-          storeSlug="vintage-vibes" // Hardcoded for now per route.ts context
-          storeName="Vintage Vibes"
+          storeSlug={storeId || ""} // Use storeId as slug for now (simplified)
+          storeName="Store" // We could fetch store name from context if available, or just generic
           storeLogo=""
         />
       )}

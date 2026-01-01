@@ -16,11 +16,12 @@ if (!process.env.OPENAI_API_KEY) {
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json();
+    const { messages, storeId } = await req.json();
 
-    // 1. Auth & Context Loading
-    const authHeader = req.headers.get("authorization");
-    const storeId = "vintage-vibes"; // Default for fix
+    if (!storeId || storeId === "unknown") {
+      return new Response("Missing storeId", { status: 400 });
+    }
+
     console.log(`AI Request for store: ${storeId}`);
 
     // 3. Define Tools (Native JSON Schema)

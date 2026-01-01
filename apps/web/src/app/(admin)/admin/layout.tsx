@@ -330,8 +330,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               {children}
             </div>
           </main>
+          <AiAssistant />
         </AdminStoreProvider>
-        <AiAssistant />
       </ThemeProvider>
     </div>
   );
