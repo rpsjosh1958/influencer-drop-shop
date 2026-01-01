@@ -303,7 +303,12 @@ export async function POST(req: Request) {
               .doc(storeId)
               .collection("products")
               .limit(50)
+              .limit(50)
               .get();
+
+            console.log(
+              `[listProducts] Path: stores/${storeId}/products, Found: ${snap.size} docs`
+            );
 
             let products = snap.docs.map((d: any) => ({
               id: d.id,
@@ -587,6 +592,10 @@ export async function POST(req: Request) {
               .doc(storeId)
               .get();
             const store = storeSnap.exists ? storeSnap.data() : {};
+
+            console.log(
+              `[getStoreInsights] Path: stores/${storeId}, Exists: ${storeSnap.exists}`
+            );
 
             // 3. Recent Tx
             const txSnap = await adminDb

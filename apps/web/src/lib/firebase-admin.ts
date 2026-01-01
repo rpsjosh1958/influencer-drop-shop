@@ -43,7 +43,10 @@ if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert(minimalCreds),
         });
-        console.log("Firebase Admin Initialized with Individual Vars");
+        console.log(
+          "Firebase Admin Initialized with Individual Vars. Key preview:",
+          minimalCreds.privateKey.substring(0, 10) + "..."
+        );
       } else {
         console.warn("Firebase Admin credentials missing. Skipping init.");
       }
