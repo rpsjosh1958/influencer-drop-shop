@@ -1,17 +1,19 @@
 "use client";
 
 import { Check } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
+import { motion } from "framer-motion";
 
 const PLANS = [
   {
     name: "Starter",
-    price: "Free",
     description:
       "Launch your brand with zero upfront risk. perfect for testing the waters.",
     features: [
-      "Web Store Only", // Changed from Mobile App Listing
+      "Web Store Only",
       "Unlimited Products",
-      "Basic Customization", // Added restriction
+      "Basic Customization",
       "8% Transaction Fee",
       "Payouts in 48 Hours",
     ],
@@ -20,16 +22,16 @@ const PLANS = [
   },
   {
     name: "Growth",
-    price: "GH₵ 250",
     description:
       "Maximum scale. Get your own mobile app presence and full branding control.",
     features: [
       "Everything in Starter",
       "30-Day Free Trial",
-      "Featured on Mobile App", // Key differentiator
-      "Full Brand Customization", // Key differentiator
+      "Featured on Mobile App",
+      "Full Brand Customization",
+      "AI Store Assistant (Beta)",
       "Verified Store Badge",
-      "2% Transaction Fee", // Lower fee
+      "2% Transaction Fee",
       "Instant Withdrawals",
     ],
     cta: "Start 30-Day Free Trial",
@@ -37,20 +39,61 @@ const PLANS = [
   },
 ];
 
+type BillingCycle = "monthly" | "quarterly" | "yearly";
+
 export function LandingPricing() {
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
+
+  const getPrice = (planName: string) => {
+    if (planName === "Starter") return "Free";
+    if (cycle === "monthly") return "GH₵ 250";
+    if (cycle === "quarterly") return "GH₵ 700"; // 10% Discount (750 -> 675)
+    if (cycle === "yearly") return "GH₵ 2,500"; // 2 Months Free (3000 -> 2500)
+    return "0";
+  };
+
+  const getPeriod = () => {
+    if (cycle === "monthly") return "/mo";
+    if (cycle === "quarterly") return "/qtr";
+    if (cycle === "yearly") return "/yr";
+    return "";
+  };
+
   return (
     <section id="pricing" className="py-32 bg-black relative">
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-24">
+        <div className="text-center mb-12">
           <h2 className="text-4xl md:text-5xl font-black mb-6">
             Simple, Transparent <br />{" "}
             <span className="text-zinc-600">Pricing</span>
           </h2>
-          <p className="text-zinc-400">
+          <p className="text-zinc-400 mb-8">
             Scale your revenue without breaking the bank.
           </p>
+
+          {/* Billing Toggle */}
+          <div className="inline-flex bg-zinc-900 rounded-full p-1 border border-zinc-800 relative z-20">
+            {(["monthly", "quarterly", "yearly"] as BillingCycle[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCycle(c)}
+                className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${
+                  cycle === c
+                    ? "bg-white text-black shadow-lg"
+                    : "text-zinc-500 hover:text-white"
+                }`}
+              >
+                {c.charAt(0).toUpperCase() + c.slice(1)}
+              </button>
+            ))}
+          </div>
+          {cycle !== "monthly" && (
+            <p className="text-xs text-purple-400 mt-4 font-medium animate-pulse">
+              {cycle === "quarterly" ? "" : "Get 2 Months Free"}
+            </p>
+          )}
         </div>
 
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
@@ -72,9 +115,16 @@ export function LandingPricing() {
               <div className="mb-8">
                 <h3 className="text-xl font-bold mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black">{plan.price}</span>
-                  {plan.price !== "Free" && (
-                    <span className="text-zinc-500">/mo</span>
+                  <motion.span
+                    key={cycle} // Animate on change
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-4xl font-black"
+                  >
+                    {getPrice(plan.name)}
+                  </motion.span>
+                  {getPrice(plan.name) !== "Free" && (
+                    <span className="text-zinc-500">{getPeriod()}</span>
                   )}
                 </div>
                 <p className="text-zinc-500 text-sm mt-4">{plan.description}</p>
@@ -99,15 +149,17 @@ export function LandingPricing() {
                 ))}
               </div>
 
-              <button
-                className={`w-full py-4 rounded-xl font-bold text-sm transition-all ${
-                  plan.popular
-                    ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90 shadow-lg shadow-purple-900/30"
-                    : "bg-white text-black hover:bg-zinc-200"
-                }`}
-              >
-                {plan.cta}
-              </button>
+              <Link href="/create-store" className="block w-full">
+                <button
+                  className={`w-full py-4 rounded-xl font-bold text-sm transition-all ${
+                    plan.popular
+                      ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:opacity-90 shadow-lg shadow-purple-900/30"
+                      : "bg-white text-black hover:bg-zinc-200"
+                  }`}
+                >
+                  {plan.cta}
+                </button>
+              </Link>
             </div>
           ))}
         </div>

@@ -10,7 +10,7 @@ const FAQS = [
   },
   {
     q: "Do I need my own website?",
-    a: "No. We generate a complete, professional storefront for you automatically. You get a unique link (e.g., drop.io/shop/yourbrand) to share with your fans."
+    a: "No. We generate a complete, professional storefront for you automatically. You get a unique link (e.g., copdrop.io/shop/yourbrand) to share with your fans."
   },
   {
     q: "Is the mobile app included?",

@@ -66,31 +66,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const responseListener = useRef<any>(null);
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then(async (token) => {
-      if (token && user) {
-        await savePushToken(user.uid, token);
-      }
-    });
+    if (user?.uid) {
+      registerForPushNotificationsAsync().then(async (token) => {
+        if (token) {
+          await savePushToken(user.uid, token);
+        }
+      });
+    }
 
+    // Explicitly add listeners
     notificationListener.current =
       Notifications.addNotificationReceivedListener((notification) => {
-        // Handle foreground notification if needed manually, though Handler does usually enough
-        // console.log("Foreground Notification:", notification);
+        // Handle foreground notification
+        console.log("Foreground Notification Received");
       });
 
     responseListener.current =
       Notifications.addNotificationResponseReceivedListener((response) => {
-        // Handle tap on notification
         const data = response.notification.request.content.data;
-        // console.log("Notification Tapped:", data);
-        // Could navigate here if we had access to router, or emit event
+        console.log("Notification Tapped:", data);
       });
 
     return () => {
-      notificationListener.current && notificationListener.current.remove();
-      responseListener.current && responseListener.current.remove();
+      if (notificationListener.current) {
+        notificationListener.current.remove();
+      }
+      if (responseListener.current) {
+        responseListener.current.remove();
+      }
     };
-  }, [user]);
+  }, [user?.uid]); // Only re-run if UID changes (Login/Logout)
 
   const savePushToken = async (uid: string, token: string) => {
     try {

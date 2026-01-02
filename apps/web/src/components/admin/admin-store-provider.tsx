@@ -6,8 +6,11 @@ import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
+import { onSnapshot } from "firebase/firestore";
+
 interface AdminStoreContextType {
   storeId: string | null;
+  storePlan: "starter" | "growth" | null;
   loading: boolean;
 }
 
@@ -21,11 +24,14 @@ export function AdminStoreProvider({
   children: React.ReactNode;
 }) {
   const [storeId, setStoreId] = useState<string | null>(null);
+  const [storePlan, setStorePlan] = useState<"starter" | "growth" | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
+    let storeUnsub: () => void;
+
+    const authUnsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
           const userDoc = await getDoc(doc(db, "users", user.uid));
@@ -33,7 +39,18 @@ export function AdminStoreProvider({
           const stores = userData?.ownedStores || [];
 
           if (stores.length > 0) {
-            setStoreId(stores[0]); // Default to first store for now
+            const currentStoreId = stores[0];
+            setStoreId(currentStoreId);
+
+            // Listen to real-time store updates (for plan upgrades)
+            storeUnsub = onSnapshot(
+              doc(db, "stores", currentStoreId),
+              (doc) => {
+                if (doc.exists()) {
+                  setStorePlan(doc.data()?.plan || "starter");
+                }
+              }
+            );
           }
         } catch (e) {
           console.error("Failed to load admin store", e);
@@ -41,11 +58,14 @@ export function AdminStoreProvider({
       }
       setLoading(false);
     });
-    return () => unsub();
+    return () => {
+      authUnsub();
+      if (storeUnsub) storeUnsub();
+    };
   }, []);
 
   return (
-    <AdminStoreContext.Provider value={{ storeId, loading }}>
+    <AdminStoreContext.Provider value={{ storeId, storePlan, loading }}>
       {children}
     </AdminStoreContext.Provider>
   );

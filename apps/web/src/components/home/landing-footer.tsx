@@ -86,7 +86,7 @@ export function LandingFooter() {
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-between text-zinc-600 text-sm gap-4">
-          <p>© 2025 CopDrop Inc. All rights reserved.</p>
+          <p>© 2026 CopDrop Inc. All rights reserved.</p>
           <div className="flex gap-6">
             <a
               href="https://x.com/copdrop_io?s=21"

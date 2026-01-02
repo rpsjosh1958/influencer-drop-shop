@@ -242,6 +242,28 @@ export async function POST(req: Request) {
           parameters: { type: "object", properties: {} },
         },
       },
+      // --- BROADCAST TOOLS ---
+      {
+        type: "function",
+        function: {
+          name: "broadcastMessage",
+          description: "Send a broadcast message to all users.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+                description: "The title of the broadcast.",
+              },
+              content: {
+                type: "string",
+                description: "The body content of the broadcast.",
+              },
+            },
+            required: ["title", "content"],
+          },
+        },
+      },
     ];
 
     // 4. Initial Call
@@ -252,6 +274,7 @@ export async function POST(req: Request) {
         "You can now manage Categories, Orders, and providing Financial Strategy. \n" +
         "If the user asks for 'marketing advice' or 'how to boost sales', ALWAYS start by calling `getStoreInsights` to understand their revenue and plan context. \n" +
         "When explaining fees or payouts, use the data from `getStoreInsights`. \n" +
+        "IMPORTANT: All currency values must be displayed in **Ghana Cedis (GHS)** or **GH₵**. Never use '$' or 'USD'. \n" +
         "Be concise but professional.",
     };
 
@@ -626,6 +649,20 @@ export async function POST(req: Request) {
 
 Use this data to advise the user on cash flow, upgrading their plan, or marketing (e.g. if sales are low).
              `.trim();
+          } else if (fnName === "broadcastMessage") {
+            const title = (fnArgs as any).title;
+            const content = (fnArgs as any).content;
+
+            await adminDb.collection("notifications").add({
+              userId: "all",
+              title,
+              message: content,
+              type: "broadcast",
+              createdAt: new Date(),
+              read: false,
+            });
+
+            result = `Broadcast sent! Title: "${title}"`;
           } else {
             result = "Unknown tool.";
           }

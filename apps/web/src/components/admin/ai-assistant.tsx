@@ -9,7 +9,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 export function AiAssistant() {
-  const { storeId } = useAdminStore();
+  const { storeId, storePlan } = useAdminStore();
   const [isOpen, setIsOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
@@ -84,6 +84,10 @@ export function AiAssistant() {
     }
     return <div>{content}</div>;
   };
+
+  if (storePlan !== "growth") {
+    return null;
+  }
 
   return (
     <>

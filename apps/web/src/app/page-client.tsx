@@ -11,6 +11,7 @@ import { onAuthStateChanged } from "firebase/auth";
 
 import { HeroBackground } from "@/components/home/hero-background";
 import { LandingFeatures } from "@/components/home/landing-features";
+import { LandingAiShowcase } from "@/components/home/landing-ai-showcase";
 import { LandingPricing } from "@/components/home/landing-pricing";
 import { LandingFAQ } from "@/components/home/landing-faq";
 import { LandingFooter } from "@/components/home/landing-footer";
@@ -128,6 +129,7 @@ function PlatformLandingContent() {
 
       <LandingHowItWorks />
       <LandingFeatures />
+      <LandingAiShowcase />
       <LandingCommunity />
       <LandingPricing />
       <LandingFAQ />

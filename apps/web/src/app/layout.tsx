@@ -45,7 +45,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://copdrop.io"),
   title: {
     default: "THE DROP | Own The Hype",
-    template: "%s | CopDrop",
+    template: "%s | THE DROP.", // Branding update
   },
   description:
     "The ultimate platform for creators and influencers to drop exclusive merch. Secure the bag with your own custom store.",
@@ -54,6 +54,7 @@ export const metadata: Metadata = {
     "creator economy",
     "merch drops",
     "influencer store",
+    "The Drop Shop", // Specific user request
     "sell online",
     "ghana ecommerce",
   ],
@@ -62,15 +63,15 @@ export const metadata: Metadata = {
     title: "THE DROP | Own The Hype",
     description: "Launch your own store in seconds. The drop is yours.",
     url: "https://copdrop.io",
-    siteName: "CopDrop",
+    siteName: "THE DROP.", // Branding update
     locale: "en_US",
     type: "website",
     images: [
       {
-        url: "/assets/landing/site%20logo.png",
+        url: "/assets/landing/site-logo.png", // Updated path
         width: 1200,
         height: 630,
-        alt: "CopDrop Platform",
+        alt: "The Drop.",
       },
     ],
   },
@@ -81,7 +82,8 @@ export const metadata: Metadata = {
     creator: "@copdrop_io",
   },
   icons: {
-    icon: "/assets/landing/site%20logo.png",
+    icon: "/assets/landing/site-logo.png", // Updated path
+    apple: "/assets/landing/site-logo.png", // Added mobile support
   },
 };
 
