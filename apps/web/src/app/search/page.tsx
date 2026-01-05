@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import {
   collectionGroup,
   query,
@@ -11,13 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { motion } from "framer-motion";
-import {
-  Loader2,
-  Search,
-  Zap,
-  ArrowRight,
-  Store as StoreIcon,
-} from "lucide-react";
+import { Loader2, Search, Zap, Store as StoreIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -32,7 +26,7 @@ interface SearchResult {
   storeName?: string; // Optional if we fetch it separately, but we might not have it on the product doc
 }
 
-export default function GlobalSearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const queryStr = searchParams.get("q") || "";
 
@@ -186,5 +180,19 @@ export default function GlobalSearchPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function GlobalSearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <Loader2 className="animate-spin text-zinc-300" size={32} />
+        </div>
+      }
+    >
+      <SearchContent />
+    </Suspense>
   );
 }
