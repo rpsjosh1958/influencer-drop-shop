@@ -43,6 +43,9 @@ const courier = Courier_Prime({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://copdrop.io"),
+  alternates: {
+    canonical: "./",
+  },
   title: {
     default: "THE DROP | Own The Hype",
     template: "%s | THE DROP.", // Branding update

@@ -38,6 +38,7 @@ export interface Product {
   stock: number;
   createdAt: number;
   category?: string;
+  storeId?: string; // Links product to a specific store
 }
 
 export interface Category {

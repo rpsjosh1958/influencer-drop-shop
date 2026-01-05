@@ -17,6 +17,7 @@ import {
   where,
   doc,
   onSnapshot,
+  collectionGroup,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Product, ProductCard } from "@/components/shop/product-card";
@@ -34,6 +35,8 @@ import {
   X,
   Search,
   ChevronRight,
+  Store as StoreIcon,
+  Globe,
 } from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import Animated, {
@@ -106,6 +109,7 @@ export default function ShopHome() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchScope, setSearchScope] = useState<"store" | "global">("store");
 
   // Notification State
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -271,7 +275,13 @@ export default function ShopHome() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const performSearch = async () => {
-    if (!searchQuery.trim() || !storeId) return;
+    if (!searchQuery.trim()) return;
+
+    // If store scope but no storeId (Discovery Mode), force global or return
+    if (searchScope === "store" && !storeId) {
+      setSearchScope("global");
+      // Continue to global logic below
+    }
 
     setIsSearching(true);
     setLoading(true);
@@ -279,11 +289,26 @@ export default function ShopHome() {
     Keyboard.dismiss();
 
     try {
-      const q = query(
-        collection(db, "stores", storeId, "products"),
-        where("name", ">=", searchQuery),
-        where("name", "<=", searchQuery + "\uf8ff")
-      );
+      let q;
+
+      if (searchScope === "global" || !storeId) {
+        // Global Search: Search query across all products
+        // NOTE: Firestore requires an index for this specific compound query.
+        // Fallback to fetching recent global items and filtering client-side if needed for MVP.
+        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+        q = query(
+          collectionGroup(db, "products"),
+          orderBy("createdAt", "desc")
+          // limit(100)
+        );
+      } else {
+        // Store Search - storeId is guaranteed to be string here
+        q = query(
+          collection(db, "stores", storeId, "products"),
+          where("name", ">=", searchQuery),
+          where("name", "<=", searchQuery + "\uf8ff")
+        );
+      }
 
       const snapshot = await getDocs(q);
 
@@ -292,21 +317,39 @@ export default function ShopHome() {
           id: doc.id,
           ...doc.data(),
         })) as Product[];
-        setSearchResults(results);
+
+        if (searchScope === "global") {
+          // Client-side filter for global if we used the generic query
+          const textLower = searchQuery.toLowerCase();
+          const filtered = results.filter((p) =>
+            p.name.toLowerCase().includes(textLower)
+          );
+          setSearchResults(filtered);
+        } else {
+          setSearchResults(results);
+        }
       } else {
+        // Fallback for case-insensitive local filtering (Store Scope)
+        if (searchScope === "store") {
+          const textLower = searchQuery.toLowerCase();
+          const localResults = products.filter((p) =>
+            p.name.toLowerCase().includes(textLower)
+          );
+          setSearchResults(localResults);
+        } else {
+          setSearchResults([]);
+        }
+      }
+    } catch (e) {
+      console.error("Search failed:", e);
+      // Fallback
+      if (searchScope === "store") {
         const textLower = searchQuery.toLowerCase();
         const localResults = products.filter((p) =>
           p.name.toLowerCase().includes(textLower)
         );
         setSearchResults(localResults);
       }
-    } catch (e) {
-      console.error("Search failed:", e);
-      const textLower = searchQuery.toLowerCase();
-      const localResults = products.filter((p) =>
-        p.name.toLowerCase().includes(textLower)
-      );
-      setSearchResults(localResults);
     } finally {
       setLoading(false);
     }
@@ -517,15 +560,48 @@ export default function ShopHome() {
                         },
                       ]}
                     >
-                      <Search size={18} color="#a1a1aa" />
+                      {/* Search Scope Toggle */}
+                      <View className="flex-row gap-1 mr-2 bg-zinc-200 rounded-lg p-0.5">
+                        <Pressable
+                          onPress={() => setSearchScope("store")}
+                          className={`p-1 rounded-md ${
+                            searchScope === "store" ? "bg-white shadow-sm" : ""
+                          }`}
+                        >
+                          <StoreIcon
+                            size={14}
+                            color={
+                              searchScope === "store" ? "black" : "#a1a1aa"
+                            }
+                          />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setSearchScope("global")}
+                          className={`p-1 rounded-md ${
+                            searchScope === "global" ? "bg-white shadow-sm" : ""
+                          }`}
+                        >
+                          <Globe
+                            size={14}
+                            color={
+                              searchScope === "global" ? "black" : "#a1a1aa"
+                            }
+                          />
+                        </Pressable>
+                      </View>
+
                       <TextInput
                         autoFocus
                         value={searchQuery}
                         onChangeText={handleSearchTextChange}
                         onSubmitEditing={performSearch}
                         returnKeyType="search"
-                        placeholder="Search drops..."
-                        className="flex-1 ml-2 font-medium text-black h-full"
+                        placeholder={
+                          searchScope === "global"
+                            ? "Search all shops..."
+                            : "Search this store..."
+                        }
+                        className="flex-1 ml-1 font-medium text-black h-full"
                         placeholderTextColor="#a1a1aa"
                       />
                       <Pressable onPress={() => setIsSearchOpen(false)}>
