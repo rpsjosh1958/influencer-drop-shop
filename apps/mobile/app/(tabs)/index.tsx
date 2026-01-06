@@ -6,6 +6,7 @@ import {
   Dimensions,
   RefreshControl,
   Image,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -69,7 +70,7 @@ import { StoreSwitcher } from "@/components/shop/store-switcher"; // Imported
 
 export default function ShopHome() {
   const router = useRouter();
-  const { storeId, store } = useStore();
+  const { storeId, store, setStoreId } = useStore();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +110,7 @@ export default function ShopHome() {
   const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchScope, setSearchScope] = useState<"store" | "global">("store");
+  // const [searchScope, setSearchScope] = useState<"store" | "global">("store"); // Replaced by params
 
   // Notification State
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -205,9 +206,14 @@ export default function ShopHome() {
   useEffect(() => {
     fetchProducts();
 
-    // Fetch Categories (Global for now)
+    if (!storeId) return;
+
+    // Fetch Categories (Store Scoped)
     const unsubCategories = onSnapshot(
-      query(collection(db, "categories"), orderBy("name", "asc")),
+      query(
+        collection(db, "stores", storeId, "categories"),
+        orderBy("name", "asc")
+      ),
       (snapshot) => {
         const items = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -276,12 +282,7 @@ export default function ShopHome() {
 
   const performSearch = async () => {
     if (!searchQuery.trim()) return;
-
-    // If store scope but no storeId (Discovery Mode), force global or return
-    if (searchScope === "store" && !storeId) {
-      setSearchScope("global");
-      // Continue to global logic below
-    }
+    if (!storeId) return;
 
     setIsSearching(true);
     setLoading(true);
@@ -289,67 +290,42 @@ export default function ShopHome() {
     Keyboard.dismiss();
 
     try {
-      let q;
-
-      if (searchScope === "global" || !storeId) {
-        // Global Search: Search query across all products
-        // NOTE: Firestore requires an index for this specific compound query.
-        // Fallback to fetching recent global items and filtering client-side if needed for MVP.
-        /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-        q = query(
-          collectionGroup(db, "products"),
-          orderBy("createdAt", "desc")
-          // limit(100)
-        );
-      } else {
-        // Store Search - storeId is guaranteed to be string here
-        q = query(
-          collection(db, "stores", storeId, "products"),
-          where("name", ">=", searchQuery),
-          where("name", "<=", searchQuery + "\uf8ff")
-        );
-      }
+      // Store Search - storeId is guaranteed to be string here
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        where("name", ">=", searchQuery),
+        where("name", "<=", searchQuery + "\uf8ff")
+      );
 
       const snapshot = await getDocs(q);
 
       if (!snapshot.empty) {
-        const results = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Product[];
+        const results = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            storeId: data.storeId || doc.ref.parent.parent?.id,
+          };
+        }) as Product[];
 
-        if (searchScope === "global") {
-          // Client-side filter for global if we used the generic query
-          const textLower = searchQuery.toLowerCase();
-          const filtered = results.filter((p) =>
-            p.name.toLowerCase().includes(textLower)
-          );
-          setSearchResults(filtered);
-        } else {
-          setSearchResults(results);
-        }
+        setSearchResults(results);
       } else {
         // Fallback for case-insensitive local filtering (Store Scope)
-        if (searchScope === "store") {
-          const textLower = searchQuery.toLowerCase();
-          const localResults = products.filter((p) =>
-            p.name.toLowerCase().includes(textLower)
-          );
-          setSearchResults(localResults);
-        } else {
-          setSearchResults([]);
-        }
-      }
-    } catch (e) {
-      console.error("Search failed:", e);
-      // Fallback
-      if (searchScope === "store") {
         const textLower = searchQuery.toLowerCase();
         const localResults = products.filter((p) =>
           p.name.toLowerCase().includes(textLower)
         );
         setSearchResults(localResults);
       }
+    } catch (e) {
+      console.error("Search failed:", e);
+      // Fallback
+      const textLower = searchQuery.toLowerCase();
+      const localResults = products.filter((p) =>
+        p.name.toLowerCase().includes(textLower)
+      );
+      setSearchResults(localResults);
     } finally {
       setLoading(false);
     }
@@ -401,7 +377,7 @@ export default function ShopHome() {
   }
 
   return (
-    <GestureHandlerRootView className="flex-1 bg-black">
+    <View className="flex-1 bg-black">
       <StatusBar style={isNotificationOpen ? "light" : "dark"} />
 
       <GestureDetector gesture={panGesture}>
@@ -460,12 +436,12 @@ export default function ShopHome() {
                         onPress={() => {
                           if (!item.read) markAsRead(item.id);
                           setIsNotificationOpen(false); // Close drawer
-                          if (item.type === "order_update") {
-                            router.push({
-                              pathname: "/(tabs)/orders",
-                              params: { orderId: item.orderId },
-                            });
-                          }
+                          // if (item.type === "order_update") {
+                          //   router.push({
+                          //     pathname: "/(tabs)/orders",
+                          //     params: { orderId: item.orderId },
+                          //   });
+                          // }
                         }}
                         className={`bg-zinc-900 p-5 rounded-3xl border ${
                           item.read ? "border-zinc-800" : ""
@@ -563,44 +539,27 @@ export default function ShopHome() {
                       {/* Search Scope Toggle */}
                       <View className="flex-row gap-1 mr-2 bg-zinc-200 rounded-lg p-0.5">
                         <Pressable
-                          onPress={() => setSearchScope("store")}
-                          className={`p-1 rounded-md ${
-                            searchScope === "store" ? "bg-white shadow-sm" : ""
-                          }`}
+                          className="p-1 rounded-md bg-white shadow-sm"
                         >
-                          <StoreIcon
-                            size={14}
-                            color={
-                              searchScope === "store" ? "black" : "#a1a1aa"
-                            }
-                          />
+                          <StoreIcon size={14} color="black" />
                         </Pressable>
                         <Pressable
-                          onPress={() => setSearchScope("global")}
-                          className={`p-1 rounded-md ${
-                            searchScope === "global" ? "bg-white shadow-sm" : ""
-                          }`}
+                          onPress={() => {
+                            setIsSearchOpen(false);
+                            router.push("/global-search");
+                          }}
+                          className="p-1 rounded-md"
                         >
-                          <Globe
-                            size={14}
-                            color={
-                              searchScope === "global" ? "black" : "#a1a1aa"
-                            }
-                          />
+                          <Globe size={14} color="#a1a1aa" />
                         </Pressable>
                       </View>
 
                       <TextInput
-                        autoFocus
                         value={searchQuery}
                         onChangeText={handleSearchTextChange}
                         onSubmitEditing={performSearch}
                         returnKeyType="search"
-                        placeholder={
-                          searchScope === "global"
-                            ? "Search all shops..."
-                            : "Search this store..."
-                        }
+                        placeholder="Search this store..."
                         className="flex-1 ml-1 font-medium text-black h-full"
                         placeholderTextColor="#a1a1aa"
                       />
@@ -878,7 +837,15 @@ export default function ShopHome() {
                           <ProductCard
                             product={product}
                             index={i}
-                            onPress={setSelectedProduct}
+                            onPress={async (p) => {
+                              if (p.storeId && p.storeId !== storeId) {
+                                await setStoreId(p.storeId);
+                                // Provide small delay for context update
+                                setTimeout(() => setSelectedProduct(p), 100);
+                              } else {
+                                setSelectedProduct(p);
+                              }
+                            }}
                           />
                         </View>
                       ))}
@@ -980,6 +947,6 @@ export default function ShopHome() {
           });
         }}
       />
-    </GestureHandlerRootView>
+    </View>
   );
 }

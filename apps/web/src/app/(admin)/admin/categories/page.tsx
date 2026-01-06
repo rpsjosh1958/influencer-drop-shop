@@ -13,16 +13,27 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Category } from "@/types";
-import { Plus, Trash2, Tag } from "lucide-react";
+import { Plus, Trash2, Tag, AlertCircle } from "lucide-react";
+import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 export default function CategoriesPage() {
+  const { storeId, loading: storeLoading } = useAdminStore();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [newCatName, setNewCatName] = useState("");
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    const q = query(collection(db, "categories"), orderBy("createdAt", "desc"));
+    if (!storeId) {
+      if (!storeLoading) setLoading(false);
+      return;
+    }
+
+    // Scoped to Store
+    const q = query(
+      collection(db, "stores", storeId, "categories"),
+      orderBy("createdAt", "desc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -32,18 +43,19 @@ export default function CategoriesPage() {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [storeId, storeLoading]);
 
   const handleAddKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleAdd();
   };
 
   const handleAdd = async () => {
-    if (!newCatName.trim()) return;
+    if (!newCatName.trim() || !storeId) return;
     setAdding(true);
     try {
       const slug = newCatName.toLowerCase().replace(/\s+/g, "-");
-      await addDoc(collection(db, "categories"), {
+      // Scoped to Store
+      await addDoc(collection(db, "stores", storeId, "categories"), {
         name: newCatName,
         slug,
         createdAt: serverTimestamp(),
@@ -58,16 +70,40 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (!storeId) return;
     if (confirm("Delete this category?")) {
-      await deleteDoc(doc(db, "categories", id));
+      // Scoped to Store
+      await deleteDoc(doc(db, "stores", storeId, "categories", id));
     }
   };
+
+  if (storeLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
+      </div>
+    );
+  }
+
+  if (!storeId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[50vh] text-center p-8">
+        <AlertCircle size={48} className="text-zinc-300 mb-4" />
+        <h3 className="font-bold text-lg mb-2">No Store Selection</h3>
+        <p className="text-zinc-500 max-w-md">
+          Please select a store from the dashboard to manage categories.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
-        <p className="text-zinc-500">Manage product categories</p>
+        <p className="text-zinc-500">
+          Manage product categories for this store
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -112,7 +148,9 @@ export default function CategoriesPage() {
           ) : categories.length === 0 ? (
             <div className="text-center py-12 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
               <Tag className="mx-auto text-zinc-300 mb-2" size={32} />
-              <p className="text-zinc-500">No categories yet.</p>
+              <p className="text-zinc-500">
+                No categories found in this store.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">

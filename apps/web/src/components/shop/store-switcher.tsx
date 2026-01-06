@@ -169,7 +169,7 @@ export function StoreSwitcher() {
                       <div className="flex items-center gap-1.5">
                         <span
                           className={cn(
-                            "font-medium",
+                            "font-medium text-black",
                             store.id === currentStoreId && "font-bold"
                           )}
                         >

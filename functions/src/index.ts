@@ -164,7 +164,7 @@ export const onStoreCreated = onDocumentCreated(
         plan: "growth",
         isTrial: true,
         planExpiresAt: expiresAt,
-        isVerified: false, // Pending verification, but has Growth features
+        isVerified: true, // Enable Verification Badge for Growth Plan Trial
       });
       logger.info(
         `Activated 30-Day Free Trial for Store ${event.params.storeId}`

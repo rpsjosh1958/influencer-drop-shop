@@ -15,6 +15,7 @@ export type Product = {
   variants?: any[];
   options?: { id: string; name: string; values: string[] }[];
   category?: string;
+  storeId?: string;
 };
 
 interface ProductCardProps {

@@ -177,7 +177,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
                 ? "Search everywhere..."
                 : "Search this store..."
             }
-            className="flex-1 bg-transparent outline-none text-sm min-w-0"
+            className="flex-1 bg-transparent outline-none text-sm min-w-0 text-black"
           />
         ) : (
           <button onClick={() => setIsOpen(true)} className="p-2 text-zinc-800">
@@ -237,7 +237,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold truncate">
+                        <p className="text-sm font-bold truncate text-black">
                           {product.name}
                         </p>
                         <p className="text-xs text-zinc-500">

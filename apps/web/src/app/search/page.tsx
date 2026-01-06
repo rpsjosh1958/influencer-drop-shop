@@ -140,7 +140,10 @@ function SearchContent() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
               >
-                <Link href={`/shop/${product.storeId}`} className="group block">
+                <Link
+                  href={`/shop/${product.storeId}?productId=${product.id}`}
+                  className="group block"
+                >
                   <div className="aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-3 relative">
                     <Image
                       src={product.images?.[0] || product.imageUrl}

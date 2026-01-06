@@ -14,7 +14,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { LogOut, ShoppingCart, User, Zap, Package, Bell } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product, Category } from "@/types"; // Added Category
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/components/shop/store-provider";
 import { useCart } from "@/components/shop/cart-provider";
 import { HeaderSearch } from "@/components/shop/header-search";
@@ -37,6 +37,7 @@ const fontMap: Record<string, string> = {
 export default function ShopHome() {
   const params = useParams();
   const storeId = params?.storeId as string;
+  const searchParams = useSearchParams();
   const { store } = useStore();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -95,7 +96,7 @@ export default function ShopHome() {
         setProducts(itemsProducts);
 
         const qCategories = query(
-          collection(db, "categories"),
+          collection(db, "stores", storeId, "categories"),
           orderBy("name", "asc")
         );
         const unsubCategories = onSnapshot(qCategories, (snapshot) => {
@@ -348,6 +349,7 @@ export default function ShopHome() {
                   product={product}
                   index={i}
                   addToCart={addToCart}
+                  initialOpen={searchParams.get("productId") === product.id}
                 />
               ))
             ) : (
@@ -446,7 +448,6 @@ function ShopHero({ theme }: { theme: any }) {
         transition={{ duration: 0.8, ease: "circOut" }}
         className={`relative z-20 max-w-5xl mx-auto w-full flex flex-col ${alignClass}`}
       >
-
         <h1
           className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase"
           style={{

@@ -187,7 +187,7 @@ export function OrderDetailsModal({
               </H1>
               <View className="space-y-4">
                 {order.items.map((item: any, i: number) => (
-                  <View key={i} className="flex-row gap-4">
+                  <View key={i} className="flex-row gap-4 mb-3">
                     <Image
                       source={{
                         uri: item.imageUrl || item.image || item.images?.[0],

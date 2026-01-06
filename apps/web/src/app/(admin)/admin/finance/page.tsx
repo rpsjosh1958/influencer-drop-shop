@@ -10,6 +10,9 @@ import {
   query,
   orderBy,
   limit,
+  where,
+  getDocs,
+  getDoc,
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import {
@@ -18,8 +21,10 @@ import {
   Wallet,
   History,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { generateFinancePDF } from "@/lib/pdf-generator";
 
 export default function FinancePage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -40,6 +45,70 @@ export default function FinancePage() {
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  // Export State
+  const [exporting, setExporting] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [storeConfig, setStoreConfig] = useState<any>(null);
+
+  // Fetch Store Config
+  useEffect(() => {
+    if (!storeId) return;
+    getDoc(doc(db, "stores", storeId)).then((snap) => {
+      if (snap.exists()) setStoreConfig(snap.data());
+    });
+  }, [storeId]);
+
+  const handleExportStatement = async () => {
+    if (!storeConfig) return;
+    setExporting(true);
+    try {
+      const start = new Date(selectedYear, selectedMonth, 1);
+      const end = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
+
+      const q = query(
+        collection(db, "stores", storeId!, "wallet_transactions"),
+        orderBy("createdAt", "desc"),
+        where("createdAt", ">=", start),
+        where("createdAt", "<=", end)
+      );
+
+      const snapshot = await getDocs(q);
+      const periodTransactions = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as any[];
+
+      const totalEarnedPeriod = periodTransactions
+        .filter((tx) => tx.type === "credit")
+        .reduce((sum, tx) => sum + (tx.amount || 0), 0);
+
+      const monthName = new Date(selectedYear, selectedMonth).toLocaleString(
+        "default",
+        { month: "long" }
+      );
+
+      generateFinancePDF(periodTransactions, {
+        storeName: storeConfig.name,
+        storeIcon: storeConfig.logo,
+        month: monthName,
+        year: selectedYear.toString(),
+        totalEarned: totalEarnedPeriod,
+        currency: "GHS",
+      });
+
+      setMessage({
+        type: "success",
+        text: `Statement for ${monthName} ${selectedYear} downloaded!`,
+      });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: "error", text: "Failed to generate statement." });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!storeId) return;
@@ -75,6 +144,7 @@ export default function FinancePage() {
     });
 
     return () => {
+      unsubStore(); // Fixed missing cleanup
       unsubWallet();
       unsubTx();
     };
@@ -123,6 +193,23 @@ export default function FinancePage() {
     }).format(val || 0);
   };
 
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -140,6 +227,52 @@ export default function FinancePage() {
           <ArrowUpRight size={20} />
           Withdraw Funds
         </button>
+      </div>
+
+      {/* Reports Section */}
+      <div className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h3 className="font-bold text-lg text-black">Monthly Statements</h3>
+          <p className="text-sm text-zinc-500">
+            Download PDF reports for your financial records.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
+            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-black text-sm font-medium outline-none focus:ring-2 focus:ring-black"
+          >
+            {months.map((m, i) => (
+              <option key={m} value={i}>
+                {m}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-black font-medium outline-none focus:ring-2 focus:ring-black"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={handleExportStatement}
+            disabled={exporting}
+            className="h-10 px-4 bg-zinc-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+          >
+            {exporting ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Download size={16} />
+            )}
+            Export PDF
+          </button>
+        </div>
       </div>
 
       {message && (

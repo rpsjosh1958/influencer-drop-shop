@@ -243,7 +243,7 @@ export default function StoreSettingsPage() {
 
   const MOMO_NETWORKS = [
     { name: "MTN Mobile Money", code: "MTN" },
-    { name: "Vodafone Cash", code: "VOD" },
+    { name: "Telecel", code: "VOD" },
     { name: "AirtelTigo Money", code: "ATM" },
   ];
 

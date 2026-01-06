@@ -289,8 +289,13 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
       setOldPassword("");
     } catch (err: any) {
       console.error(err);
-      if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
-        setError("The current password you entered is incorrect. Please try again.");
+      if (
+        err.code === "auth/wrong-password" ||
+        err.code === "auth/invalid-credential"
+      ) {
+        setError(
+          "The current password you entered is incorrect. Please try again."
+        );
       } else if (err.code === "auth/requires-recent-login") {
         setError("Please log out and log in again to change password.");
       } else {
@@ -328,7 +333,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
               {/* Header */}
               <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50">
                 <div>
-                  <h2 className="text-2xl font-black tracking-tight">
+                  <h2 className="text-2xl font-black tracking-tight text-black">
                     PROFILE SETTINGS
                   </h2>
                   <p className="text-zinc-500 text-sm">
@@ -413,7 +418,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                           <input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none text-black"
                             placeholder="Your Name"
                           />
                         </div>
@@ -424,7 +429,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                           <input
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none text-black"
                             placeholder="054..."
                           />
                         </div>
@@ -462,7 +467,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                                 }`}
                               >
                                 <div>
-                                  <div className="font-bold flex items-center gap-2">
+                                  <div className="font-bold flex items-center gap-2 text-black">
                                     {addr.city},{" "}
                                     {countryOptions.find(
                                       (c) => c.value === addr.country
@@ -597,7 +602,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                                 })
                               }
                               required
-                              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none text-black"
                               placeholder="Apartment, Street..."
                             />
                           </div>
@@ -613,7 +618,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                                   zip: e.target.value,
                                 })
                               }
-                              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                              className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none text-black"
                               placeholder="GA-123-456..."
                             />
                           </div>
@@ -654,7 +659,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                             value={oldPassword}
                             onChange={(e) => setOldPassword(e.target.value)}
                             required
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none text-black"
                             placeholder="••••••••"
                           />
                         </div>
@@ -668,7 +673,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                             onChange={(e) => setNewPassword(e.target.value)}
                             required
                             minLength={6}
-                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+                            className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none text-black"
                             placeholder="••••••••"
                           />
                         </div>

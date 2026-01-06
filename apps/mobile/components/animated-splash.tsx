@@ -47,7 +47,7 @@ export function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
           transition={{ delay: 500, type: "timing", duration: 800 }}
         >
           <Text className="text-5xl font-black tracking-tighter text-black">
-            DROP.
+            THE DROP.
           </Text>
         </MotiText>
       </MotiView>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Star, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
@@ -11,12 +11,23 @@ interface ProductCardProps {
   product: Product;
   index: number;
   addToCart: (product: Product) => void;
+  initialOpen?: boolean;
 }
 
-export function ProductCard({ product, index, addToCart }: ProductCardProps) {
+export function ProductCard({
+  product,
+  index,
+  addToCart,
+  initialOpen = false,
+}: ProductCardProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Sync initialOpen prop to state
+  useEffect(() => {
+    if (initialOpen) setIsModalOpen(true);
+  }, [initialOpen]);
 
   // Use images array if available, fallback to legacy imageUrl
   const images =
@@ -141,7 +152,7 @@ export function ProductCard({ product, index, addToCart }: ProductCardProps) {
             <p className="text-zinc-500 text-sm line-clamp-1">
               {product.description}
             </p>
-            <div className="flex items-center gap-1 text-xs font-bold bg-zinc-100 px-2 py-1 rounded-md">
+            <div className="flex items-center gap-1 text-xs font-bold bg-zinc-100 px-2 py-1 rounded-md text-black">
               <Star size={10} className="fill-black" />
               5.0
             </div>

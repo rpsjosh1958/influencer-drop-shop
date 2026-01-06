@@ -105,7 +105,7 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                   <Package size={18} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm">Your Orders</h3>
+                  <h3 className="font-bold text-sm text-black">Your Orders</h3>
                   <p className="text-[10px] text-zinc-500 font-medium">
                     Recent purchases
                   </p>
@@ -187,7 +187,7 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                             })}
                         </p>
                       </div>
-                      <p className="font-bold text-sm">
+                      <p className="font-bold text-sm text-black">
                         GHS {order.total.toFixed(2)}
                       </p>
                     </div>
@@ -212,7 +212,9 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                             />
                           </div>
                           <div className="flex-1 overflow-hidden">
-                            <p className="font-medium truncate">{item.name}</p>
+                            <p className="font-medium truncate text-black">
+                              {item.name}
+                            </p>
                             <p className="text-zinc-400">
                               Qty: {item.quantity}
                             </p>
