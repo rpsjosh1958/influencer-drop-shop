@@ -67,6 +67,8 @@ import { cn } from "@/lib/utils";
 
 import { useStore } from "@/context/store-context";
 import { StoreSwitcher } from "@/components/shop/store-switcher"; // Imported
+import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Added
+import { Star } from "lucide-react-native"; // Added
 
 export default function ShopHome() {
   const router = useRouter();
@@ -76,6 +78,7 @@ export default function ShopHome() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false); // Added
 
   // Hero Slideshow
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
@@ -538,9 +541,7 @@ export default function ShopHome() {
                     >
                       {/* Search Scope Toggle */}
                       <View className="flex-row gap-1 mr-2 bg-zinc-200 rounded-lg p-0.5">
-                        <Pressable
-                          className="p-1 rounded-md bg-white shadow-sm"
-                        >
+                        <Pressable className="p-1 rounded-md bg-white shadow-sm">
                           <StoreIcon size={14} color="black" />
                         </Pressable>
                         <Pressable
@@ -880,6 +881,26 @@ export default function ShopHome() {
                       >
                         {store.name}
                       </H1>
+
+                      {/* Rating Badge */}
+                      {(store.rating || 0) > 0 && (
+                        <Pressable
+                          onPress={() => setIsReviewsOpen(true)}
+                          className="flex-row items-center gap-1.5 bg-zinc-100 px-3 py-1.5 rounded-full mt-2 active:opacity-70"
+                        >
+                          {/* Use Star from lucide-react-native already imported or add import if needed */}
+                          <View style={{ marginRight: 2 }}>
+                            <Star size={12} color="black" fill="black" />
+                          </View>
+                          <P className="text-xs font-bold">
+                            {Number(store.rating).toFixed(1)}
+                          </P>
+                          <P className="text-xs text-zinc-500">
+                            ({store.reviewCount} reviews)
+                          </P>
+                        </Pressable>
+                      )}
+
                       {store.theme.footer.text && (
                         <P
                           className="text-center text-xs opacity-60"
@@ -945,6 +966,17 @@ export default function ShopHome() {
                 : p.imageUrl || "https://via.placeholder.com/300",
             variant: v,
           });
+        }}
+      />
+
+      <ReviewsListModal
+        visible={isReviewsOpen}
+        onClose={() => setIsReviewsOpen(false)}
+        storeId={storeId!}
+        storeStats={{
+          rating: store?.rating || 0,
+          count: store?.reviewCount || 0,
+          distribution: store?.ratingDistribution || {},
         }}
       />
     </View>

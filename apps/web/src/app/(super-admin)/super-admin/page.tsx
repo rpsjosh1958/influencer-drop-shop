@@ -7,13 +7,14 @@ import {
   query,
   where,
   getDocs,
+  collectionGroup,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
   Users,
   Store,
   DollarSign,
-  ShieldAlert,
+  Megaphone,
   TrendingUp,
   Activity,
 } from "lucide-react";
@@ -24,7 +25,7 @@ export default function SuperAdminDashboard() {
     totalUsers: 0,
     activeVendors: 0,
     totalRevenue: 0, // Mocked for now, needs complex aggregation
-    pendingVerifications: 0,
+    activeTickets: 0,
     recentLogs: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -33,18 +34,14 @@ export default function SuperAdminDashboard() {
     async function fetchStats() {
       try {
         // Parallel fetching
-        const [usersSnap, vendorsSnap, verificationSnap] = await Promise.all([
+        const [usersSnap, vendorsSnap, ticketSnap] = await Promise.all([
           // Total Users (Assuming 'users' collection includes everyone)
           getCountFromServer(collection(db, "users")),
           // Active Vendors (Stores)
           getCountFromServer(collection(db, "stores")),
-          // Pending Verifications
+          // Active Tickets (Vendor + Platform)
           getCountFromServer(
-            query(
-              collection(db, "stores"),
-              where("isVerified", "==", false),
-              where("plan", "==", "growth_pending")
-            )
+            query(collectionGroup(db, "tickets"), where("status", "==", "open"))
           ),
         ]);
 
@@ -52,7 +49,7 @@ export default function SuperAdminDashboard() {
           totalUsers: usersSnap.data().count,
           activeVendors: vendorsSnap.data().count,
           totalRevenue: 154200.5, // TODO: Implement Revenue Aggregation
-          pendingVerifications: verificationSnap.data().count, // Adjusted logic needed if 'growth_pending' is the flag
+          activeTickets: ticketSnap.data().count,
           recentLogs: 0,
         });
       } catch (error) {
@@ -94,10 +91,10 @@ export default function SuperAdminDashboard() {
       border: "border-purple-500/20",
     },
     {
-      label: "Pending Verifications",
-      value: stats.pendingVerifications,
-      change: "Action Required",
-      icon: ShieldAlert,
+      label: "Active Tickets",
+      value: stats.activeTickets,
+      change: "Needs Attention",
+      icon: Megaphone,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
       border: "border-amber-500/20",

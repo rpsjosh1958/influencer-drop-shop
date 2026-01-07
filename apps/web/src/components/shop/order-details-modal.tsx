@@ -53,7 +53,10 @@ interface Order {
     street: string;
     zip: string;
   };
+  hasReview?: boolean;
 }
+
+import { ReviewForm } from "./review-form";
 
 export function OrderDetailsModal() {
   const {
@@ -196,7 +199,7 @@ export function OrderDetailsModal() {
                       );
                       const stepIndex = idx;
                       const isCompleted = stepIndex <= currentStatusIndex;
-                      const isCurrent = stepIndex === currentStatusIndex;
+                      //                      const isCurrent = stepIndex === currentStatusIndex;
 
                       return (
                         <div
@@ -334,6 +337,21 @@ export function OrderDetailsModal() {
                       <span>GHS {Number(order.total || 0).toFixed(2)}</span>
                     </div>
                   </div>
+
+                  {/* Review Form */}
+                  {(order.status === "delivered" ||
+                    order.status === "completed") &&
+                    !order.hasReview && (
+                      <ReviewForm
+                        order={order as any}
+                        storeId={selectedStoreId || (params.storeId as string)}
+                        onReviewSubmitted={() =>
+                          setOrder((prev) =>
+                            prev ? { ...prev, hasReview: true } : null
+                          )
+                        }
+                      />
+                    )}
                 </div>
               ) : (
                 <div className="p-12 text-center text-zinc-400">

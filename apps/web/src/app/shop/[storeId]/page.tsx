@@ -7,13 +7,13 @@ import {
   orderBy,
   getDocs,
   onSnapshot,
-} from "firebase/firestore"; // Added onSnapshot
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { LogOut, ShoppingCart, User, Zap, Package, Bell } from "lucide-react";
+import { LogOut, ShoppingCart, User, Package, Bell, Star } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Product, Category } from "@/types"; // Added Category
+import { Product, Category } from "@/types";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/components/shop/store-provider";
 import { useCart } from "@/components/shop/cart-provider";
@@ -23,9 +23,10 @@ import { NotificationDropdown } from "@/components/shop/notification-dropdown";
 import { OrdersDropdown } from "@/components/shop/orders-dropdown";
 import { ProductCard } from "@/components/shop/product-card";
 import { ProfileModal } from "@/components/shop/profile-modal";
+import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Added
+import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
 import { useAlert } from "@/context/alert-context";
 import { useNotifications } from "@/context/notification-context";
-import { cn } from "@/lib/utils";
 
 const fontMap: Record<string, string> = {
   Inter: "var(--font-inter)",
@@ -49,6 +50,8 @@ export default function ShopHome() {
   // UI State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false); // Added
+  const [isComplaintOpen, setIsComplaintOpen] = useState(false); // Added
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -136,7 +139,7 @@ export default function ShopHome() {
     theme.hero?.subheadlineFont,
   ]
     .filter((font): font is string => !!font)
-    .filter((font) => !fontMap[font]); // Only load if not built-in
+    .filter((font) => !fontMap[font]);
 
   const uniqueFonts = Array.from(new Set(usedFonts));
   const googleFontsUrl =
@@ -150,12 +153,12 @@ export default function ShopHome() {
   const getGridClass = () => {
     switch (cardSize) {
       case "small":
-        return "grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4"; // Tighter grid
+        return "grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4";
       case "large":
-        return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12"; // Big showcase
+        return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 md:gap-12";
       case "medium":
       default:
-        return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8"; // Standard
+        return "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8";
     }
   };
 
@@ -177,11 +180,12 @@ export default function ShopHome() {
           font-family: inherit;
         }
       `}</style>
+
       {/* Sticky Header */}
       <header
         className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between transition-colors duration-300"
         style={{
-          backgroundColor: `${bgColor}CC`, // 80% opacity
+          backgroundColor: `${bgColor}CC`,
           borderColor: `${primaryColor}10`,
         }}
       >
@@ -293,7 +297,7 @@ export default function ShopHome() {
       {categories.length > 0 && (
         <section
           className="px-6 mb-8 max-w-7xl mx-auto sticky top-20 z-30 py-4 backdrop-blur-sm -mx-6 md:mx-auto overflow-hidden transition-colors duration-300"
-          style={{ backgroundColor: `${bgColor}F2` }} // 95% opacity
+          style={{ backgroundColor: `${bgColor}F2` }}
         >
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-2 md:pb-0 px-6 md:px-0 md:justify-center">
             <button
@@ -362,7 +366,12 @@ export default function ShopHome() {
       </section>
 
       {/* Footer */}
-      <ShopFooter theme={theme} storeName={store?.name} />
+      <ShopFooter
+        theme={theme}
+        store={store}
+        onOpenReviews={() => setIsReviewsOpen(true)}
+        onOpenComplaint={() => setIsComplaintOpen(true)}
+      />
 
       <ProfileModal
         isOpen={isProfileOpen}
@@ -374,12 +383,23 @@ export default function ShopHome() {
         onClose={() => setIsOrdersOpen(false)}
         user={user}
       />
+      <ReviewsListModal
+        isOpen={isReviewsOpen}
+        onClose={() => setIsReviewsOpen(false)}
+        storeId={storeId}
+      />
+      <ComplaintModal
+        isOpen={isComplaintOpen}
+        onClose={() => setIsComplaintOpen(false)}
+        storeId={storeId}
+        user={user}
+      />
     </div>
   );
 }
 
 function ShopHero({ theme }: { theme: any }) {
-  if (!theme?.hero?.enabled) return <div className="pt-24" />; // Spacer if disabled
+  if (!theme?.hero?.enabled) return <div className="pt-24" />;
 
   const hero = theme.hero || {};
   const {
@@ -402,7 +422,6 @@ function ShopHero({ theme }: { theme: any }) {
 
   const [bgIndex, setBgIndex] = useState(0);
 
-  // Slider Logic
   useEffect(() => {
     if (backgroundImages.length > 1) {
       const interval = setInterval(() => {
@@ -476,7 +495,17 @@ function ShopHero({ theme }: { theme: any }) {
   );
 }
 
-function ShopFooter({ theme, storeName }: { theme: any; storeName?: string }) {
+function ShopFooter({
+  theme,
+  store,
+  onOpenReviews,
+  onOpenComplaint,
+}: {
+  theme: any;
+  store?: any;
+  onOpenReviews: () => void;
+  onOpenComplaint: () => void;
+}) {
   if (!theme?.footer?.enabled) return null;
 
   const footer = theme.footer || {};
@@ -491,20 +520,47 @@ function ShopFooter({ theme, storeName }: { theme: any; storeName?: string }) {
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 text-sm">
         {/* Brand / Copyright */}
         <div className="space-y-4 text-center md:text-left">
-          <h3
-            className="font-black text-xl tracking-tighter uppercase"
-            style={{ color: primaryColor }}
-          >
-            {storeName || "DROP."}
-          </h3>
-          <p className="opacity-60">{text || "© 2025 All rights reserved."}</p>
-          <div className="pt-4">
-            <a
-              href="/?stay=true"
-              className="text-xs font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest border-b border-transparent hover:border-current pb-0.5"
+          <div>
+            <h3
+              className="font-black text-xl tracking-tighter uppercase"
+              style={{ color: primaryColor }}
             >
-              Powered by The Drop
-            </a>
+              {store?.name || "DROP."}
+            </h3>
+
+            {(store?.rating || 0) > 0 && (
+              <button
+                onClick={onOpenReviews}
+                className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold bg-black/5 px-2.5 py-1.5 rounded-lg hover:bg-black/10 transition-colors"
+                style={{ color: primaryColor }}
+              >
+                <Star size={12} className="fill-current" />
+                <span>{Number(store.rating).toFixed(1)}</span>
+                <span className="opacity-50">
+                  ({store.reviewCount} reviews)
+                </span>
+              </button>
+            )}
+          </div>
+
+          <p className="opacity-60">{text || "© 2025 All rights reserved."}</p>
+          <div className="pt-4 space-y-2">
+            <div>
+              <a
+                href="/?stay=true"
+                className="text-xs font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest border-b border-transparent hover:border-current pb-0.5"
+              >
+                Powered by The Drop
+              </a>
+            </div>
+            <div>
+              <button
+                onClick={onOpenComplaint}
+                className="text-xs font-bold opacity-30 hover:text-red-500 hover:opacity-100 transition-all uppercase tracking-widest"
+              >
+                File a Complaint
+              </button>
+            </div>
           </div>
         </div>
 

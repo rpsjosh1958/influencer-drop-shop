@@ -17,6 +17,7 @@ import {
   Wallet,
   Menu,
   X,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/providers";
@@ -26,6 +27,7 @@ import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { BroadcastModal } from "@/components/admin/broadcast-modal";
 import { AdminStoreProvider } from "@/components/admin/admin-store-provider";
 import { AiAssistant } from "@/components/admin/ai-assistant";
+import { AdminNavBadge } from "@/components/admin/nav-badge";
 
 export default function AdminLayout({
   children,
@@ -134,6 +136,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     { name: "Categories", href: "/admin/categories", icon: Tag },
     { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
     { name: "Finance", href: "/admin/finance", icon: Wallet },
+    { name: "Complaints", href: "/admin/complaints", icon: MessageCircle },
+    { name: "Support", href: "/admin/support", icon: Megaphone },
     { name: "Settings", href: "/admin/settings", icon: Settings },
   ];
 
@@ -281,7 +285,17 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                     )}
                   >
                     <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-                    {!collapsed && <span>{item.name}</span>}
+                    {!collapsed && (
+                      <div className="flex-1 flex items-center justify-between">
+                        <span>{item.name}</span>
+                        {item.name === "Complaints" && (
+                          <AdminNavBadge type="complaints" />
+                        )}
+                        {item.name === "Orders" && (
+                          <AdminNavBadge type="orders" />
+                        )}
+                      </div>
+                    )}
                   </Link>
                 );
               })}

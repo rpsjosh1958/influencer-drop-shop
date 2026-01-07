@@ -15,11 +15,26 @@ service cloud.firestore {
       // successful update requires user to be the owner stored on the existing doc
       return isAuthenticated() && request.auth.uid == resource.data.ownerId;
     }
+    
+    function isSuperAdmin() {
+      return exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
+    }
+
+    // --- Super Admins ---
+    match /super_admins/{userId} {
+      allow read: if true; // or restrictive 
+    }
 
     // --- Users (SENSITIVE DATA) ---
     // Contains Phone, Ghana Card, Email. STRICT ACCESS.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId) || isSuperAdmin();
+      allow write: if isOwner(userId);
+    }
+    
+    // --- System Logs ---
+    match /system_logs/{logId} {
+      allow read: if isSuperAdmin();
     }
 
     // --- Stores ---
@@ -37,11 +52,14 @@ service cloud.firestore {
       function isParentStoreOwner() {
         return isAuthenticated() && get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
       }
-      
+
       // -- Products --
       match /products/{productId} {
         allow read: if true;
         allow write: if isParentStoreOwner();
+        // Allow public to update ONLY the 'stock' field (decrement) during checkout
+        // This is a loose rule for MVP; ideally use Cloud Functions
+        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'updatedAt']);
       }
       
       // -- Categories --
@@ -61,11 +79,67 @@ service cloud.firestore {
         // Only the store owner can update (e.g. status)
         allow update: if isParentStoreOwner();
       }
+
+      // -- Reviews --
+      match /reviews/{reviewId} {
+        // Anyone can read reviews
+        allow read: if true;
+        // Only authenticated users can create reviews
+        allow create: if isAuthenticated();
+        // Only Store Owner can update (moderation)
+        allow update, delete: if isParentStoreOwner();
+      }
+
+      // -- Complaints --
+      match /complaints/{complaintId} {
+        // Anyone can file a complaint
+        allow create: if true;
+        
+        // Only the Store Owner can read or update (resolve) complaints
+        allow read, update: if isParentStoreOwner();
+      }
+
+      // -- Wallet & Transactions -- (Sensitive, Owner Only)
+      match /wallet/{document=**} {
+        allow read: if isParentStoreOwner();
+      }
+      match /wallet_transactions/{transactionId} {
+        allow read: if isParentStoreOwner();
+      }
+
+      // -- Vendor Tickets (To Platform) --
+      match /tickets/{ticketId} {
+        allow create: if isParentStoreOwner();
+        allow read: if isParentStoreOwner() || isSuperAdmin();
+        allow update: if isSuperAdmin(); // Admins resolve tickets
+      }
+    }
+
+    // --- Notifications (Root) ---
+    match /notifications/{notificationId} {
+        allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all');
     }
 
     // Default Deny (Block everything else)
     match /{document=**} {
       allow read, write: if false;
+    }
+    
+    // --- Collection Groups (Global Search/Listing) ---
+    match /{path=**}/complaints/{complaintId} {
+      allow read: if isSuperAdmin();
+    }
+    match /{path=**}/tickets/{ticketId} {
+      allow read: if isSuperAdmin();
+    }
+    match /{path=**}/orders/{orderId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    match /{path=**}/notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    match /{path=**}/products/{productId} {
+      allow read: if true;
     }
   }
 }

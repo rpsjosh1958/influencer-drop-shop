@@ -13,9 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useStore } from "@/context/store-context";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { ReviewForm } from "./review-form";
+import { Order } from "../../types";
 
 interface OrderDetailsModalProps {
-  order: any;
+  order: Order | null;
   visible: boolean;
   onClose: () => void;
 }
@@ -27,8 +29,10 @@ export function OrderDetailsModal({
 }: OrderDetailsModalProps) {
   const { store } = useStore();
   const [fetchedStoreName, setFetchedStoreName] = useState("");
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   useEffect(() => {
+    setReviewSubmitted(false); // Reset on new order open
     if (visible && order && !order.storeName && order.storeId) {
       getDoc(doc(db, "stores", order.storeId))
         .then((snap) => {
@@ -122,8 +126,6 @@ export function OrderDetailsModal({
                         order.status
                       )}`}
                     >
-                      {/* Note: Native doesn't cascade text color from parent class seamlessly like specific text color classes, but we can try generic logic or explicit styles. 
-                           For simplicity in nativewind, specific text colors are safer. */}
                       <P
                         className={`text-xs font-bold uppercase ${
                           order.status === "paid" ||
@@ -149,6 +151,21 @@ export function OrderDetailsModal({
                   </H1>
                 </View>
               </View>
+
+              {/* Review Form Section */}
+              {order &&
+                (order.status === "delivered" ||
+                  order.status === "completed") &&
+                !order.hasReview &&
+                !reviewSubmitted && (
+                  <View className="mb-8">
+                    <ReviewForm
+                      order={order}
+                      storeId={order.storeId}
+                      onReviewSubmitted={() => setReviewSubmitted(true)}
+                    />
+                  </View>
+                )}
 
               {/* Info Grid */}
               <View className="bg-zinc-50 p-5 rounded-2xl space-y-4 mb-8">

@@ -286,6 +286,124 @@ export const onOrderCreated = onDocumentCreated(
   }
 );
 
+/*
+ * TRIGGER: When a Review is created
+ * ACTION: Aggregate Ratings for the Store
+ */
+export const onReviewCreated = onDocumentCreated(
+  "stores/{storeId}/reviews/{reviewId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const review = snapshot.data();
+    const storeId = event.params.storeId;
+    const rating = review.rating || 0;
+
+    const storeRef = admin.firestore().collection("stores").doc(storeId);
+
+    try {
+      await admin.firestore().runTransaction(async (t) => {
+        const storeDoc = await t.get(storeRef);
+        if (!storeDoc.exists) return;
+
+        const data = storeDoc.data();
+        const currentCount = data?.reviewCount || 0;
+        const currentRating = data?.rating || 0;
+        const currentDist = data?.ratingDistribution || {};
+
+        const newCount = currentCount + 1;
+        // Calculate new weighted moving average
+        const newRating = (currentRating * currentCount + rating) / newCount;
+
+        // Update Distribution (Simple integer key based on rounded rating)
+        const starKey = Math.round(rating).toString();
+        const newDist = {
+          ...currentDist,
+          [starKey]: (currentDist[starKey] || 0) + 1,
+        };
+
+        t.update(storeRef, {
+          reviewCount: newCount,
+          rating: Number(newRating.toFixed(2)), // Keep 2 decimal places
+          ratingDistribution: newDist,
+        });
+      });
+      logger.info(`Updated ratings for Store ${storeId}`);
+    } catch (error) {
+      logger.error("Failed to aggregate reviews", error);
+    }
+  }
+);
+
+/*
+ * TRIGGER: When a Complaint is created
+ * ACTION: Notify the Store Owner via Email
+ */
+export const onComplaintCreated = onDocumentCreated(
+  "stores/{storeId}/complaints/{complaintId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const complaint = snapshot.data();
+    const storeId = event.params.storeId;
+    const target = complaint.target || "store";
+
+    try {
+      // 1. Fetch Store & Owner
+      const storeDoc = await admin
+        .firestore()
+        .collection("stores")
+        .doc(storeId)
+        .get();
+      const store = storeDoc.data();
+      if (!store || !store.ownerId) return;
+
+      const userDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(store.ownerId)
+        .get();
+      const user = userDoc.data();
+      if (!user || !user.email) return;
+
+      // 2. Prepare Email Content
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const subject =
+        target === "platform"
+          ? `[Platform Report] Complaint from ${store.name}`
+          : `New Complaint: ${complaint.subject}`;
+
+      const recipient =
+        target === "platform" ? "safety@copdrop.io" : user.email;
+
+      // 3. Send Email
+      await resend.emails.send({
+        from: "The Drop Support <complaints@copdrop.io>",
+        to: [recipient],
+        subject,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2>New Complaint Received</h2>
+            <p><strong>Store:</strong> ${store.name}</p>
+            <p><strong>Customer:</strong> ${complaint.customerName} (${complaint.customerEmail})</p>
+            <p><strong>Subject:</strong> ${complaint.subject}</p>
+            <hr />
+            <p style="white-space: pre-wrap;">${complaint.message}</p>
+            <hr />
+            <a href="https://copdrop.io/admin/complaints" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View in Dashboard</a>
+          </div>
+        `,
+      });
+
+      logger.info(`Complaint notification sent to ${recipient}`);
+    } catch (error) {
+      logger.error("Error sending complaint notification", error);
+    }
+  }
+);
+
 // --- PAYOUT SYSTEM ---
 
 export const getBanks = onCall(async () => {

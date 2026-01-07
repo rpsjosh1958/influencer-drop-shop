@@ -67,4 +67,35 @@ export interface Order {
   };
   createdAt: any;
   userId?: string;
+  hasReview?: boolean;
+}
+
+export interface Review {
+  id: string;
+  orderId: string;
+  customerId: string;
+  customerName: string;
+  isAnonymous: boolean;
+  rating: number;
+  comment?: string;
+  createdAt: any;
+  reply?: string;
+}
+
+export interface Complaint {
+  id: string;
+  storeId: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  subject: string;
+  message: string;
+  target: "store" | "platform";
+  status: "unread" | "read" | "resolved";
+  createdAt: any;
+  reply?: {
+    message: string;
+    createdAt: any;
+    sender: "admin";
+  };
 }

@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SuperAdminNavBadge } from "@/components/admin/nav-badge";
 
 const SUPER_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "")
   .split(",")
@@ -49,6 +50,13 @@ export default function SuperAdminLayout({
         return;
       }
 
+      // Initialize Super Admin Privileges (Create backend doc if missing)
+      fetch("/api/super-admin/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid }),
+      }).catch(console.error);
+
       setLoading(false);
     });
 
@@ -71,18 +79,12 @@ export default function SuperAdminLayout({
   const navItems = [
     { name: "Overview", href: "/super-admin", icon: LayoutDashboard },
     { name: "Vendors", href: "/super-admin/vendors", icon: Store },
-    {
-      name: "Verifications",
-      href: "/super-admin/verifications",
-      icon: ShieldCheck,
-    },
     { name: "Users", href: "/super-admin/users", icon: Users },
     {
-      name: "Communications",
-      href: "/super-admin/communications",
+      name: "Support & Comms",
+      href: "/super-admin/support",
       icon: Megaphone,
     },
-    { name: "Support Tickets", href: "/super-admin/tickets", icon: Ticket },
     { name: "System Logs", href: "/super-admin/system-logs", icon: Activity },
   ];
 
@@ -137,7 +139,10 @@ export default function SuperAdminLayout({
                   )}
                 >
                   <item.icon size={18} strokeWidth={isActive ? 2.5 : 2} />
-                  <span>{item.name}</span>
+                  <div className="flex-1 flex items-center justify-between">
+                    <span>{item.name}</span>
+                    {item.name === "Support & Comms" && <SuperAdminNavBadge />}
+                  </div>
                 </Link>
               );
             })}

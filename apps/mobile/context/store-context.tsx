@@ -18,6 +18,9 @@ export interface StoreConfig {
   isVerified?: boolean;
   plan?: "starter" | "growth";
   status: "live" | "maintenance";
+  rating?: number;
+  reviewCount?: number;
+  ratingDistribution?: Record<string, number>;
   theme?: {
     primaryColor: string;
     backgroundColor: string;

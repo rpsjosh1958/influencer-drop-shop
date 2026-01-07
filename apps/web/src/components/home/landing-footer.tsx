@@ -76,11 +76,6 @@ export function LandingFooter() {
                   Terms of Service
                 </Link>
               </li>
-              <li>
-                <Link href="#" className="hover:text-white">
-                  Cookie Policy
-                </Link>
-              </li>
             </ul>
           </div>
         </div>
