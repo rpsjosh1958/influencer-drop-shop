@@ -6,6 +6,7 @@ interface PromoCardProps {
   product: Product;
   storeName: string;
   storeLogo?: string;
+  onImageLoad?: () => void;
 }
 
 // Helper to bypass CORS by fetching and converting to Base64
@@ -14,11 +15,13 @@ const CorsImage = ({
   alt,
   className,
   style,
+  onLoad,
 }: {
   src: string;
   alt: string;
   className?: string;
   style?: React.CSSProperties;
+  onLoad?: () => void;
 }) => {
   const [base64, setBase64] = useState<string | null>(null);
 
@@ -38,13 +41,17 @@ const CorsImage = ({
         reader.onloadend = () => {
           if (mounted && reader.result) {
             setBase64(reader.result as string);
+            onLoad?.(); // Notify parent
           }
         };
         reader.readAsDataURL(blob);
       } catch (e) {
         console.error("CorsImage load failed", e);
-        // Fallback to original src (will likely fail in canvas if CORS is strict, but better than nothing for viewing)
-        if (mounted) setBase64(src);
+        // Fallback to original src
+        if (mounted) {
+          setBase64(src);
+          onLoad?.(); // Notify parent even on fallback
+        }
       }
     };
     load();
@@ -71,7 +78,24 @@ export const PromoCard = ({
   product,
   storeName,
   storeLogo,
+  onImageLoad,
 }: PromoCardProps) => {
+  // Track loaded images. If storeLogo exists, we need 2 images. Else 1.
+  const [loadedCount, setLoadedCount] = useState(0);
+  const requiredCount = storeLogo ? 2 : 1;
+
+  useEffect(() => {
+    if (loadedCount >= requiredCount) {
+      // Small timeout to ensure DOM paints
+      setTimeout(() => {
+        onImageLoad?.();
+      }, 100);
+    }
+  }, [loadedCount, requiredCount, onImageLoad]);
+
+  const handleLoad = () => {
+    setLoadedCount((prev) => prev + 1);
+  };
   return (
     <div
       id={`promo-card-${product.id}`}
@@ -103,6 +127,7 @@ export const PromoCard = ({
             alt={storeName}
             className="w-10 h-10 rounded-full object-cover"
             style={{ border: "1px solid rgba(255,255,255,0.2)" }}
+            onLoad={handleLoad}
           />
         ) : (
           <div
@@ -137,6 +162,7 @@ export const PromoCard = ({
           src={product.imageUrl}
           alt={product.name}
           className="w-full h-full object-cover"
+          onLoad={handleLoad}
         />
         {/* Live Badge */}
         <div

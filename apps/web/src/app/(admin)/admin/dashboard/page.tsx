@@ -194,7 +194,7 @@ export default function AdminDashboard() {
           </p>
         </div>
         {/* Actions */}
-        <div className="flex flex-col md:flex-row items-center gap-3">
+        <div className="flex flex-row items-center gap-3">
           <select
             value={selectedMonth || ""}
             onChange={(e) => setSelectedMonth(e.target.value || null)}

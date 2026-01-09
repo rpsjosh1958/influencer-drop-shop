@@ -27,27 +27,31 @@ export const ShareModal = ({
   const cardRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
+  // Track if hidden card is ready for generation
+  const [imagesReady, setImagesReady] = useState(false);
+
+  // Ref to track product changes if needed, but key prop is better
+
   if (!isOpen) return null;
 
-  const shareUrl = `https://copdrop.io/shop/${storeSlug}`; // Ideally deep link to product if supported: ?product=${product.id}
+  const shareUrl = `https://copdrop.io/shop/${storeSlug}`;
 
   const handleDownloadImage = async () => {
-    // We target the HIDDEN unscaled version, not the preview one
-    // content of PromoCard is inside the target div
+    // We target the HIDDEN unscaled version
     const element = document.querySelector(
       "#hidden-promo-target > div"
     ) as HTMLElement;
 
-    if (!element) {
-      console.error("Could not find hidden generation target");
-      return;
-    }
+    if (!element) return;
 
     setGenerating(true);
     try {
+      // Small delay to ensure paint
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const dataUrl = await toPng(element, {
         quality: 1.0,
-        pixelRatio: 2, // 2x resolution
+        pixelRatio: 2,
         backgroundColor: "#000000",
       });
 
@@ -88,9 +92,11 @@ export const ShareModal = ({
         <div className="fixed left-[-9999px] top-0 pointer-events-none opacity-0">
           <div id="hidden-promo-target">
             <PromoCard
+              key={product.id} // Force remount on product change
               product={product}
               storeName={storeName}
               storeLogo={storeLogo}
+              onImageLoad={() => setImagesReady(true)}
             />
           </div>
         </div>
@@ -110,6 +116,7 @@ export const ShareModal = ({
               className="shadow-2xl shadow-black/50 transform scale-[0.6] md:scale-[0.7] origin-center -my-24 md:-my-20"
             >
               <PromoCard
+                key={`preview-${product.id}`}
                 product={product}
                 storeName={storeName}
                 storeLogo={storeLogo}
@@ -119,15 +126,17 @@ export const ShareModal = ({
             <div className="mt-8 flex gap-3 z-10 w-full justify-center">
               <button
                 onClick={handleDownloadImage}
-                disabled={generating}
-                className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform w-full md:w-auto justify-center"
+                disabled={generating || !imagesReady}
+                className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform w-full md:w-auto justify-center disabled:opacity-50 disabled:scale-100"
               >
-                {generating ? (
+                {generating || !imagesReady ? (
                   <Loader2 size={18} className="animate-spin" />
                 ) : (
                   <Download size={18} />
                 )}
-                Download for Stories
+                {generating || !imagesReady
+                  ? "Creating Image..."
+                  : "Download for Stories"}
               </button>
             </div>
             <p className="text-xs text-zinc-500 mt-4 text-center max-w-xs">

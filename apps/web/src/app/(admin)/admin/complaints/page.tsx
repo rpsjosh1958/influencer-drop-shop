@@ -86,9 +86,9 @@ export default function AdminComplaintsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-auto lg:h-[calc(100vh-200px)]">
         {/* List Column */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-zinc-200 flex flex-col overflow-hidden shadow-sm">
+        <div className="lg:col-span-1 bg-white rounded-2xl border border-zinc-200 flex flex-col overflow-hidden shadow-sm h-[500px] lg:h-auto">
           {/* Filters */}
           <div className="p-4 border-b border-zinc-100 flex gap-2">
             {(["all", "unread", "resolved"] as const).map((f) => (
@@ -164,13 +164,13 @@ export default function AdminComplaintsPage() {
         </div>
 
         {/* Detail Column */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm flex flex-col">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm flex flex-col h-[600px] lg:h-auto">
           {selectedComplaint ? (
             <>
               {/* Detail Header */}
-              <div className="p-8 border-b border-zinc-100 flex justify-between items-start bg-zinc-50/50">
+              <div className="p-8 border-b border-zinc-100 flex flex-col md:flex-row justify-between items-start gap-6 bg-zinc-50/50">
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex flex-wrap items-center gap-3 mb-4">
                     <span
                       className={`text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
                         selectedComplaint.status === "unread"
@@ -189,25 +189,25 @@ export default function AdminComplaintsPage() {
                   <h2 className="text-2xl font-black text-zinc-900 mb-2">
                     {selectedComplaint.subject}
                   </h2>
-                  <div className="flex items-center gap-2 text-zinc-500 text-sm font-medium">
+                  <div className="flex flex-wrap items-center gap-2 text-zinc-500 text-sm font-medium">
                     <UserIcon /> {selectedComplaint.customerName} &bull;{" "}
                     {selectedComplaint.customerEmail} &bull;{" "}
                     {selectedComplaint.customerPhone}
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
                   <button
                     onClick={() =>
                       handleStatusUpdate(selectedComplaint.id, "resolved")
                     }
-                    className="h-10 px-4 bg-white border border-zinc-200 rounded-lg text-black text-sm font-bold hover:bg-zinc-50 transition-colors flex items-center gap-2"
+                    className="h-10 px-4 bg-white border border-zinc-200 rounded-lg text-black text-sm font-bold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 size={16} /> Mark Resolved
                   </button>
                   <a
                     href={`mailto:${selectedComplaint.customerEmail}?subject=Re: ${selectedComplaint.subject} [Ticket: ${selectedComplaint.id}]`}
-                    className="h-10 px-4 bg-black text-white rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors flex items-center gap-2 shadow-sm"
+                    className="h-10 px-4 bg-black text-white rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
                     <Mail size={16} /> Reply via Email
                   </a>

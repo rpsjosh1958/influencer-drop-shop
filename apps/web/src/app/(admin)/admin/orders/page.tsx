@@ -216,7 +216,7 @@ export default function OrdersPage() {
           {/* Mobile Export Actions could go here or hide */}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 gap-y-3">
           {/* Search */}
           <div className="relative h-9">
             <Search

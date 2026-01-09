@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateFinancePDF } from "@/lib/pdf-generator";
+import { generateFinanceExcel } from "@/lib/excel-generator";
 
 export default function FinancePage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -105,6 +106,48 @@ export default function FinancePage() {
     } catch (err) {
       console.error(err);
       setMessage({ type: "error", text: "Failed to generate statement." });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    if (!storeConfig) return;
+    setExporting(true);
+    try {
+      const start = new Date(selectedYear, selectedMonth, 1);
+      const end = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59);
+
+      const q = query(
+        collection(db, "stores", storeId!, "wallet_transactions"),
+        orderBy("createdAt", "desc"),
+        where("createdAt", ">=", start),
+        where("createdAt", "<=", end)
+      );
+
+      const snapshot = await getDocs(q);
+      const periodTransactions = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as any[];
+
+      const monthName = new Date(selectedYear, selectedMonth).toLocaleString(
+        "default",
+        { month: "long" }
+      );
+
+      generateFinanceExcel(periodTransactions, {
+        fileName: `finance-${monthName}-${selectedYear}.xlsx`,
+        sheetName: `${monthName} ${selectedYear}`,
+      });
+
+      setMessage({
+        type: "success",
+        text: `Excel Report for ${monthName} ${selectedYear} downloaded!`,
+      });
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: "error", text: "Failed to generate Excel." });
     } finally {
       setExporting(false);
     }
@@ -237,11 +280,11 @@ export default function FinancePage() {
             Download PDF reports for your financial records.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 mt-4 md:mt-0">
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-black text-sm font-medium outline-none focus:ring-2 focus:ring-black"
+            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-black text-sm font-medium outline-none focus:ring-2 focus:ring-black flex-1 md:flex-none min-w-[100px]"
           >
             {months.map((m, i) => (
               <option key={m} value={i}>
@@ -252,7 +295,7 @@ export default function FinancePage() {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-black font-medium outline-none focus:ring-2 focus:ring-black"
+            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-black font-medium outline-none focus:ring-2 focus:ring-black flex-1 md:flex-none min-w-[80px]"
           >
             {years.map((y) => (
               <option key={y} value={y}>
@@ -263,14 +306,26 @@ export default function FinancePage() {
           <button
             onClick={handleExportStatement}
             disabled={exporting}
-            className="h-10 px-4 bg-zinc-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+            className="h-10 px-4 bg-zinc-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 flex-1 md:flex-none justify-center whitespace-nowrap"
           >
             {exporting ? (
               <Loader2 className="animate-spin" size={16} />
             ) : (
               <Download size={16} />
             )}
-            Export PDF
+            PDF
+          </button>
+          <button
+            onClick={handleExportExcel}
+            disabled={exporting}
+            className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 flex-1 md:flex-none justify-center whitespace-nowrap"
+          >
+            {exporting ? (
+              <Loader2 className="animate-spin" size={16} />
+            ) : (
+              <Download size={16} />
+            )}
+            Excel
           </button>
         </div>
       </div>

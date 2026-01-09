@@ -218,7 +218,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
                           size={20}
                           className={isActive ? "text-purple-400" : ""}
                         />
-                        <span>{item.name}</span>
+                        <span className="flex-1">{item.name}</span>
+                        {item.name === "Complaints" && (
+                          <AdminNavBadge type="complaints" />
+                        )}
+                        {item.name === "Orders" && (
+                          <AdminNavBadge type="orders" />
+                        )}
                       </Link>
                     );
                   })}

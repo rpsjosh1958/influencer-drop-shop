@@ -264,6 +264,50 @@ export async function POST(req: Request) {
           },
         },
       },
+      // --- SUPPORT & COMPLAINTS TOOLS ---
+      {
+        type: "function",
+        function: {
+          name: "getSupportTickets",
+          description: "Get recent support tickets or complaints.",
+          parameters: {
+            type: "object",
+            properties: {
+              status: {
+                type: "string",
+                enum: ["open", "resolved", "unread", "all"],
+                description: "Filter by status (default: open)",
+              },
+              limit: {
+                type: "number",
+                description: "Max number of tickets to return (default: 5)",
+              },
+            },
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "updateTicketStatus",
+          description: "Resolve or update a support ticket.",
+          parameters: {
+            type: "object",
+            properties: {
+              ticketId: {
+                type: "string",
+                description: "The ID of the ticket/complaint",
+              },
+              status: {
+                type: "string",
+                enum: ["resolved", "open"],
+                description: "New status",
+              },
+            },
+            required: ["ticketId", "status"],
+          },
+        },
+      },
     ];
 
     // 4. Initial Call
@@ -271,7 +315,8 @@ export async function POST(req: Request) {
       role: "system",
       content:
         "You are a helpful Store Admin Assistant. When listing data, use clean Markdown tables. \n\n" +
-        "You can now manage Categories, Orders, and providing Financial Strategy. \n" +
+        "You can now manage Categories, Orders, Support Tickets, and provide Financial Strategy. \n" +
+        "If the user asks about 'complaints' or 'tickets', use `getSupportTickets`. \n" +
         "If the user asks for 'marketing advice' or 'how to boost sales', ALWAYS start by calling `getStoreInsights` to understand their revenue and plan context. \n" +
         "When explaining fees or payouts, use the data from `getStoreInsights`. \n" +
         "IMPORTANT: All currency values must be displayed in **Ghana Cedis (GHS)** or **GH₵**. Never use '$' or 'USD'. \n" +
@@ -325,7 +370,6 @@ export async function POST(req: Request) {
               .collection("stores")
               .doc(storeId)
               .collection("products")
-              .limit(50)
               .limit(50)
               .get();
 
@@ -663,6 +707,93 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             });
 
             result = `Broadcast sent! Title: "${title}"`;
+          } else if (fnName === "getSupportTickets") {
+            const status = (fnArgs as any).status || "open";
+            const limit = (fnArgs as any).limit || 5;
+
+            let q = adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("tickets") // Assuming tickets/complaints logic. Using 'tickets' as default from Support Page.
+              .orderBy("createdAt", "desc")
+              .limit(limit);
+
+            if (status !== "all") {
+              // Note: firestore-admin doesn't support complex client-side query building easily in one line without type issues sometimes,
+              // but we can just filter in memory or chain.
+              // Let's rely on client simple filter.
+              // Actually, simplified:
+              q = adminDb
+                .collection("stores")
+                .doc(storeId)
+                .collection("tickets")
+                .where("status", "==", status)
+                .limit(limit);
+            }
+
+            // Also check 'complaints' collection if 'tickets' is empty?
+            // The system seems to use 'tickets' for Vendor Support and 'complaints' for Customer Complaints.
+            // Let's fetch both or clarify.
+            // User context: "Admin Portal" -> usually Vendor Support Tickets.
+            // But earlier we worked on "Complaints". Let's search 'complaints' collection too if tickets is empty.
+
+            let snap = await q.get();
+            let collectionName = "tickets";
+
+            if (snap.empty) {
+              // Fallback to complaints
+              q = adminDb
+                .collection("stores")
+                .doc(storeId)
+                .collection("complaints")
+                .orderBy("createdAt", "desc")
+                .limit(limit);
+              snap = await q.get();
+              collectionName = "complaints";
+            }
+
+            result = snap.empty
+              ? "No active tickets or complaints found."
+              : snap.docs
+                  .map(
+                    (d: any) =>
+                      `[${collectionName.toUpperCase()}] ID: ${d.id} - ${
+                        d.data().subject
+                      }: ${d.data().message} (Status: ${d.data().status})`
+                  )
+                  .join("\n");
+          } else if (fnName === "updateTicketStatus") {
+            const ticketId = (fnArgs as any).ticketId;
+            const status = (fnArgs as any).status;
+
+            // Try to find in tickets first
+            const ticketRef = adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("tickets")
+              .doc(ticketId);
+            let docSnap = await ticketRef.get();
+            let collectionName = "tickets";
+
+            if (!docSnap.exists) {
+              // Try complaints
+              const compRef = adminDb
+                .collection("stores")
+                .doc(storeId)
+                .collection("complaints")
+                .doc(ticketId);
+              docSnap = await compRef.get();
+              if (docSnap.exists) {
+                await compRef.update({ status });
+                collectionName = "complaints";
+              } else {
+                throw new Error(`Ticket/Complaint ${ticketId} not found.`);
+              }
+            } else {
+              await ticketRef.update({ status });
+            }
+
+            result = `Updated ${collectionName} ${ticketId} to ${status}.`;
           } else {
             result = "Unknown tool.";
           }

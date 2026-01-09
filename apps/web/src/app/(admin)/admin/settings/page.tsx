@@ -110,6 +110,24 @@ export default function StoreSettingsPage() {
 
   const isFreePlan = config.plan === "starter";
 
+  const [userData, setUserData] = useState<any>(null);
+
+  // Fetch Vendor Data (User Profile)
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    const fetchUser = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, "users", auth.currentUser!.uid));
+        if (userSnap.exists()) {
+          setUserData(userSnap.data());
+        }
+      } catch (e) {
+        console.error("Failed to fetch user data", e);
+      }
+    };
+    fetchUser();
+  }, []);
+
   useEffect(() => {
     if (!storeId) return;
     const fetchConfig = async () => {
@@ -421,41 +439,147 @@ export default function StoreSettingsPage() {
                 >
                   <div className="bg-white p-8 rounded-3xl border border-zinc-200">
                     <h2 className="text-xl font-bold mb-6 text-zinc-900">
-                      Vendor Profile
+                      {userData?.vendorType === "company"
+                        ? "Company Profile"
+                        : "Vendor Profile"}
                     </h2>
-                    <div className="space-y-4">
-                      <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200">
-                        <div className="flex items-center gap-3 mb-2">
-                          <CheckCircle2 size={18} className="text-green-500" />
-                          <span className="text-sm font-bold text-green-700">
-                            Verified Identity
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-500">
-                          Your identity has been verified via Ghana Card (NIA).
-                          Critical details cannot be changed.
-                        </p>
-                      </div>
+                    
 
+                    {userData?.vendorType === "company" ? (
+                      /* COMPANY VIEW */
+                      <div className="space-y-8">
+                        {/* Company Details */}
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-4">
+                            Company Details
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Company Name
+                              </label>
+                              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                                {userData?.fullName || "N/A"}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Phone Number
+                              </label>
+                              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                                {userData?.phone || "N/A"}
+                              </div>
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Verification Document
+                              </label>
+                              <div className="p-3 bg-zinc-50 rounded-lg border border-zinc-200 flex items-center justify-between">
+                                <span className="text-sm font-medium text-zinc-600">
+                                  Registration Certificate
+                                </span>
+                                {userData?.identity?.companyDoc ? (
+                                  <a
+                                    href={userData.identity.companyDoc}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs font-bold text-black underline flex items-center gap-1 hover:text-blue-600"
+                                  >
+                                    View Document <LinkIcon size={12} />
+                                  </a>
+                                ) : (
+                                  <span className="text-xs text-zinc-400 italic">
+                                    No document uploaded
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="w-full h-px bg-zinc-100" />
+
+                        {/* Contact Person */}
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-400 mb-4">
+                            Contact Person
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Name
+                              </label>
+                              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                                {userData?.contactPerson?.name || "N/A"}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Position
+                              </label>
+                              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                                {userData?.contactPerson?.position || "N/A"}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Work Email
+                              </label>
+                              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                                {userData?.contactPerson?.email || "N/A"}
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-bold text-zinc-500 uppercase">
+                                Direct Phone
+                              </label>
+                              <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                                {userData?.contactPerson?.phone || "N/A"}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* INDIVIDUAL VIEW */
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-zinc-500 uppercase">
                             Full Name
                           </label>
-                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-500 font-medium cursor-not-allowed">
-                            {auth.currentUser?.displayName || "Vendor"}
+                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                            {userData?.fullName ||
+                              auth.currentUser?.displayName ||
+                              "Vendor"}
                           </div>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-bold text-zinc-500 uppercase">
                             Email Address
                           </label>
-                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-500 font-medium cursor-not-allowed">
-                            {auth.currentUser?.email}
+                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                            {userData?.email || auth.currentUser?.email}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-zinc-500 uppercase">
+                            Phone Number
+                          </label>
+                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200">
+                            {userData?.phone || "N/A"}
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-zinc-500 uppercase">
+                            Ghana Card (NIA)
+                          </label>
+                          <div className="p-3 bg-zinc-100 rounded-lg text-zinc-600 font-medium cursor-not-allowed border border-zinc-200 flex items-center gap-2">
+                            <ShieldCheck size={16} className="text-zinc-400" />
+                            {userData?.identity?.ghanaCard || "***************"}
                           </div>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   <div className="bg-white p-8 rounded-3xl border border-zinc-200">

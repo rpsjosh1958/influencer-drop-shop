@@ -95,7 +95,7 @@ export function ReviewsListModal({
               {/* Header */}
               <div className="p-6 border-b border-zinc-100 flex justify-between items-center bg-zinc-50 rounded-t-3xl">
                 <div>
-                  <h2 className="text-xl font-black tracking-tight">
+                  <h2 className="text-xl text-black tracking-tight">
                     STORE REVIEWS
                   </h2>
                   <p className="text-zinc-500 text-xs mt-1">
@@ -120,7 +120,7 @@ export function ReviewsListModal({
                     {/* Stats Summary */}
                     <div className="flex items-center gap-6 mb-8 bg-zinc-50 p-6 rounded-2xl border border-zinc-100">
                       <div className="text-center">
-                        <div className="text-5xl font-black">
+                        <div className="text-5xl text-black">
                           {stats.rating.toFixed(1)}
                         </div>
                         <div className="flex justify-center my-2">
@@ -151,7 +151,7 @@ export function ReviewsListModal({
                               key={star}
                               className="flex items-center gap-2 text-xs"
                             >
-                              <span className="font-bold w-3">{star}</span>
+                              <span className="font-bold text-black w-3">{star}</span>
                               <div className="flex-1 h-2 bg-zinc-200 rounded-full overflow-hidden">
                                 <div
                                   className="h-full bg-black rounded-full"
@@ -182,7 +182,7 @@ export function ReviewsListModal({
                                   <User size={14} className="text-zinc-400" />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-bold">
+                                  <p className="text-sm text-black font-bold">
                                     {review.isAnonymous
                                       ? "Anonymous"
                                       : review.customerName}

@@ -424,9 +424,9 @@ export function ProductForm({
                   {options.map((opt, idx) => (
                     <div
                       key={opt.id}
-                      className="flex items-start gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100"
+                      className="flex flex-col md:flex-row items-start gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100"
                     >
-                      <div className="w-1/3">
+                      <div className="w-full md:w-1/3">
                         <label className="text-[10px] font-bold uppercase text-zinc-400 mb-1 block">
                           Option Name
                         </label>
@@ -472,7 +472,7 @@ export function ProductForm({
 
                 {/* Variants Table */}
                 {variants.length > 0 && (
-                  <div className="border border-zinc-200 rounded-xl overflow-hidden">
+                  <div className="border border-zinc-200 rounded-xl overflow-x-auto">
                     <table className="w-full text-sm text-left">
                       <thead className="bg-zinc-50 border-b border-zinc-200">
                         <tr>

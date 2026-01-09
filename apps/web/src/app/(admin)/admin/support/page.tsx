@@ -101,7 +101,9 @@ export default function VendorSupportPage() {
           className="bg-zinc-50 border border-zinc-200 p-6 rounded-2xl space-y-4 animate-in fade-in slide-in-from-top-4"
         >
           <div>
-            <label className="block text-sm text-zinc-500 font-bold mb-1">Subject</label>
+            <label className="block text-sm text-zinc-500 font-bold mb-1">
+              Subject
+            </label>
             <input
               required
               value={subject}
@@ -112,7 +114,9 @@ export default function VendorSupportPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-zinc-500 font-bold mb-1">Category</label>
+              <label className="block text-sm text-zinc-500 font-bold mb-1">
+                Category
+              </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -126,7 +130,9 @@ export default function VendorSupportPage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm text-zinc-500 font-bold mb-1">Message</label>
+            <label className="block text-sm text-zinc-500 font-bold mb-1">
+              Message
+            </label>
             <textarea
               required
               value={message}
@@ -169,8 +175,10 @@ export default function VendorSupportPage() {
               className="bg-white border border-zinc-200 p-5 rounded-2xl flex items-center justify-between group hover:border-zinc-300 transition-colors"
             >
               <div>
-                <div className="flex items-center gap-3 mb-1">
-                  <h3 className="font-bold text-black text-lg">{ticket.subject}</h3>
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1">
+                  <h3 className="font-bold text-black text-lg">
+                    {ticket.subject}
+                  </h3>
                   <span
                     className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                       ticket.status === "open"
@@ -183,7 +191,7 @@ export default function VendorSupportPage() {
                     {ticket.status}
                   </span>
                 </div>
-                <p className="text-sm text-zinc-500 line-clamp-1">
+                <p className="text-sm text-zinc-500 line-clamp-2 md:line-clamp-1">
                   {ticket.message}
                 </p>
                 <p className="text-xs text-zinc-400 mt-2">

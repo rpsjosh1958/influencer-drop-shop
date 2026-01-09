@@ -29,6 +29,7 @@ interface OrderItem {
   images?: string[];
   selectedVariant?: {
     name: string;
+    price?: number;
   };
 }
 
@@ -254,13 +255,25 @@ export function OrderDetailsModal() {
                           <p className="font-bold text-sm truncate">
                             {item.name}
                           </p>
+                          {item.selectedVariant && (
+                            <p className="text-xs text-zinc-500 font-medium">
+                              {item.selectedVariant.name}
+                            </p>
+                          )}
                           <p className="text-xs text-zinc-400 mt-1">
-                            Qty: {item.quantity}
+                            Qty: {item.quantity} × GHS{" "}
+                            {(
+                              item.selectedVariant?.price || item.price
+                            ).toFixed(2)}
                           </p>
                         </div>
                         <div className="flex flex-col justify-center text-right">
                           <p className="font-bold text-sm">
-                            GHS {item.price.toFixed(2)}
+                            GHS{" "}
+                            {(
+                              (item.selectedVariant?.price || item.price) *
+                              item.quantity
+                            ).toFixed(2)}
                           </p>
                         </div>
                       </div>

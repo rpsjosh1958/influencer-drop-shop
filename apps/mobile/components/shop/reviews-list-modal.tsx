@@ -89,7 +89,7 @@ export function ReviewsListModal({
     >
       <View className="flex-1 bg-white">
         <View className="px-6 py-4 flex-row items-center justify-between border-b border-zinc-100">
-          <H1 className="text-xl font-black uppercase">Start Reviews</H1>
+          <H1 className="text-xl font-black uppercase">Store Reviews</H1>
           <Pressable
             onPress={onClose}
             className="h-8 w-8 bg-zinc-100 rounded-full items-center justify-center"
