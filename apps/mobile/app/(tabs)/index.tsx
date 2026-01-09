@@ -68,6 +68,7 @@ import { cn } from "@/lib/utils";
 import { useStore } from "@/context/store-context";
 import { StoreSwitcher } from "@/components/shop/store-switcher"; // Imported
 import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Added
+import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
 import { Star } from "lucide-react-native"; // Added
 
 export default function ShopHome() {
@@ -79,6 +80,7 @@ export default function ShopHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isReviewsOpen, setIsReviewsOpen] = useState(false); // Added
+  const [isComplaintOpen, setIsComplaintOpen] = useState(false); // Added
 
   // Hero Slideshow
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);

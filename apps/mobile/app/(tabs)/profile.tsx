@@ -50,6 +50,8 @@ import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
 import { Country, City } from "country-state-city";
 import { SelectionModal } from "@/components/ui/selection-modal";
+import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
+import { AlertCircle } from "lucide-react-native"; // Added
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
@@ -59,6 +61,7 @@ export default function ProfileScreen() {
     "menu" | "personal" | "addresses" | "security"
   >("menu");
   const [saving, setSaving] = useState(false);
+  const [isComplaintOpen, setIsComplaintOpen] = useState(false); // Added
 
   // Form States
   const [name, setName] = useState("");
@@ -526,6 +529,11 @@ export default function ProfileScreen() {
                     label="My Orders"
                     onPress={() => router.push("/(tabs)/orders" as any)}
                   />
+                  <MenuItem
+                    icon={AlertCircle}
+                    label="Report an Issue"
+                    onPress={() => setIsComplaintOpen(true)}
+                  />
                 </View>
 
                 <Pressable
@@ -759,6 +767,14 @@ export default function ProfileScreen() {
             </MotiView>
           )}
         </View>
+
+        <ComplaintModal
+          visible={isComplaintOpen}
+          onClose={() => setIsComplaintOpen(false)}
+          storeId="store-id" // You might want to get this from context
+          user={user}
+          forcedTarget="platform"
+        />
       </SafeAreaView>
     </View>
   );

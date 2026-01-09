@@ -23,6 +23,7 @@ interface ComplaintModalProps {
   onClose: () => void;
   storeId: string;
   user?: any;
+  forcedTarget?: "store" | "platform";
 }
 
 export function ComplaintModal({
@@ -30,6 +31,7 @@ export function ComplaintModal({
   onClose,
   storeId,
   user,
+  forcedTarget,
 }: ComplaintModalProps) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
@@ -54,6 +56,13 @@ export function ComplaintModal({
       }));
     }
   }, [user]);
+
+  // Handle Forced Target
+  useEffect(() => {
+    if (forcedTarget) {
+      setTarget(forcedTarget);
+    }
+  }, [forcedTarget, visible]);
 
   const handleSubmit = async () => {
     if (
@@ -132,7 +141,11 @@ export function ComplaintModal({
                   <AlertCircle size={20} color="#DC2626" />
                 </View>
                 <View>
-                  <Text style={styles.headerTitle}>Submit Complaint</Text>
+                  <Text style={styles.headerTitle}>
+                    {forcedTarget === "platform"
+                      ? "Report an Issue"
+                      : "Submit Complaint"}
+                  </Text>
                   <Text style={styles.headerSubtitle}>We're here to help.</Text>
                 </View>
               </View>
@@ -145,41 +158,43 @@ export function ComplaintModal({
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.scrollContent}
             >
-              {/* Target Selector */}
-              <View style={styles.targetSelector}>
-                <TouchableOpacity
-                  style={[
-                    styles.targetButton,
-                    target === "store" && styles.targetButtonActive,
-                  ]}
-                  onPress={() => setTarget("store")}
-                >
-                  <Text
+              {/* Target Selector (Hidden if forcedTarget is set) */}
+              {!forcedTarget && (
+                <View style={styles.targetSelector}>
+                  <TouchableOpacity
                     style={[
-                      styles.targetText,
-                      target === "store" && styles.targetTextActive,
+                      styles.targetButton,
+                      target === "store" && styles.targetButtonActive,
                     ]}
+                    onPress={() => setTarget("store")}
                   >
-                    Store
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.targetButton,
-                    target === "platform" && styles.targetButtonActive,
-                  ]}
-                  onPress={() => setTarget("platform")}
-                >
-                  <Text
+                    <Text
+                      style={[
+                        styles.targetText,
+                        target === "store" && styles.targetTextActive,
+                      ]}
+                    >
+                      Store
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={[
-                      styles.targetText,
-                      target === "platform" && styles.targetTextActive,
+                      styles.targetButton,
+                      target === "platform" && styles.targetButtonActive,
                     ]}
+                    onPress={() => setTarget("platform")}
                   >
-                    Platform
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                    <Text
+                      style={[
+                        styles.targetText,
+                        target === "platform" && styles.targetTextActive,
+                      ]}
+                    >
+                      Platform
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
               {isLoggedIn ? (
                 <View style={styles.loggedInBadge}>

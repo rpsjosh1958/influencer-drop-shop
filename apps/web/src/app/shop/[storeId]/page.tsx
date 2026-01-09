@@ -224,120 +224,201 @@ export default function ShopHome() {
 
         {/* Mobile Action Bar */}
         <div className="flex items-center gap-4 justify-end shrink-0">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {(!isMobileMenuOpen && (
-              <motion.div
-                key="mobile-actions"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex md:hidden items-center gap-4"
-              >
+          {/* Desktop Actions (Always Visible on Desktop) */}
+          <div className="hidden md:flex items-center gap-4">
+            <HeaderSearch
+              onAddToCart={addToCart}
+              onSearchOpen={setIsSearchOpen}
+            />
+
+            {user && (
+              <div className="relative">
                 <button
-                  onClick={() => setIsMobileMenuOpen(true)}
-                  className="relative p-2 hover:bg-black/5 rounded-full transition-colors"
+                  onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                  className="p-2 hover:bg-black/5 rounded-full transition-colors relative"
                   style={{ color: primaryColor }}
                 >
-                  <MoreHorizontal size={24} />
+                  <Bell size={20} />
                   <NotificationBadge />
                 </button>
-              </motion.div>
-            )) || (
-              <motion.div
-                key="desktop-actions"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="flex items-center gap-4"
-              >
-                {/* Mobile Close Button */}
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="md:hidden p-2 hover:bg-black/5 rounded-full transition-colors"
-                  style={{ color: primaryColor }}
-                >
-                  <X size={24} />
-                </button>
-
-                <HeaderSearch
-                  onAddToCart={addToCart}
-                  onSearchOpen={setIsSearchOpen}
+                <NotificationDropdown
+                  isOpen={isNotificationsOpen}
+                  onClose={() => setIsNotificationsOpen(false)}
                 />
+              </div>
+            )}
+            {user && (
+              <button
+                onClick={() => setIsOrdersOpen(true)}
+                className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                style={{ color: primaryColor }}
+                title="Your Orders"
+              >
+                <Package size={20} />
+              </button>
+            )}
 
-                {user && (
-                  <div className="relative">
+            <div className="relative">
+              <button
+                onClick={() => {
+                  if (!user) {
+                    router.push(`/shop/${storeId}/login`);
+                  } else {
+                    setIsDropdownOpen(!isDropdownOpen);
+                  }
+                }}
+                className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2"
+                style={{ color: primaryColor }}
+              >
+                <User size={20} />
+              </button>
+
+              <AnimatePresence>
+                {isDropdownOpen && user && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden z-50 py-1"
+                  >
                     <button
-                      onClick={() =>
-                        setIsNotificationsOpen(!isNotificationsOpen)
-                      }
-                      className="p-2 hover:bg-black/5 rounded-full transition-colors relative"
-                      style={{ color: primaryColor }}
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        setIsProfileOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-50 flex items-center gap-2 text-black"
                     >
-                      <Bell size={20} />
-                      <NotificationBadge />
+                      <User size={16} /> Profile
                     </button>
-                    <NotificationDropdown
-                      isOpen={isNotificationsOpen}
-                      onClose={() => setIsNotificationsOpen(false)}
-                    />
-                  </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-50 text-red-500 flex items-center gap-2"
+                    >
+                      <LogOut size={16} /> Sign Out
+                    </button>
+                  </motion.div>
                 )}
-                {user && (
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Mobile Actions (Hidden on Desktop) */}
+          <div className="md:hidden flex items-center gap-4">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {(!isMobileMenuOpen && (
+                <motion.div
+                  key="mobile-toggle"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-4"
+                >
                   <button
-                    onClick={() => setIsOrdersOpen(true)}
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="relative p-2 hover:bg-black/5 rounded-full transition-colors"
+                    style={{ color: primaryColor }}
+                  >
+                    <MoreHorizontal size={24} />
+                    <NotificationBadge />
+                  </button>
+                </motion.div>
+              )) || (
+                <motion.div
+                  key="mobile-actions-expanded"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="flex items-center gap-4"
+                >
+                  {/* Mobile Close Button */}
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className="p-2 hover:bg-black/5 rounded-full transition-colors"
                     style={{ color: primaryColor }}
-                    title="Your Orders"
                   >
-                    <Package size={20} />
-                  </button>
-                )}
-
-                <div className="relative">
-                  <button
-                    onClick={() => {
-                      if (!user) {
-                        router.push(`/shop/${storeId}/login`);
-                      } else {
-                        setIsDropdownOpen(!isDropdownOpen);
-                      }
-                    }}
-                    className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2"
-                    style={{ color: primaryColor }}
-                  >
-                    <User size={20} />
+                    <X size={24} />
                   </button>
 
-                  <AnimatePresence>
-                    {isDropdownOpen && user && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden z-50 py-1"
+                  <HeaderSearch
+                    onAddToCart={addToCart}
+                    onSearchOpen={setIsSearchOpen}
+                  />
+
+                  {user && (
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setIsNotificationsOpen(!isNotificationsOpen)
+                        }
+                        className="p-2 hover:bg-black/5 rounded-full transition-colors relative"
+                        style={{ color: primaryColor }}
                       >
-                        <button
-                          onClick={() => {
-                            setIsDropdownOpen(false);
-                            setIsProfileOpen(true);
-                          }}
-                          className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-50 flex items-center gap-2 text-black"
+                        <Bell size={20} />
+                        <NotificationBadge />
+                      </button>
+                      <NotificationDropdown
+                        isOpen={isNotificationsOpen}
+                        onClose={() => setIsNotificationsOpen(false)}
+                      />
+                    </div>
+                  )}
+                  {user && (
+                    <button
+                      onClick={() => setIsOrdersOpen(true)}
+                      className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                      style={{ color: primaryColor }}
+                      title="Your Orders"
+                    >
+                      <Package size={20} />
+                    </button>
+                  )}
+
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        if (!user) {
+                          router.push(`/shop/${storeId}/login`);
+                        } else {
+                          setIsDropdownOpen(!isDropdownOpen);
+                        }
+                      }}
+                      className="p-2 hover:bg-black/5 rounded-full transition-colors flex items-center gap-2"
+                      style={{ color: primaryColor }}
+                    >
+                      <User size={20} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isDropdownOpen && user && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                          className="absolute top-full right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-zinc-100 overflow-hidden z-50 py-1"
                         >
-                          <User size={16} /> Profile
-                        </button>
-                        <button
-                          onClick={handleLogout}
-                          className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-50 text-red-500 flex items-center gap-2"
-                        >
-                          <LogOut size={16} /> Sign Out
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                          <button
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              setIsProfileOpen(true);
+                            }}
+                            className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-50 flex items-center gap-2 text-black"
+                          >
+                            <User size={16} /> Profile
+                          </button>
+                          <button
+                            onClick={handleLogout}
+                            className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-50 text-red-500 flex items-center gap-2"
+                          >
+                            <LogOut size={16} /> Sign Out
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           {/* Cart is always visible */}
           <button
