@@ -216,11 +216,21 @@ export function OrderDetailsModal({
                       <P className="font-bold text-base" numberOfLines={1}>
                         {item.name}
                       </P>
-                      <P className="text-zinc-500 text-sm">
-                        Qty: {item.quantity}
+                      {item.selectedVariant && (
+                        <P className="text-xs text-zinc-500 font-medium">
+                          {item.selectedVariant.name}
+                        </P>
+                      )}
+                      <P className="text-zinc-500 text-sm mt-1">
+                        Qty: {item.quantity} × GHS{" "}
+                        {(item.selectedVariant?.price || item.price).toFixed(2)}
                       </P>
-                      <P className="font-semibold text-sm">
-                        GHS {item.price.toFixed(2)}
+                      <P className="font-semibold text-sm mt-1">
+                        GHS{" "}
+                        {(
+                          (item.selectedVariant?.price || item.price) *
+                          item.quantity
+                        ).toFixed(2)}
                       </P>
                     </View>
                   </View>

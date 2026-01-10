@@ -926,7 +926,7 @@ export default function ShopHome() {
                         )}
                       </View>
 
-                      <View className="items-center gap-1 mt-2 opacity-60">
+                      <View className="items-center gap-1 mt-2 mb-4 opacity-60">
                         {store.theme.footer.contact?.email && (
                           <P className="text-xs underline">
                             {store.theme.footer.contact.email}
@@ -939,7 +939,16 @@ export default function ShopHome() {
                         )}
                       </View>
 
-                      <P className="text-[10px] text-zinc-300 uppercase tracking-widest mt-3">
+                      <Pressable
+                        onPress={() => setIsComplaintOpen(true)}
+                        className="py-2"
+                      >
+                        <P className="text-[10px] font-bold text-red-500 uppercase tracking-widest opacity-80">
+                          File a Complaint
+                        </P>
+                      </Pressable>
+
+                      <P className="text-[10px] text-zinc-300 uppercase tracking-widest mt-1">
                         Powered by The Drop
                       </P>
                     </View>
@@ -980,6 +989,14 @@ export default function ShopHome() {
           count: store?.reviewCount || 0,
           distribution: store?.ratingDistribution || {},
         }}
+      />
+
+      <ComplaintModal
+        visible={isComplaintOpen}
+        onClose={() => setIsComplaintOpen(false)}
+        storeId={storeId!}
+        user={null}
+        forcedTarget="store"
       />
     </View>
   );

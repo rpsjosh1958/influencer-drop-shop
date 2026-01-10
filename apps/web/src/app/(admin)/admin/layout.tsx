@@ -68,6 +68,20 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Safety Timeout to prevent infinite loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.warn("Auth check timed out, forcing logout/redirect");
+        setLoading(false);
+        // Optional: you could force logout here if you want to be safe
+        // signOut(auth);
+      }
+    }, 10000); // 10 seconds timeout
+
+    return () => clearTimeout(timer);
+  }, [loading]);
+
   useEffect(() => {
     let unsubscribeSnapshot: (() => void) | undefined;
 
@@ -86,11 +100,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         const redirectPath = searchParams.get("redirect");
         router.push(redirectPath || "/admin/dashboard");
         // Don't set loading false here, wait for redirect
-        return;
+        // But we need to check store ownership anyway for the sidebar context
       }
 
       // 3. Gatekeeper: Check Store Ownership (Realtime)
-      // Use onSnapshot to immediately detect when a store is created/linked
       unsubscribeSnapshot = onSnapshot(
         doc(db, "users", user.uid),
         (docSnap) => {
@@ -102,11 +115,18 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               setLoading(false);
             } else {
               router.push("/create-store");
+              setLoading(false);
             }
+          } else {
+            console.error("User profile document missing");
+            // If user doc missing, maybe logout or send to onboarding
+            // For now, stop loading so they aren't stuck
+            setLoading(false);
           }
         },
         (error) => {
           console.error("Profile check failed", error);
+          setLoading(false); // Ensure we stop loading on error!
         }
       );
     });
@@ -115,7 +135,8 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       unsubscribeAuth();
       if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
-  }, [router, pathname, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run ONCE on mount, not on pathname change
 
   // Close mobile menu on route change
   useEffect(() => {
