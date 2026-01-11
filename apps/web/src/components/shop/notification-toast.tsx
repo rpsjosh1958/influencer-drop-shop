@@ -39,8 +39,9 @@ export function NotificationToast() {
     setVisible(false);
 
     // If order type, open modal
-    if (currentNotif.type === "order_update" && currentNotif.data?.orderId) {
-      openOrderDetails(currentNotif.data.orderId);
+    const orderId = currentNotif.data?.orderId || currentNotif.orderId;
+    if (currentNotif.type === "order_update" && orderId) {
+      openOrderDetails(orderId);
     }
   };
 

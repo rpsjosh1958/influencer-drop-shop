@@ -73,66 +73,8 @@ export function ProductDetailsModal({
 
   if (!product) return null;
 
-  const images =
-    product.images && product.images.length > 0
-      ? product.images
-      : [product.imageUrl];
-
-  const handleNextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
-
-  const handlePrevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
-
-  const handleAddToCart = () => {
-    if (product.hasVariants && !selectedVariant) {
-      return;
-    }
-    // Pass the variant with its specific price/id
-    addToCart(product, selectedVariant || undefined);
-    onClose();
-  };
-
-  const handleOptionSelect = (optionName: string, value: string) => {
-    setSelections((prev) => ({ ...prev, [optionName]: value }));
-  };
-
-  // Helper: check if a value should be disabled (no stock in ANY combo?)
-  // Strict: Disable if selecting this value creates a dead end based on CURRENT other selections.
-  const isValueAvailable = (optionName: string, value: string) => {
-    if (!product.variants) return false;
-
-    // Temporary selections with this new value
-    const nextSelections = { ...selections, [optionName]: value };
-
-    // Does ANY variant match this subset of selections with stock > 0?
-    return product.variants.some((v) => {
-      if (v.stock <= 0) return false;
-
-      // Legacy/New normalization logic
-      const vOptions = v.options || {
-        ...(v.color && { Color: v.color }),
-        ...(v.size && { Size: v.size }),
-      };
-
-      // Check if variant matches all specific keys in nextSelections
-      return Object.entries(nextSelections).every(
-        ([k, val]) => vOptions[k] === val
-      );
-    });
-  };
-
-  // Calculate price to show (variant price might override)
-  const currentPrice = selectedVariant?.price || product.price;
-  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
-  const isOutOfStock = currentStock <= 0;
-
-  // Normalized Options List (Legacy Support)
-  const displayOptions = product.options || [];
+  // Normalized Options List (Legacy Support) - MOVED UP for hierarchical logic
+  let displayOptions = product.options ? [...product.options] : [];
 
   // Legacy Adapter: If no options but variants exist, infer structure (Color/Size)
   // Only if product.options is missing/empty
@@ -149,6 +91,102 @@ export function ProductDetailsModal({
     if (sizes.length)
       displayOptions.push({ id: "size", name: "Size", values: sizes });
   }
+
+  const images =
+    product.images && product.images.length > 0
+      ? product.images
+      : [product.imageUrl];
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
+  // Helper: Hierarchical Availability Check
+  const isVariantAvailable = (
+    optionName: string,
+    value: string,
+    currentSelections: Record<string, string>
+  ) => {
+    if (!product.variants) return false;
+
+    const optionIndex = displayOptions.findIndex(
+      (opt) => opt.name === optionName
+    );
+    if (optionIndex === -1) return false;
+
+    // Only strictly enforce matching options that appear BEFORE this one
+    // This allows "Parent" options (e.g. Color) to remain enabled even if "Child" options (e.g. Size) are invalid
+    const relevantSelections: Record<string, string> = {};
+    for (let i = 0; i < optionIndex; i++) {
+      const prevName = displayOptions[i].name;
+      if (currentSelections[prevName]) {
+        relevantSelections[prevName] = currentSelections[prevName];
+      }
+    }
+
+    const targetMatcher = { ...relevantSelections, [optionName]: value };
+
+    return product.variants.some((v) => {
+      if (v.stock <= 0) return false;
+      const vOptions = v.options || {
+        ...(v.color && { Color: v.color }),
+        ...(v.size && { Size: v.size }),
+      };
+      return Object.entries(targetMatcher).every(([k, v]) => vOptions[k] === v);
+    });
+  };
+
+  const handleOptionSelect = (optionName: string, value: string) => {
+    const newSelections = { ...selections, [optionName]: value };
+
+    // Check downstream options and clear if invalid
+    const optionIndex = displayOptions.findIndex(
+      (opt) => opt.name === optionName
+    );
+    if (optionIndex !== -1) {
+      for (let i = optionIndex + 1; i < displayOptions.length; i++) {
+        const nextOption = displayOptions[i].name;
+        const nextValue = newSelections[nextOption];
+        if (nextValue) {
+          // Check if this downstream selection is still valid
+          const isStillValid = isVariantAvailable(
+            nextOption,
+            nextValue,
+            newSelections
+          );
+          if (!isStillValid) {
+            delete newSelections[nextOption];
+          }
+        }
+      }
+    }
+    setSelections(newSelections);
+  };
+
+  // UI Helper
+  const isValueAvailable = (optionName: string, value: string) => {
+    return isVariantAvailable(optionName, value, selections);
+  };
+
+  const handleAddToCart = () => {
+    if (product.hasVariants && !selectedVariant) {
+      return;
+    }
+    // Pass the variant with its specific price/id
+    addToCart(product, selectedVariant || undefined);
+    onClose();
+  };
+
+  // Calculate price to show (variant price might override)
+  const currentPrice = selectedVariant?.price || product.price;
+  const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
+  const isOutOfStock = currentStock <= 0;
 
   const [mounted, setMounted] = useState(false);
 

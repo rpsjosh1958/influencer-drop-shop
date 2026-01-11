@@ -84,20 +84,30 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         }
       });
 
+      const readBroadcasts = JSON.parse(
+        localStorage.getItem("read_broadcasts") || "[]"
+      );
+
       snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as Notification);
+        const data = doc.data();
+        let isRead = data.read;
+
+        // Override read status for broadcasts
+        if (
+          (data.type === "broadcast" || data.userId === "all") &&
+          readBroadcasts.includes(doc.id)
+        ) {
+          isRead = true;
+        }
+
+        items.push({ id: doc.id, ...data, read: isRead } as Notification);
       });
 
       setNotifications(items);
 
       if (items.length > 0 && !items[0].read) {
-        // Simple logic: if the newest item is unread, set it as latest for toast
         setLatestNotification(items[0]);
-      } else {
-        // If read, we might still want it if it *was* just added?
-        // For now, rely on unread status for "New" alerts.
       }
-
       setLoading(false);
     });
 
@@ -106,18 +116,62 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const markAsRead = async (id: string) => {
     try {
-      await updateDoc(doc(db, "notifications", id), { read: true });
+      // Find the notification to check its type/userId
+      const notif = notifications.find((n) => n.id === id);
+      const isBroadcast =
+        notif &&
+        (notif.type === "broadcast" || (notif as any).userId === "all");
+
+      if (isBroadcast) {
+        // Store locally
+        const readIds = JSON.parse(
+          localStorage.getItem("read_broadcasts") || "[]"
+        );
+        if (!readIds.includes(id)) {
+          readIds.push(id);
+          localStorage.setItem("read_broadcasts", JSON.stringify(readIds));
+        }
+        // Update local state immediately
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        );
+      } else {
+        // Normal update
+        await updateDoc(doc(db, "notifications", id), { read: true });
+      }
     } catch (e) {
       console.error("Failed to mark read", e);
     }
   };
 
   const markAllAsRead = async () => {
+    const broadcastIds: string[] = [];
+
+    // Process local broadcasts
+    notifications
+      .filter(
+        (n) =>
+          !n.read && (n.type === "broadcast" || (n as any).userId === "all")
+      )
+      .forEach((n) => broadcastIds.push(n.id));
+
+    if (broadcastIds.length > 0) {
+      const readIds = JSON.parse(
+        localStorage.getItem("read_broadcasts") || "[]"
+      );
+      const newIds = [...new Set([...readIds, ...broadcastIds])];
+      localStorage.setItem("read_broadcasts", JSON.stringify(newIds));
+    }
+
+    // Process server notifications
     notifications.forEach(async (n) => {
-      if (!n.read) {
+      if (!n.read && n.type !== "broadcast" && (n as any).userId !== "all") {
         await updateDoc(doc(db, "notifications", n.id), { read: true });
       }
     });
+
+    // Update local state for immediate UI feedback
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;

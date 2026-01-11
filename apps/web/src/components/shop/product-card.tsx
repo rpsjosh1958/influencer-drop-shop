@@ -118,12 +118,19 @@ export function ProductCard({
 
           <div
             className={`absolute top-4 right-4 backdrop-blur px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider z-10 ${
-              product.stock > 0
+              product.stock > 0 ||
+              (product.hasVariants &&
+                product.variants?.some((v) => v.stock > 0))
                 ? "bg-white/90 text-black"
                 : "bg-red-500/90 text-white"
             }`}
           >
-            {product.stock > 0 ? `${product.stock} Left` : "Sold Out"}
+            {product.stock > 0
+              ? `${product.stock} Left`
+              : product.hasVariants &&
+                product.variants?.some((v) => v.stock > 0)
+              ? "Available"
+              : "Sold Out"}
           </div>
 
           {/* Quick Add / Select Options */}

@@ -351,6 +351,9 @@ export function ProductForm({
                     required
                     className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
                     placeholder="0.00"
+                    onFocus={(e) => {
+                      if (Number(e.target.value) === 0) e.target.value = "";
+                    }}
                   />
                 </div>
                 <div>
@@ -418,6 +421,9 @@ export function ProductForm({
                   required
                   className="w-full p-3 bg-white text-black border border-zinc-200 rounded-xl outline-none ring-black"
                   placeholder="100"
+                  onFocus={(e) => {
+                    if (Number(e.target.value) === 0) e.target.value = "";
+                  }}
                 />
               </div>
             ) : (

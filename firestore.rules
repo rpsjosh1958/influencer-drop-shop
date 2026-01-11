@@ -118,6 +118,9 @@ service cloud.firestore {
     // --- Notifications (Root) ---
     match /notifications/{notificationId} {
         allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all');
+        allow create: if isAuthenticated();
+        // User can mark their own notifications as read
+        allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // Default Deny (Block everything else)

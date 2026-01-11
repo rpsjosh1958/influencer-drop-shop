@@ -74,9 +74,10 @@ export function NotificationDropdown({
                     key={item.id}
                     onClick={() => {
                       if (!item.read) markAsRead(item.id);
-                      if (item.type === "order_update" && item.data?.orderId) {
+                      const orderId = item.data?.orderId || item.orderId;
+                      if (item.type === "order_update" && orderId) {
                         onClose();
-                        openOrderDetails(item.data.orderId);
+                        openOrderDetails(orderId);
                       }
                     }}
                     className={`w-full text-left p-3 rounded-xl flex gap-3 transition-all ${

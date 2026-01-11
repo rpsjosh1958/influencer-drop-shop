@@ -10,6 +10,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   collection,
   query,
@@ -181,7 +182,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       limit(50)
     );
 
-    const unsub = onSnapshot(q, (snapshot) => {
+    const unsub = onSnapshot(q, async (snapshot) => {
       const items: Notification[] = [];
       let isFirstLoad = loading; // simplistic check
 
@@ -193,8 +194,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         }
       });
 
+      const readBroadcasts = JSON.parse(
+        (await AsyncStorage.getItem("read_broadcasts")) || "[]"
+      );
+
       snapshot.forEach((doc) => {
-        items.push({ id: doc.id, ...doc.data() } as Notification);
+        const data = doc.data();
+        let isRead = data.read;
+
+        if (
+          (data.type === "broadcast" || data.userId === "all") &&
+          readBroadcasts.includes(doc.id)
+        ) {
+          isRead = true;
+        }
+
+        items.push({ id: doc.id, ...data, read: isRead } as Notification);
       });
 
       setNotifications(items);
@@ -218,21 +233,63 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const markAsRead = async (id: string) => {
     try {
-      await updateDoc(doc(db, "notifications", id), { read: true });
+      const notif = notifications.find((n) => n.id === id);
+      const isBroadcast =
+        notif &&
+        (notif.type === "broadcast" || (notif as any).userId === "all");
+
+      if (isBroadcast) {
+        // Store locally
+        const readIds = JSON.parse(
+          (await AsyncStorage.getItem("read_broadcasts")) || "[]"
+        );
+        if (!readIds.includes(id)) {
+          readIds.push(id);
+          await AsyncStorage.setItem(
+            "read_broadcasts",
+            JSON.stringify(readIds)
+          );
+        }
+        // Update local state
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+        );
+      } else {
+        await updateDoc(doc(db, "notifications", id), { read: true });
+      }
     } catch (e) {
       console.error("Failed to mark read", e);
     }
   };
 
   const markAllAsRead = async () => {
-    // Batch update ideally, or just loop for now (client side limited usually)
-    // For simplicity, verify functionality first.
-    // In production, use a batch write.
+    const broadcastIds: string[] = [];
+
+    // Process local broadcasts
+    notifications
+      .filter(
+        (n) =>
+          !n.read && (n.type === "broadcast" || (n as any).userId === "all")
+      )
+      .forEach((n) => broadcastIds.push(n.id));
+
+    if (broadcastIds.length > 0) {
+      const readIds = JSON.parse(
+        (await AsyncStorage.getItem("read_broadcasts")) || "[]"
+      );
+      const newIds = [...new Set([...readIds, ...broadcastIds])];
+      await AsyncStorage.setItem("read_broadcasts", JSON.stringify(newIds));
+    }
+
+    // Process server notifications
     notifications.forEach(async (n) => {
-      if (!n.read) {
+      if (!n.read && n.type !== "broadcast" && (n as any).userId !== "all") {
         await updateDoc(doc(db, "notifications", n.id), { read: true });
       }
     });
+
+    // Update local state
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;

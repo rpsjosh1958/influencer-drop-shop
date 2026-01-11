@@ -104,23 +104,61 @@ export function ProductDetailsModal({
     }
   }, [selections, product, displayOptions]);
 
-  const handleOptionSelect = (name: string, value: string) => {
-    setSelections((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const isValueAvailable = (optionName: string, value: string) => {
+  // Helper: Hierarchical Availability Check
+  const isVariantAvailable = (
+    optionName: string,
+    value: string,
+    currentSelections: Record<string, string>
+  ) => {
     if (!product?.variants) return false;
-    const nextSelections = { ...selections, [optionName]: value };
+    
+    const optionIndex = displayOptions.findIndex((opt) => opt.name === optionName);
+    if (optionIndex === -1) return false;
+
+    // Only strictly enforce matching options that appear BEFORE this one
+    const relevantSelections: Record<string, string> = {};
+    for (let i = 0; i < optionIndex; i++) {
+        const prevName = displayOptions[i].name;
+        if (currentSelections[prevName]) {
+            relevantSelections[prevName] = currentSelections[prevName];
+        }
+    }
+
+    const targetMatcher = { ...relevantSelections, [optionName]: value };
+
     return product.variants.some((v: any) => {
       if (v.stock <= 0) return false;
       const vOptions = v.options || {
         ...(v.color && { Color: v.color }),
         ...(v.size && { Size: v.size }),
       };
-      return Object.entries(nextSelections).every(
-        ([k, val]) => vOptions[k] === val
-      );
+      return Object.entries(targetMatcher).every(([k, v]) => vOptions[k] === v);
     });
+  };
+
+  const handleOptionSelect = (name: string, value: string) => {
+    const newSelections = { ...selections, [name]: value };
+    
+    // Check downstream options and clear if invalid
+    const optionIndex = displayOptions.findIndex((opt) => opt.name === name);
+    if (optionIndex !== -1) {
+        for (let i = optionIndex + 1; i < displayOptions.length; i++) {
+            const nextOption = displayOptions[i].name;
+            const nextValue = newSelections[nextOption];
+            if (nextValue) {
+                // Check if this downstream selection is still valid
+                const isStillValid = isVariantAvailable(nextOption, nextValue, newSelections);
+                if (!isStillValid) {
+                    delete newSelections[nextOption];
+                }
+            }
+        }
+    }
+    setSelections(newSelections);
+  };
+
+  const isValueAvailable = (optionName: string, value: string) => {
+     return isVariantAvailable(optionName, value, selections);
   };
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {

@@ -32,13 +32,16 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
   const images =
     product.images && product.images.length > 0
       ? product.images
-      : [product.imageUrl || "https://via.placeholder.com/300"];
+      : [product.imageUrl || ""];
   const imageSource = { uri: images[0] };
 
   // Stock logic
   const stock = product.stock ?? 0;
-  const isSoldOut = stock <= 0;
-  const isLowStock = stock > 0 && stock < 5;
+  const hasVariantStock =
+    product.hasVariants && product.variants?.some((v) => v.stock > 0);
+  const isSoldOut = stock <= 0 && !hasVariantStock;
+  // Display stock is total (if > 0) or generic
+  const displayStock = stock > 0 ? stock : hasVariantStock ? "Available" : 0;
 
   return (
     <MotiView
@@ -60,15 +63,19 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
           {/* Stock Badge (Top Right like Web) */}
           <View
             className={`absolute top-4 right-4 px-3 py-1 rounded-full ${
-              stock > 0 ? "bg-white/90" : "bg-red-500/90"
+              !isSoldOut ? "bg-white/90" : "bg-red-500/90"
             }`}
           >
             <P
               className={`text-[10px] font-bold uppercase tracking-wider ${
-                stock > 0 ? "text-black" : "text-white"
+                !isSoldOut ? "text-black" : "text-white"
               }`}
             >
-              {stock > 0 ? `${stock} Left` : "Sold Out"}
+              {!isSoldOut
+                ? typeof displayStock === "number"
+                  ? `${displayStock} Left`
+                  : "Available"
+                : "Sold Out"}
             </P>
           </View>
 
@@ -97,7 +104,7 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
               className="text-zinc-500 text-xs line-clamp-1 flex-1 mr-2"
               numberOfLines={1}
             >
-              {product.description || "Limited edition drop."}
+              {product.description || ""}
             </P>
           </View>
         </View>

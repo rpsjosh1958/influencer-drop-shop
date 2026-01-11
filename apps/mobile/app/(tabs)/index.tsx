@@ -949,7 +949,7 @@ export default function ShopHome() {
                       </Pressable>
 
                       <P className="text-[10px] text-zinc-300 uppercase tracking-widest mt-1">
-                        Powered by The Drop
+                        Powered by The Drop Shop
                       </P>
                     </View>
                   </View>
@@ -974,7 +974,7 @@ export default function ShopHome() {
             image:
               p.images && p.images[0]
                 ? p.images[0]
-                : p.imageUrl || "https://via.placeholder.com/300",
+                : p.imageUrl || "",
             variant: v,
           });
         }}
