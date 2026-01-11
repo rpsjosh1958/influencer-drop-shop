@@ -48,6 +48,7 @@ interface ProfileModalProps {
 
 import { Country, City } from "country-state-city";
 import { Combobox } from "@/components/ui/combobox";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Helper to get formatted options
 const countryOptions = Country.getAllCountries().map((country) => ({
@@ -654,7 +655,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                           <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
                             Current Password
                           </label>
-                          <input
+                          <PasswordInput
                             type="password"
                             value={oldPassword}
                             onChange={(e) => setOldPassword(e.target.value)}
@@ -667,7 +668,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
                           <label className="block text-xs font-bold uppercase text-zinc-400 mb-1">
                             New Password
                           </label>
-                          <input
+                          <PasswordInput
                             type="password"
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}

@@ -15,6 +15,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 import { Country, City } from "country-state-city";
 import { Combobox } from "@/components/ui/combobox";
+import { PasswordInput } from "@/components/ui/password-input";
 
 // Helper to get formatted options
 const countryOptions = Country.getAllCountries().map((country) => ({
@@ -162,7 +163,7 @@ export default function ShopSignup() {
               />
             </div>
             <div>
-              <input
+              <PasswordInput
                 type="password"
                 placeholder="Password"
                 required

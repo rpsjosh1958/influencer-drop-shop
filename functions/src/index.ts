@@ -223,7 +223,7 @@ export const onStoreCreated = onDocumentCreated(
               </a>
 
               <p style="margin-top: 60px; font-size: 12px; color: #666666;">
-                © 2025 The Drop. • Accra, Ghana
+                © 2026 The Drop Shop. • Accra, Ghana
               </p>
             </div>
           </div>

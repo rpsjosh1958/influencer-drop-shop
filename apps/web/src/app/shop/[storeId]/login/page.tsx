@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2, ArrowLeft } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { motion } from "framer-motion";
 
 export default function ShopLogin() {
@@ -74,8 +75,7 @@ export default function ShopLogin() {
             />
           </div>
           <div>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Password"
               required
               value={password}

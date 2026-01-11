@@ -10,6 +10,7 @@ import {
   RefreshControl,
   ActionSheetIOS,
   Platform,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -45,6 +46,8 @@ import {
   Smartphone,
   CreditCard,
   MoreVertical,
+  Eye,
+  EyeOff,
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
@@ -803,22 +806,38 @@ function InputGroup({
   disabled,
   secure,
 }: any) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
     <View className="mb-6">
       <P className="text-xs font-bold uppercase text-zinc-400 mb-2 tracking-wider">
         {label}
       </P>
-      <TextInput
-        value={value}
-        onChangeText={onChange}
-        placeholder={placeholder}
-        editable={!disabled}
-        secureTextEntry={secure}
-        className={`w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-base ${
-          disabled ? "opacity-50" : ""
-        }`}
-        placeholderTextColor="#a1a1aa"
-      />
+      <View className="relative">
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder={placeholder}
+          editable={!disabled}
+          secureTextEntry={secure && !showPassword}
+          className={`w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl font-bold text-base ${
+            disabled ? "opacity-50" : ""
+          } ${secure ? "pr-12" : ""}`}
+          placeholderTextColor="#a1a1aa"
+        />
+        {secure && (
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            className="absolute right-4 top-4"
+          >
+            {showPassword ? (
+              <EyeOff size={20} color="#a1a1aa" />
+            ) : (
+              <Eye size={20} color="#a1a1aa" />
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }

@@ -48,7 +48,10 @@ export function ProductForm({
   // Categories
   const [categories, setCategories] = useState<Category[]>([]);
   useEffect(() => {
-    const q = query(collection(db, "categories"), orderBy("name", "asc"));
+    const q = query(
+      collection(db, "stores", storeId, "categories"),
+      orderBy("name", "asc")
+    );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({
         id: doc.id,

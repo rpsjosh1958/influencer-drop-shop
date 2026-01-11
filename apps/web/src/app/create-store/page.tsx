@@ -25,6 +25,8 @@ import {
   FileText,
   Upload,
 } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
+import { StoreSuccessModal } from "@/components/onboarding/store-success-modal";
 
 export default function CreateStoreWizard() {
   const router = useRouter();
@@ -63,6 +65,7 @@ export default function CreateStoreWizard() {
 
   // State
   const [isLoginMode, setIsLoginMode] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -259,7 +262,8 @@ export default function CreateStoreWizard() {
 
       // Set Cookie & Redirect
       document.cookie = "isAdminLoggedIn=true; path=/";
-      router.push("/admin/dashboard");
+      setShowSuccessModal(true);
+      // router.push("/admin/dashboard"); // Handled by modal now
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to create store.");
@@ -331,7 +335,7 @@ export default function CreateStoreWizard() {
                 <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
                   Password
                 </label>
-                <input
+                <PasswordInput
                   type="password"
                   name="password"
                   value={formData.password}
@@ -555,7 +559,7 @@ export default function CreateStoreWizard() {
                       <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
                         Login Password
                       </label>
-                      <input
+                      <PasswordInput
                         type="password"
                         name="password"
                         value={formData.password}
@@ -698,6 +702,11 @@ export default function CreateStoreWizard() {
           </form>
         )}
       </div>
+      <StoreSuccessModal
+        isOpen={showSuccessModal}
+        onContinue={() => router.push("/admin/dashboard")}
+        userEmail={user?.email || formData.email}
+      />
     </div>
   );
 }

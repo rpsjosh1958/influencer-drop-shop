@@ -33,7 +33,7 @@ export function LandingFooter() {
             <div className="flex items-center gap-2 mb-6">
               <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-purple-500 to-orange-500" />
               <span className="font-black text-2xl tracking-tighter">
-                DROP.
+                THE DROP.
               </span>
             </div>
             <p className="text-zinc-500 max-w-sm">
@@ -81,7 +81,7 @@ export function LandingFooter() {
         </div>
 
         <div className="flex flex-col md:flex-row items-center justify-between text-zinc-600 text-sm gap-4">
-          <p>© 2026 CopDrop Inc. All rights reserved.</p>
+          <p>© 2026 The Drop Shop. All rights reserved.</p>
           <div className="flex gap-6">
             <a
               href="https://x.com/copdrop_io?s=21"

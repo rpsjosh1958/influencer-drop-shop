@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ShoppingBag, ChevronDown, Check } from "lucide-react";
+import { ShoppingBag, ChevronDown, Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -19,6 +19,11 @@ export function StoreSelector() {
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filteredStores = stores.filter((store) =>
+    store.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -91,19 +96,43 @@ export function StoreSelector() {
                 No live stores found.
               </div>
             ) : (
-              <div className="max-h-60 overflow-y-auto py-2">
-                {stores.map((store) => (
-                  <button
-                    key={store.id}
-                    onClick={() => handleSelect(store.id)}
-                    className="w-full px-4 py-3 text-left hover:bg-zinc-800 flex items-center justify-between group transition-colors"
-                  >
-                    <span className="font-bold text-white group-hover:text-purple-400 transition-colors">
-                      {store.name || "Untitled Store"}
-                    </span>
-                    {/* Optional: Add status indicator or check */}
-                  </button>
-                ))}
+              <div className="flex flex-col">
+                <div className="p-2 sticky top-0 bg-zinc-900 border-b border-zinc-800 z-10">
+                  <div className="relative">
+                    <Search
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Search stores..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className="w-full bg-zinc-800 text-white text-sm py-2 pl-9 pr-3 rounded-lg border border-zinc-700 focus:outline-none focus:border-zinc-500 placeholder-zinc-500"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto py-2">
+                  {filteredStores.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-zinc-500 text-xs font-bold uppercase tracking-wider">
+                      No matches
+                    </div>
+                  ) : (
+                    filteredStores.map((store) => (
+                      <button
+                        key={store.id}
+                        onClick={() => handleSelect(store.id)}
+                        className="w-full px-4 py-3 text-left hover:bg-zinc-800 flex items-center justify-between group transition-colors"
+                      >
+                        <span className="font-bold text-white group-hover:text-purple-400 transition-colors">
+                          {store.name || "Untitled Store"}
+                        </span>
+                        {/* Optional: Add status indicator or check */}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </motion.div>

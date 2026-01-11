@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { Loader2 } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 import { motion } from "framer-motion";
 
 export default function AdminLogin() {
@@ -57,13 +58,13 @@ export default function AdminLogin() {
             />
           </div>
           <div>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full bg-zinc-900 border border-zinc-800 p-4 rounded-xl outline-none focus:ring-2 focus:ring-white transition-all text-white placeholder-zinc-500"
+              iconClassName="text-zinc-500 hover:text-white"
             />
           </div>
           <div className="flex justify-end">

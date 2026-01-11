@@ -35,6 +35,7 @@ import { functions } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const TABS = [
   { id: "general", label: "General", icon: Store },
@@ -443,7 +444,6 @@ export default function StoreSettingsPage() {
                         ? "Company Profile"
                         : "Vendor Profile"}
                     </h2>
-                    
 
                     {userData?.vendorType === "company" ? (
                       /* COMPANY VIEW */
@@ -1495,7 +1495,7 @@ function ChangePasswordForm() {
         <label className="text-sm font-bold text-zinc-900">
           Current Password
         </label>
-        <input
+        <PasswordInput
           type="password"
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
@@ -1506,7 +1506,7 @@ function ChangePasswordForm() {
 
       <div className="space-y-2">
         <label className="text-sm font-bold text-zinc-900">New Password</label>
-        <input
+        <PasswordInput
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
@@ -1519,7 +1519,7 @@ function ChangePasswordForm() {
         <label className="text-sm font-bold text-zinc-900">
           Confirm New Password
         </label>
-        <input
+        <PasswordInput
           type="password"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}

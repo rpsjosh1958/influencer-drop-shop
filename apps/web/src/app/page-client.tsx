@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Zap, ShoppingBag, ArrowRight, ChevronDown } from "lucide-react";
 import { StoreSelector } from "@/components/home/store-selector";
-import { useEffect, Suspense } from "react";
+import { useEffect, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { auth } from "@/lib/firebase";
@@ -17,6 +17,7 @@ import { LandingFAQ } from "@/components/home/landing-faq";
 import { LandingFooter } from "@/components/home/landing-footer";
 import { LandingHowItWorks } from "@/components/home/landing-how-it-works";
 import { LandingCommunity } from "@/components/home/landing-community";
+import { LandingHeader } from "@/components/home/landing-header";
 
 export function PlatformLandingClient() {
   return (
@@ -35,61 +36,21 @@ export function PlatformLandingClient() {
 function PlatformLandingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [lastStoreId, setLastStoreId] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState<string | null>(null); // Optional: if we stored name too, otherwise just ID
 
   useEffect(() => {
-    // Check if user has a last visited store
-    const lastStoreId = localStorage.getItem("copdrop_last_visited_store");
-    const shouldStay = searchParams.get("stay");
+    // Check local storage for last visited store
+    // We strictly avoid auto-redirecting for better UX performance
+    const storedId = localStorage.getItem("copdrop_last_visited_store");
+    if (storedId) {
+      setLastStoreId(storedId);
+    }
+  }, []);
 
-    if (!lastStoreId || shouldStay === "true") return;
-
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.push(`/shop/${lastStoreId}`);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [router, searchParams]);
   return (
     <div className="bg-black text-white font-sans selection:bg-purple-500 selection:text-white">
-      {/* Header (Fixed) */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500" />
-          <span className="font-black tracking-tighter text-2xl">DROP.</span>
-        </div>
-
-        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-          <a href="#features" className="hover:text-white transition-colors">
-            Features
-          </a>
-          <a href="#ecosystem" className="hover:text-white transition-colors">
-            Ecosystem
-          </a>
-          <a href="#pricing" className="hover:text-white transition-colors">
-            Pricing
-          </a>
-          <a href="#faq" className="hover:text-white transition-colors">
-            FAQ
-          </a>
-        </nav>
-
-        <div className="flex items-center gap-4">
-          <Link
-            href="/admin"
-            className="text-sm font-bold text-white hover:text-zinc-300 transition-colors mr-4"
-          >
-            Sign In
-          </Link>
-          <Link
-            href="/create-store"
-            className="hidden md:flex bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform"
-          >
-            Start Selling
-          </Link>
-        </div>
-      </header>
+      <LandingHeader />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex flex-col items-center justify-center">
@@ -116,12 +77,27 @@ function PlatformLandingContent() {
           </p>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full md:w-auto">
-            <Link
-              href="/create-store"
-              className="w-full md:w-auto bg-white text-black h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:scale-105 transition-transform"
-            >
-              Launch Your Store <ArrowRight size={20} />
-            </Link>
+            {lastStoreId ? (
+              <Link
+                href={`/shop/${lastStoreId}`}
+                className="w-full md:w-auto bg-white text-black h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)] border-2 border-transparent hover:border-purple-500"
+              >
+                <div className="flex flex-col items-start leading-none gap-0.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-600">
+                    Resume Shopping
+                  </span>
+                  <span>Go to Last Store</span>
+                </div>
+                <ArrowRight size={20} />
+              </Link>
+            ) : (
+              <Link
+                href="/create-store"
+                className="w-full md:w-auto bg-white text-black h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:scale-105 transition-transform"
+              >
+                Launch Your Store <ArrowRight size={20} />
+              </Link>
+            )}
             <StoreSelector />
           </div>
         </div>
