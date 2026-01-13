@@ -32,6 +32,7 @@ import { NotificationToast } from "./notification-toast";
 import { HeaderSearch } from "./header-search";
 import { ShopUIProvider } from "@/context/shop-ui-context";
 import { OrderDetailsModal } from "./order-details-modal";
+import { BookingDetailsModal } from "./booking-details-modal";
 import { SnowfallEffect } from "./snowfall-effect";
 import { StoreLoader } from "./store-loader";
 
@@ -140,8 +141,6 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
     }
   }, [user, isAuthPage, router]);
 
-  
-
   // ...
 
   // Loading State
@@ -159,6 +158,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
       <ShopUIProvider>
         {children}
         <OrderDetailsModal />
+        <BookingDetailsModal />
       </ShopUIProvider>
     );
   }
@@ -305,6 +305,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
         )}
 
         <OrderDetailsModal />
+        <BookingDetailsModal />
       </ShopUIProvider>
     </NotificationProvider>
   );

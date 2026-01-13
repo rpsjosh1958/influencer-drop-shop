@@ -69,6 +69,8 @@ import { useStore } from "@/context/store-context";
 import { StoreSwitcher } from "@/components/shop/store-switcher"; // Imported
 import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Added
 import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
+import { ServiceCard, ServiceItem } from "@/components/shop/service-card";
+import { BookingModal } from "@/components/shop/booking-modal";
 import { Star } from "lucide-react-native"; // Added
 
 export default function ShopHome() {
@@ -76,6 +78,10 @@ export default function ShopHome() {
   const { storeId, store, setStoreId } = useStore();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -228,6 +234,25 @@ export default function ShopHome() {
       },
       (error) => console.log("Error fetching categories:", error)
     );
+
+    // Fetch Services (for service/hybrid stores)
+    const fetchServices = async () => {
+      try {
+        const qServices = query(
+          collection(db, "stores", storeId, "services"),
+          orderBy("createdAt", "desc")
+        );
+        const snapshot = await getDocs(qServices);
+        const items = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ServiceItem[];
+        setServices(items.filter((s) => s.isActive));
+      } catch (error) {
+        console.log("Error fetching services:", error);
+      }
+    };
+    fetchServices();
 
     return () => {
       unsubCategories();
@@ -816,57 +841,107 @@ export default function ShopHome() {
                       ))}
                     </View>
                   ) : (
-                    <View
-                      className={cn(
-                        "flex-row flex-wrap gap-3",
-                        store?.theme?.cardSize === "large"
-                          ? "justify-center"
-                          : "justify-between"
-                      )}
-                    >
-                      {displayedProducts.map((product, i) => (
-                        <View
-                          key={product.id}
-                          style={{
-                            width:
+                    <>
+                      {/* Services Section */}
+                      {services.length > 0 && (
+                        <View className="mb-8">
+                          <H1 className="text-lg font-bold mb-4 px-2">
+                            Our Services
+                          </H1>
+                          <View
+                            className={cn(
+                              "flex-row flex-wrap gap-3",
                               store?.theme?.cardSize === "large"
-                                ? "100%"
-                                : store?.theme?.cardSize === "small"
-                                ? "31%"
-                                : "48%",
-                          }}
-                          className="mb-4"
-                        >
-                          <ProductCard
-                            product={product}
-                            index={i}
-                            onPress={async (p) => {
-                              if (p.storeId && p.storeId !== storeId) {
-                                await setStoreId(p.storeId);
-                                // Provide small delay for context update
-                                setTimeout(() => setSelectedProduct(p), 100);
-                              } else {
-                                setSelectedProduct(p);
-                              }
+                                ? "justify-center"
+                                : "justify-between"
+                            )}
+                          >
+                            {services.map((service, i) => (
+                              <View
+                                key={service.id}
+                                style={{
+                                  width:
+                                    store?.theme?.cardSize === "large"
+                                      ? "100%"
+                                      : store?.theme?.cardSize === "small"
+                                      ? "31%"
+                                      : "48%",
+                                }}
+                                className="mb-4"
+                              >
+                                <ServiceCard
+                                  service={service}
+                                  index={i}
+                                  onPress={(s) => setSelectedService(s)}
+                                />
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      )}
+
+                      {/* Products Section Header */}
+                      {services.length > 0 && products.length > 0 && (
+                        <H1 className="text-lg font-bold mb-4 px-2">
+                          Products
+                        </H1>
+                      )}
+
+                      {/* Products Grid */}
+                      <View
+                        className={cn(
+                          "flex-row flex-wrap gap-3",
+                          store?.theme?.cardSize === "large"
+                            ? "justify-center"
+                            : "justify-between"
+                        )}
+                      >
+                        {displayedProducts.map((product, i) => (
+                          <View
+                            key={product.id}
+                            style={{
+                              width:
+                                store?.theme?.cardSize === "large"
+                                  ? "100%"
+                                  : store?.theme?.cardSize === "small"
+                                  ? "31%"
+                                  : "48%",
                             }}
-                          />
-                        </View>
-                      ))}
-                      {isSearching && searchResults.length === 0 && (
-                        <View className="w-full py-10 items-center">
-                          <P className="text-zinc-400">
-                            No drops found matching "{searchQuery}"
-                          </P>
-                        </View>
-                      )}
-                      {!isSearching && displayedProducts.length === 0 && (
-                        <View className="w-full py-20 items-center">
-                          <P className="text-zinc-400">
-                            No products found in this category.
-                          </P>
-                        </View>
-                      )}
-                    </View>
+                            className="mb-4"
+                          >
+                            <ProductCard
+                              product={product}
+                              index={i}
+                              onPress={async (p) => {
+                                if (p.storeId && p.storeId !== storeId) {
+                                  await setStoreId(p.storeId);
+                                  // Provide small delay for context update
+                                  setTimeout(() => setSelectedProduct(p), 100);
+                                } else {
+                                  setSelectedProduct(p);
+                                }
+                              }}
+                            />
+                          </View>
+                        ))}
+                        {isSearching && searchResults.length === 0 && (
+                          <View className="w-full py-10 items-center">
+                            <P className="text-zinc-400">
+                              No drops found matching "{searchQuery}"
+                            </P>
+                          </View>
+                        )}
+                        {!isSearching &&
+                          displayedProducts.length === 0 &&
+                          services.length === 0 && (
+                            <View className="w-full py-20 items-center">
+                              <P className="text-zinc-400">
+                                No products or services available.
+                              </P>
+                            </View>
+                          )}
+                      </View>
+                    </>
                   )}
                 </View>
 
@@ -971,10 +1046,7 @@ export default function ShopHome() {
             id: p.id,
             name: p.name,
             price: v?.price || p.price,
-            image:
-              p.images && p.images[0]
-                ? p.images[0]
-                : p.imageUrl || "",
+            image: p.images && p.images[0] ? p.images[0] : p.imageUrl || "",
             variant: v,
           });
         }}
@@ -998,6 +1070,14 @@ export default function ShopHome() {
         user={null}
         forcedTarget="store"
       />
+
+      {selectedService && (
+        <BookingModal
+          service={selectedService}
+          isVisible={!!selectedService}
+          onClose={() => setSelectedService(null)}
+        />
+      )}
     </View>
   );
 }

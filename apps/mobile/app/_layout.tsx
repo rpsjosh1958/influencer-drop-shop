@@ -108,6 +108,10 @@ export default function RootLayout() {
                           name="checkout"
                           options={{ headerShown: false }}
                         />
+                        <Stack.Screen
+                          name="(vendor)"
+                          options={{ headerShown: false }}
+                        />
                       </Stack>
 
                       {/* Splash Overlay */}

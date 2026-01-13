@@ -5,7 +5,6 @@ import {
   Pressable,
   ActivityIndicator,
   Image,
-  Text,
   RefreshControl,
   ScrollView,
 } from "react-native";
@@ -14,51 +13,83 @@ import { H1, P } from "@/components/ui/text";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import {
-  collection,
   collectionGroup,
   query,
   where,
   orderBy,
   getDocs,
 } from "firebase/firestore";
-import { Package, ShoppingBag, ChevronRight, Clock } from "lucide-react-native";
+import {
+  Package,
+  ShoppingBag,
+  Clock,
+  Briefcase,
+  Calendar,
+} from "lucide-react-native";
 import { StatusBar } from "expo-status-bar";
 import { OrderDetailsModal } from "@/components/shop/order-details-modal";
+import { BookingDetailsModal } from "@/components/shop/booking-details-modal";
 import { useRouter, useLocalSearchParams } from "expo-router";
 
 import { useStore } from "@/context/store-context";
 
 export default function OrdersScreen() {
   const router = useRouter();
-  const { storeId } = useStore(); // Get storeId
+  const { storeId } = useStore();
   const params = useLocalSearchParams();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [statusFilter, setStatusFilter] = useState("all");
+
+  // Unified List State
+  const [activities, setActivities] = useState<any[]>([]);
 
   const [detailsVisible, setDetailsVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
-  const FILTERS = ["all", "paid", "packaged", "sent-out", "delivered"];
+  const [bookingDetailsVisible, setBookingDetailsVisible] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
-  const fetchOrders = async (userId: string) => {
+  const fetchData = async (userId: string) => {
     try {
-      const q = query(
-        collectionGroup(db, "orders"), // Unified Query
+      // 1. Fetch Orders
+      const orderQ = query(
+        collectionGroup(db, "orders"),
         where("userId", "==", userId),
         orderBy("createdAt", "desc")
       );
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((doc) => ({
+      const orderSnap = await getDocs(orderQ);
+      const orderData = orderSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
+        type: "order",
         storeId: doc.data().storeId || doc.ref.parent.parent?.id,
       }));
-      setOrders(data);
+
+      // 2. Fetch Bookings
+      const bookingQ = query(
+        collectionGroup(db, "bookings"),
+        where("customerId", "==", userId),
+        orderBy("createdAt", "desc")
+      );
+      const bookingSnap = await getDocs(bookingQ);
+      const bookingData = bookingSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+        type: "booking",
+        storeId: doc.data().storeId || doc.ref.parent.parent?.id,
+      }));
+
+      // 3. Combine and Sort
+      const combined = [...orderData, ...bookingData].sort((a: any, b: any) => {
+        const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
+        const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
+        return dateB - dateA;
+      });
+
+      setActivities(combined);
     } catch (e) {
-      console.error("Error fetching orders:", e);
+      console.error("Error fetching data:", e);
     }
   };
 
@@ -66,7 +97,7 @@ export default function OrdersScreen() {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
-        await fetchOrders(u.uid);
+        await fetchData(u.uid);
       }
       setLoading(false);
     });
@@ -75,30 +106,62 @@ export default function OrdersScreen() {
 
   // Deep Link Handling
   useEffect(() => {
-    if (params.orderId && orders.length > 0 && !detailsVisible) {
-      const target = orders.find((o) => o.id === params.orderId);
+    if (params.orderId && activities.length > 0 && !detailsVisible) {
+      const target = activities.find(
+        (o) => o.id === params.orderId && o.type === "order"
+      );
       if (target) {
-        openDetails(target);
-        // Clear param to prevent reopening loop if state changes
+        openOrderDetails(target);
         router.setParams({ orderId: "" });
       }
     }
-  }, [params.orderId, orders]);
+  }, [params.orderId, activities]);
 
   const onRefresh = async () => {
     if (!user) return;
     setRefreshing(true);
-    await fetchOrders(user.uid);
+    await fetchData(user.uid);
     setRefreshing(false);
   };
 
-  const filteredOrders = orders.filter((o) =>
-    statusFilter === "all" ? true : o.status === statusFilter
-  );
-
-  const openDetails = (order: any) => {
+  const openOrderDetails = (order: any) => {
     setSelectedOrder(order);
     setDetailsVisible(true);
+  };
+
+  const openBookingDetails = (booking: any) => {
+    setSelectedBooking(booking);
+    setBookingDetailsVisible(true);
+  };
+
+  const getOrderStatusColor = (status: string) => {
+    switch (status) {
+      case "paid":
+      case "delivered":
+      case "completed":
+        return "text-green-600 bg-green-50 border-green-100";
+      case "sent-out":
+        return "text-blue-600 bg-blue-50 border-blue-100";
+      case "packaged":
+        return "text-purple-600 bg-purple-50 border-purple-100";
+      default:
+        return "text-yellow-600 bg-yellow-50 border-yellow-100";
+    }
+  };
+
+  const getBookingStatusColor = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return "text-blue-600 bg-blue-50 border-blue-100";
+      case "completed":
+        return "text-green-600 bg-green-50 border-green-100";
+      case "cancelled":
+        return "text-red-600 bg-red-50 border-red-100";
+      case "pending":
+        return "text-amber-600 bg-amber-50 border-amber-100";
+      default:
+        return "text-zinc-600 bg-zinc-100 border-zinc-200";
+    }
   };
 
   if (loading) {
@@ -118,9 +181,9 @@ export default function OrdersScreen() {
           <View className="w-24 h-24 bg-zinc-100 rounded-full items-center justify-center mb-8">
             <Package size={40} color="#71717a" />
           </View>
-          <H1 className="text-3xl font-black text-center mb-2">MY ORDERS</H1>
+          <H1 className="text-3xl font-black text-center mb-2">MY ACTIVITY</H1>
           <P className="text-zinc-500 text-center mb-8">
-            Sign in to view your order history and track shipments.
+            Sign in to view your orders and bookings.
           </P>
           <Pressable
             onPress={() => router.push("/(auth)/login")}
@@ -135,171 +198,182 @@ export default function OrdersScreen() {
     );
   }
 
-  // Get Status Color Helper (Duplicate logic for list item slightly simplified)
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "paid":
-      case "delivered":
-      case "completed":
-        return "bg-green-50 border-green-100";
-      case "sent-out":
-        return "bg-blue-50 border-blue-100";
-      case "packaged":
-        return "bg-purple-50 border-purple-100";
-      default:
-        return "bg-yellow-50 border-yellow-100";
-    }
-  };
-
-  const getStatusTextColor = (status: string) => {
-    switch (status) {
-      case "paid":
-      case "delivered":
-      case "completed":
-        return "text-green-600";
-      case "sent-out":
-        return "text-blue-600";
-      case "packaged":
-        return "text-purple-600";
-      default:
-        return "text-yellow-600";
-    }
-  };
-
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <SafeAreaView className="flex-1" edges={["top"]}>
+      <SafeAreaView className="flex-1 mb-15" edges={["top"]}>
         {/* Header */}
         <View className="px-6 py-4 border-b border-zinc-100 bg-white">
-          <H1 className="text-2xl font-black uppercase">My Orders</H1>
-          <P className="text-zinc-500 text-xs font-bold tracking-widest uppercase mb-4">
-            {filteredOrders.length}{" "}
-            {filteredOrders.length === 1 ? "Order" : "Orders"} Found
+          <H1 className="text-2xl font-black uppercase mb-1">My Activity</H1>
+          <P className="text-zinc-500 text-xs font-bold uppercase tracking-wider">
+            All your orders & bookings
           </P>
-
-          {/* Filters */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: 8, paddingRight: 24 }}
-            className="flex-row"
-          >
-            {FILTERS.map((filter) => (
-              <Pressable
-                key={filter}
-                onPress={() => setStatusFilter(filter)}
-                className={`px-4 py-2 rounded-full border ${
-                  statusFilter === filter
-                    ? "bg-black border-black"
-                    : "bg-white border-zinc-200"
-                }`}
-              >
-                <P
-                  className={`text-xs font-bold uppercase ${
-                    statusFilter === filter ? "text-white" : "text-zinc-500"
-                  }`}
-                >
-                  {filter.replace("-", " ")}
-                </P>
-              </Pressable>
-            ))}
-          </ScrollView>
         </View>
 
-        {orders.length === 0 ? (
+        {activities.length === 0 ? (
           <View className="flex-1 items-center justify-center p-8">
             <View className="w-20 h-20 bg-zinc-50 rounded-full items-center justify-center mb-6">
               <ShoppingBag size={32} color="#d4d4d8" />
             </View>
-            <H1 className="text-xl font-bold mb-2">No orders yet</H1>
+            <H1 className="text-xl font-bold mb-2">No activity yet</H1>
             <P className="text-zinc-500 text-center">
-              Looks like you haven't dropped on anything yet. Start shopping!
+              Start shopping or booking services to see them here!
             </P>
           </View>
         ) : (
           <FlatList
-            data={filteredOrders}
+            data={activities}
             keyExtractor={(item) => item.id}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             contentContainerStyle={{ padding: 24, gap: 16 }}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => openDetails(item)}
-                className="bg-white border border-zinc-100 rounded-2xl p-4 active:bg-zinc-50 transition-colors shadow-sm"
-              >
-                {/* Header: ID, Price */}
-                <View className="flex-row justify-between items-center mb-4">
-                  <View>
-                    {item.storeName && (
-                      <P className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
-                        {item.storeName}
-                      </P>
-                    )}
-                    <P className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600 overflow-hidden self-start">
-                      #{item.id.slice(0, 6).toUpperCase()}
-                    </P>
-                  </View>
-                  <H1 className="text-lg font-black">
-                    {typeof item.total === "number"
-                      ? `GHS ${item.total.toFixed(2)}`
-                      : "GHS 0.00"}
-                  </H1>
-                </View>
-
-                {/* Content: Image Left, Status & Date Right */}
-                <View className="flex-row items-center justify-between">
-                  {/* Image */}
-                  <View>
-                    {item.items && item.items.length > 0 ? (
-                      <Image
-                        source={{
-                          uri:
-                            item.items[0].imageUrl ||
-                            item.items[0].image ||
-                            item.items[0].images?.[0],
-                        }}
-                        className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100"
-                      />
-                    ) : (
-                      <View className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100 items-center justify-center">
-                        <ShoppingBag size={24} color="#e4e4e7" />
+            renderItem={({ item }) => {
+              // RENDER ORDER
+              if (item.type === "order") {
+                return (
+                  <Pressable
+                    onPress={() => openOrderDetails(item)}
+                    className="bg-white border border-zinc-100 rounded-2xl p-4 active:bg-zinc-50 transition-colors shadow-sm"
+                  >
+                    <View className="flex-row justify-between items-center mb-4">
+                      <View>
+                        {item.storeName && (
+                          <P className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
+                            {item.storeName}
+                          </P>
+                        )}
+                        <P className="text-xs font-black bg-zinc-100 px-2 py-1 rounded text-zinc-600 overflow-hidden self-start">
+                          #{item.id.slice(0, 6).toUpperCase()}
+                        </P>
                       </View>
-                    )}
-                  </View>
-
-                  {/* Details */}
-                  <View className="items-end">
-                    <View
-                      className={`px-2 py-0.5 rounded-full border mb-2 ${getStatusColor(
-                        item.status
-                      )}`}
-                    >
-                      <P
-                        className={`text-[10px] font-bold uppercase ${getStatusTextColor(
-                          item.status
-                        )}`}
-                      >
-                        {item.status}
-                      </P>
+                      <H1 className="text-lg font-black">
+                        {typeof item.total === "number"
+                          ? `GHS ${item.total.toFixed(2)}`
+                          : "GHS 0.00"}
+                      </H1>
                     </View>
 
-                    <View className="flex-row items-center gap-1">
-                      <Clock size={14} color="#a1a1aa" />
-                      <P className="text-xs text-zinc-400 font-bold uppercase">
-                        {item.createdAt
-                          ? new Date(
-                              item.createdAt.seconds * 1000
-                            ).toLocaleDateString("en-GB")
-                          : ""}
-                      </P>
+                    <View className="flex-row items-center justify-between">
+                      <View>
+                        {item.items && item.items.length > 0 ? (
+                          <Image
+                            source={{
+                              uri:
+                                item.items[0].imageUrl ||
+                                item.items[0].image ||
+                                item.items[0].images?.[0],
+                            }}
+                            className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100"
+                          />
+                        ) : (
+                          <View className="w-16 h-16 bg-zinc-100 rounded-xl border border-zinc-100 items-center justify-center">
+                            <ShoppingBag size={24} color="#e4e4e7" />
+                          </View>
+                        )}
+                      </View>
+
+                      <View className="items-end">
+                        <View
+                          className={`px-2 py-0.5 rounded-full border mb-2 ${
+                            getOrderStatusColor(item.status).split(" ")[1]
+                          } ${getOrderStatusColor(item.status).split(" ")[2]}`}
+                        >
+                          <P
+                            className={`text-[10px] font-bold uppercase ${
+                              getOrderStatusColor(item.status).split(" ")[0]
+                            }`}
+                          >
+                            {item.status}
+                          </P>
+                        </View>
+
+                        <View className="flex-row items-center gap-1">
+                          <Clock size={14} color="#a1a1aa" />
+                          <P className="text-xs text-zinc-400 font-bold uppercase">
+                            {item.createdAt
+                              ? new Date(
+                                  item.createdAt.seconds * 1000
+                                ).toLocaleDateString("en-GB")
+                              : ""}
+                          </P>
+                        </View>
+                      </View>
                     </View>
-                  </View>
-                </View>
-              </Pressable>
-            )}
+                  </Pressable>
+                );
+              }
+
+              // RENDER BOOKING
+              if (item.type === "booking") {
+                return (
+                  <Pressable
+                    onPress={() => openBookingDetails(item)}
+                    className="bg-white border border-zinc-100 rounded-2xl p-4 active:bg-zinc-50 transition-colors shadow-sm"
+                  >
+                    <View className="flex-row justify-between items-start mb-4">
+                      <View className="flex-1 mr-4">
+                        {item.storeName && (
+                          <P className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
+                            {item.storeName}
+                          </P>
+                        )}
+                         <View className="bg-violet-100 self-start px-2 py-0.5 rounded-md mb-1">
+                            <P className="text-[10px] font-black text-violet-700 uppercase">
+                                Booking
+                            </P>
+                        </View>
+                        <H1 className="text-lg font-black" numberOfLines={1}>
+                          {item.serviceName}
+                        </H1>
+                      </View>
+                      <H1 className="text-lg font-black">
+                        GHS {item.servicePrice.toFixed(2)}
+                      </H1>
+                    </View>
+
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-row items-center gap-2">
+                        <Calendar size={14} color="#a1a1aa" />
+                        <P className="text-xs text-zinc-500 font-bold uppercase">
+                          {item.date
+                            ? new Date(item.date).toLocaleDateString("en-GB", {
+                                month: "short",
+                                day: "numeric",
+                              })
+                            : ""}
+                        </P>
+                        <View className="w-1 h-1 bg-zinc-300 rounded-full" />
+                        <Clock size={14} color="#a1a1aa" />
+                        <P className="text-xs text-zinc-500 font-bold uppercase">
+                          {item.startTime}
+                        </P>
+                      </View>
+
+                      <View className="items-end">
+                        <View
+                          className={`px-2 py-0.5 rounded-full border ${
+                            getBookingStatusColor(item.status).split(" ")[1]
+                          } ${
+                            getBookingStatusColor(item.status).split(" ")[2]
+                          }`}
+                        >
+                          <P
+                            className={`text-[10px] font-bold uppercase ${
+                              getBookingStatusColor(item.status).split(" ")[0]
+                            }`}
+                          >
+                            {item.status}
+                          </P>
+                        </View>
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              }
+
+              return null;
+            }}
           />
         )}
 
@@ -308,6 +382,14 @@ export default function OrdersScreen() {
           order={selectedOrder}
           onClose={() => setDetailsVisible(false)}
         />
+
+        {bookingDetailsVisible && selectedBooking && (
+          <BookingDetailsModal
+            visible={bookingDetailsVisible}
+            booking={selectedBooking}
+            onClose={() => setBookingDetailsVisible(false)}
+          />
+        )}
       </SafeAreaView>
     </View>
   );

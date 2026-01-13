@@ -354,9 +354,13 @@ export function FloatingCart() {
                     key={`${item.id}-${item.variant?.id || "base"}`}
                     item={item}
                     index={i}
-                    onUpdate={(item: any, delta: number) =>
-                      updateQuantity(item.id, item.variant?.id, delta)
-                    }
+                    onUpdate={(item: any, delta: number) => {
+                      if (delta < 0 && item.quantity === 1) {
+                        handleRemove(item);
+                      } else {
+                        updateQuantity(item.id, item.variant?.id, delta);
+                      }
+                    }}
                     onRemove={handleRemove}
                   />
                 ))}

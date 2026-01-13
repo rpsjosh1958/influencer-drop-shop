@@ -427,6 +427,64 @@ export default function StoreSettingsPage() {
                       <option value="maintenance">Maintenance (Closed)</option>
                     </select>
                   </div>
+
+                  {/* Store Type Section */}
+                  <div className="space-y-2 pt-6 border-t border-zinc-100">
+                    <label className="text-sm font-bold text-zinc-900">
+                      Store Type
+                    </label>
+                    <p className="text-xs text-zinc-500 mb-3">
+                      This determines what features are available in your admin
+                      portal.
+                    </p>
+                    <select
+                      value={config.type || "product"}
+                      onChange={(e) => {
+                        const newType = e.target.value as
+                          | "product"
+                          | "service"
+                          | "hybrid";
+                        const newFeatures = {
+                          hasProducts:
+                            newType === "product" || newType === "hybrid",
+                          hasServices:
+                            newType === "service" || newType === "hybrid",
+                          hasPreorders: newType === "hybrid",
+                        };
+                        setNested(["type"], newType);
+                        setNested(["features"], newFeatures);
+                      }}
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                    >
+                      <option value="product">
+                        Products Only (Physical goods)
+                      </option>
+                      <option value="service">
+                        Services Only (Appointments/Bookings)
+                      </option>
+                      <option value="hybrid">Both (Products + Services)</option>
+                    </select>
+
+                    {config.features && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {config.features.hasProducts && (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                            Products ✓
+                          </span>
+                        )}
+                        {config.features.hasServices && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                            Services ✓
+                          </span>
+                        )}
+                        {config.features.hasPreorders && (
+                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
+                            Pre-orders ✓
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </motion.div>
               )}
 

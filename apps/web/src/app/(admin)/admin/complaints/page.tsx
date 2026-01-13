@@ -196,20 +196,20 @@ export default function AdminComplaintsPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
                   <button
                     onClick={() =>
                       handleStatusUpdate(selectedComplaint.id, "resolved")
                     }
-                    className="h-10 px-4 bg-white border border-zinc-200 rounded-lg text-black text-sm font-bold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
+                    className="h-11 px-6 bg-white border border-zinc-200 rounded-xl text-black text-sm font-bold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
                   >
-                    <CheckCircle2 size={16} /> Mark Resolved
+                    <CheckCircle2 size={18} /> Mark Resolved
                   </button>
                   <a
                     href={`mailto:${selectedComplaint.customerEmail}?subject=Re: ${selectedComplaint.subject} [Ticket: ${selectedComplaint.id}]`}
-                    className="h-10 px-4 bg-black text-white rounded-lg text-sm font-bold hover:bg-zinc-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    className="h-11 px-6 bg-black border border-zinc-200 rounded-xl text-white text-sm font-bold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
                   >
-                    <Mail size={16} /> Reply via Email
+                    <Mail size={18} /> Reply via Email
                   </a>
                 </div>
               </div>

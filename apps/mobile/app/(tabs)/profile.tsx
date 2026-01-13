@@ -31,8 +31,14 @@ import {
   setDoc,
   arrayUnion,
   arrayRemove,
+  collection,
+  query,
+  where,
+  getDocs,
+  limit,
 } from "firebase/firestore";
 import { router } from "expo-router";
+import * as Linking from "expo-linking";
 import {
   User,
   MapPin,
@@ -48,6 +54,7 @@ import {
   MoreVertical,
   Eye,
   EyeOff,
+  Store,
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
@@ -407,6 +414,50 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleServicesSwitch = async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      // 1. Check if user has a store
+      const storeQuery = query(
+        collection(db, "stores"),
+        where("ownerId", "==", user.uid),
+        limit(1)
+      );
+      const snapshot = await getDocs(storeQuery);
+
+      if (!snapshot.empty) {
+        // 2. IS VENDOR -> Redirect to Admin
+        router.replace("/(vendor)/(tabs)/dashboard" as any);
+      } else {
+        // 3. NOT VENDOR -> Prompt to Create
+        Alert.alert(
+          "Become a Seller",
+          "You need a store to access the seller portal. Create one on our website!",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Create Store",
+              onPress: () =>
+                Linking.openURL(
+                  "https://thedrop-admin.vercel.app/create-store"
+                ), // Replace with actual URL if known, assuming prod/dev URL
+            },
+          ]
+        );
+      }
+    } catch (e) {
+      console.error(e);
+      showAlert({
+        title: "Error",
+        message: "Failed to switch mode.",
+        type: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const cancelAddressEdit = () => {
     setAddingAddress(false);
     setEditingAddressId(null);
@@ -450,6 +501,15 @@ export default function ProfileScreen() {
             className="mt-4"
           >
             <P className="text-zinc-500 font-bold">Create an account</P>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/(auth)/login")}
+            className="mt-8 py-2 px-4 bg-zinc-100 rounded-lg"
+          >
+            <P className="text-zinc-500 text-xs font-bold uppercase tracking-wider">
+              Login to Vendor Portal
+            </P>
           </Pressable>
         </SafeAreaView>
       </View>
@@ -512,6 +572,11 @@ export default function ProfileScreen() {
 
                 {/* Menu Items */}
                 <View className="space-y-6">
+                  <MenuItem
+                    icon={Store}
+                    label="Switch to Seller Mode"
+                    onPress={handleServicesSwitch}
+                  />
                   <MenuItem
                     icon={User}
                     label="Personal Info"

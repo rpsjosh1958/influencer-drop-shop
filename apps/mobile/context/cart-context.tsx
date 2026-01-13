@@ -57,12 +57,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   }, [storeId]);
 
-  // Save to storage
   useEffect(() => {
     if (loaded && storeId) {
       AsyncStorage.setItem(`cart-${storeId}`, JSON.stringify(cart));
     }
-  }, [cart, loaded, storeId]); // Added storeId dependency
+  }, [cart, loaded, storeId]);
 
   const addToCart = (newItem: Omit<CartItem, "quantity">) => {
     setCart((prev) => {

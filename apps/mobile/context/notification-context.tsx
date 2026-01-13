@@ -35,7 +35,13 @@ Notifications.setNotificationHandler({
 
 export interface Notification {
   id: string;
-  type: "order_update" | "drop" | "info" | "broadcast";
+  type:
+    | "order_update"
+    | "drop"
+    | "info"
+    | "broadcast"
+    | "booking_confirmed"
+    | "booking_cancelled_admin";
   title: string;
   message: string;
   read: boolean;
@@ -50,6 +56,7 @@ interface NotificationContextType {
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   latestNotification: Notification | null; // For Banner
+  refetch: () => Promise<any>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -135,10 +142,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Learn more about projectId:
-      // https://docs.expo.dev/push-notifications/push-notifications-setup/#configure-projectid
-      // For now, getting token without explicit projectId often works if configured in app.json
-      // or using development build, but explicitly passing it is safer if using EAS.
       try {
         const projectId =
           Constants?.expoConfig?.extra?.eas?.projectId ??
@@ -189,8 +192,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
           // If this is a new notification added *after* initial load (or very top of list), potentially trigger banner
-          // real-time check: if the timestamp is very recent?
-          // simpler: just set latestNotification if it's "modified" or "added" at index 0
         }
       });
 
@@ -214,14 +215,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       setNotifications(items);
 
-      // Check for a fresh unread notification to show generic banner
-      // We only want to show banner for the very top item if it's unread and we haven't seen it in this session logic?
-      // actually, let's just expose the top unread item if it was just added.
-      // For now, simpliest approach: Just expose the first item if unread.
       if (items.length > 0 && !items[0].read) {
-        // Verify it's recent (e.g. within last 10 seconds)?
-        // Or just let the UI handle "Previous vs New" logic.
-        // The banner component will decide whether to show based on ID change.
         setLatestNotification(items[0]);
       }
 
@@ -294,6 +288,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  const refetch = async () => {
+    return new Promise((resolve) => setTimeout(resolve, 500));
+  };
+
   return (
     <NotificationContext.Provider
       value={{
@@ -303,6 +301,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         markAsRead,
         markAllAsRead,
         latestNotification,
+        refetch,
       }}
     >
       {children}

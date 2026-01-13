@@ -11,11 +11,20 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-export function AdminNavBadge({ type }: { type: "complaints" | "orders" }) {
-  const { storeId } = useAdminStore();
+export function AdminNavBadge({
+  type,
+}: {
+  type: "complaints" | "orders" | "bookings";
+}) {
+  const { storeId, pendingBookingsCount } = useAdminStore();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
+    if (type === "bookings") {
+      setCount(pendingBookingsCount);
+      return;
+    }
+
     if (!storeId) return;
 
     let q;
@@ -40,7 +49,7 @@ export function AdminNavBadge({ type }: { type: "complaints" | "orders" }) {
     });
 
     return () => unsubscribe();
-  }, [storeId, type]);
+  }, [storeId, type, pendingBookingsCount]);
 
   if (count === 0) return null;
 

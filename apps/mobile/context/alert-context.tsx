@@ -35,6 +35,7 @@ export function AlertProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
 
   const showAlert = (options: AlertOptions) => {
+    console.log("showAlert called with:", options.title);
     setAlert(options);
     setVisible(true);
   };
@@ -116,6 +117,8 @@ export function AlertProvider({ children }: { children: ReactNode }) {
         visible={visible}
         transparent
         animationType="fade"
+        statusBarTranslucent
+        presentationStyle="overFullScreen"
         onRequestClose={() => {
           if (!loading && !alert?.singleButton) {
             alert?.onCancel?.();

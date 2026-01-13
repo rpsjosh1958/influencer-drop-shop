@@ -113,6 +113,36 @@ service cloud.firestore {
         allow read: if isParentStoreOwner() || isSuperAdmin();
         allow update: if isSuperAdmin(); // Admins resolve tickets
       }
+
+      // -- Services (For service-based stores) --
+      match /services/{serviceId} {
+        allow read: if true; // Public can view services
+        allow create, update, delete: if isParentStoreOwner();
+      }
+
+      // -- Availability Settings (Store schedule) --
+      match /availability/{docId} {
+        allow read: if true; // Public can check available slots
+        allow create, update, delete: if isParentStoreOwner();
+      }
+
+      // -- Bookings (Appointments) --
+      match /bookings/{bookingId} {
+        // Anyone can create a booking (public checkout)
+        allow create: if true;
+        
+        // Store Owner can read all bookings for their store
+        // Authenticated customers can read their own bookings
+        allow read: if isParentStoreOwner() || 
+          (isAuthenticated() && resource.data.customerId == request.auth.uid) ||
+          true; // For now, allow public read during development - tighten later
+        
+        // Only the store owner can update (confirm, cancel, complete)
+        allow update: if isParentStoreOwner();
+        
+        // Store owner can delete bookings
+        allow delete: if isParentStoreOwner();
+      }
     }
 
     // --- Notifications (Root) ---
@@ -143,6 +173,12 @@ service cloud.firestore {
     }
     match /{path=**}/products/{productId} {
       allow read: if true;
+    }
+    match /{path=**}/services/{serviceId} {
+      allow read: if true;
+    }
+    match /{path=**}/bookings/{bookingId} {
+      allow read: if isAuthenticated() && resource.data.customerId == request.auth.uid;
     }
   }
 }

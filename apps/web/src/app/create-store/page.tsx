@@ -60,7 +60,7 @@ export default function CreateStoreWizard() {
     storeName: "",
     storeSlug: "",
     category: "Fashion",
-    storeType: "product", // "product" | "service"
+    storeType: "product", // "product" | "service" | "hybrid"
   });
 
   // State
@@ -234,12 +234,21 @@ export default function CreateStoreWizard() {
         throw new Error("Store URL is already taken. Try a different name.");
       }
 
+      // Derive features from store type
+      const storeType = formData.storeType as "product" | "service" | "hybrid";
+      const features = {
+        hasProducts: storeType === "product" || storeType === "hybrid",
+        hasServices: storeType === "service" || storeType === "hybrid",
+        hasPreorders: storeType === "hybrid",
+      };
+
       // Create Store
       await setDoc(storeRef, {
         name: formData.storeName,
         slug: storeId,
         category: formData.category,
-        type: formData.storeType, // "product" or "service"
+        type: storeType,
+        features,
         ownerId: auth.currentUser.uid,
         status: "live",
         plan: "starter",
@@ -423,7 +432,7 @@ export default function CreateStoreWizard() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    Phone (Momo)
+                    Phone Number
                   </label>
                   <input
                     name="phone"
@@ -646,7 +655,10 @@ export default function CreateStoreWizard() {
                   className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
                 >
                   <option value="product">Products (Physical)</option>
-                  <option value="service">Services (Digital/Bookings)</option>
+                  <option value="service">
+                    Services (Appointments/Bookings)
+                  </option>
+                  <option value="hybrid">Both (Products + Services)</option>
                 </select>
               </div>
             </div>

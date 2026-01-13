@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Product, Category } from "@/types";
+import { Product, Category, ServiceItem } from "@/types";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/components/shop/store-provider";
 import { useCart } from "@/components/shop/cart-provider";
@@ -31,6 +31,7 @@ import { StoreSwitcher } from "@/components/shop/store-switcher";
 import { NotificationDropdown } from "@/components/shop/notification-dropdown";
 import { OrdersDropdown } from "@/components/shop/orders-dropdown";
 import { ProductCard } from "@/components/shop/product-card";
+import { ServiceCard } from "@/components/shop/service-card";
 import { ProfileModal } from "@/components/shop/profile-modal";
 import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Added
 import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
@@ -51,6 +52,7 @@ export default function ShopHome() {
   const { store } = useStore();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
@@ -119,6 +121,18 @@ export default function ShopHome() {
           })) as Category[];
           setCategories(itemsCategories);
         });
+
+        // Fetch Services (for service/hybrid stores)
+        const qServices = query(
+          collection(db, "stores", storeId, "services"),
+          orderBy("createdAt", "desc")
+        );
+        const snapshotServices = await getDocs(qServices);
+        const itemsServices = snapshotServices.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as ServiceItem[];
+        setServices(itemsServices.filter((s) => s.isActive));
 
         return () => unsubCategories();
       } catch (error: any) {
@@ -479,6 +493,28 @@ export default function ShopHome() {
         </section>
       )}
 
+      {/* Services Section (for service/hybrid stores) */}
+      {services.length > 0 && (
+        <section className="px-4 md:px-8 max-w-7xl mx-auto mb-12">
+          <h2
+            className="text-2xl md:text-3xl font-bold mb-6"
+            style={{ color: primaryColor }}
+          >
+            Our Services
+          </h2>
+          <div className={`grid ${getGridClass()}`}>
+            {services.map((service, i) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                index={i}
+                storeId={storeId}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Product Feed */}
       <section className="px-4 mt-5 md:px-8 max-w-7xl mx-auto">
         {loading ? (
@@ -490,25 +526,39 @@ export default function ShopHome() {
               />
             ))}
           </div>
-        ) : (
-          <div className={`grid ${getGridClass()}`}>
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product, i) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  index={i}
-                  addToCart={addToCart}
-                  initialOpen={searchParams.get("productId") === product.id}
-                />
-              ))
-            ) : (
-              <div className="col-span-full py-20 text-center opacity-50">
-                <p>No products found in this category.</p>
-              </div>
+        ) : products.length > 0 ? (
+          <>
+            {services.length > 0 && (
+              <h2
+                className="text-2xl md:text-3xl font-bold mb-6"
+                style={{ color: primaryColor }}
+              >
+                Products
+              </h2>
             )}
+            <div className={`grid ${getGridClass()}`}>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product, i) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    index={i}
+                    addToCart={addToCart}
+                    initialOpen={searchParams.get("productId") === product.id}
+                  />
+                ))
+              ) : (
+                <div className="col-span-full py-20 text-center opacity-50">
+                  <p>No products found in this category.</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : services.length === 0 ? (
+          <div className="col-span-full py-20 text-center opacity-50">
+            <p>No products or services available.</p>
           </div>
-        )}
+        ) : null}
       </section>
 
       {/* Footer */}
