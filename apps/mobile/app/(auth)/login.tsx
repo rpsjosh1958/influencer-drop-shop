@@ -42,7 +42,13 @@ export default function Login() {
       // Auth
       await signInWithEmailAndPassword(auth, data.email, data.password);
 
-      // Router replacement is handled by root layout listener
+      // Force navigation if intended (safety fallback if listener is unmounted)
+      if (intent === "vendor") {
+        router.replace("/(vendor)/(tabs)/dashboard");
+      } else {
+        // Allow root listener or default flow
+        // router.replace("/(tabs)");
+      }
     } catch (err: any) {
       console.log("Login error:", err);
       if (err instanceof z.ZodError) {

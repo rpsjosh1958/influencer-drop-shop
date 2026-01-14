@@ -72,7 +72,13 @@ export default function RootLayout() {
                           options={{ presentation: "modal", title: "Modal" }}
                         />
                         <Stack.Screen name="checkout" />
-                        <Stack.Screen name="(vendor)" />
+                        <Stack.Screen
+                          name="(vendor)"
+                          options={{
+                            gestureEnabled: false,
+                            headerShown: false,
+                          }}
+                        />
                       </Stack>
 
                       {/* Splash Overlay */}
@@ -86,9 +92,9 @@ export default function RootLayout() {
                         >
                           <AnimatedSplash
                             onFinish={() => {
-                              // Only finish if auth is also ready? 
+                              // Only finish if auth is also ready?
                               // Actually AnimatedSplash handles the wait usually.
-                              // Let's just set the flag. 
+                              // Let's just set the flag.
                               // If auth isn't ready, the view stays because of !authInitialized check above.
                               setSplashFinished(true);
                             }}
@@ -108,5 +114,12 @@ export default function RootLayout() {
   );
 }
 
-const StyleSheet = { absoluteFillObject: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 } as const };
-
+const StyleSheet = {
+  absoluteFillObject: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+  } as const,
+};

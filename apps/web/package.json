@@ -12,6 +12,8 @@
     "@ai-sdk/google": "^3.0.2",
     "@ai-sdk/openai": "^3.0.2",
     "@ai-sdk/react": "^3.0.5",
+    "@datadog/browser-rum": "^6.25.3",
+    "@datadog/browser-rum-react": "^6.25.3",
     "ai": "3.4.33",
     "clsx": "^2.1.1",
     "country-state-city": "^3.2.1",

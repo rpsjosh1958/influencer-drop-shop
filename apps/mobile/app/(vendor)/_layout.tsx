@@ -110,6 +110,7 @@ function VendorLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Drawer
         drawerContent={CustomDrawerContent}
+        backBehavior="history"
         screenOptions={{
           headerShown: false,
           drawerActiveTintColor: "#000",
@@ -217,10 +218,10 @@ function VendorLayout() {
           }}
         />
         <Drawer.Screen
-          name="add-product"
+          name="product-form"
           options={{
             drawerItemStyle: { display: "none" },
-            title: "Add Product",
+            title: "Product Form",
           }}
         />
         <Drawer.Screen

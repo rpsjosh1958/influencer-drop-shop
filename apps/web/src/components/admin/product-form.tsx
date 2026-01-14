@@ -504,7 +504,7 @@ export function ProductForm({
                               <input
                                 type="number"
                                 step="0.01"
-                                value={v.price}
+                                value={v.price === 0 ? "" : v.price}
                                 onChange={(e) =>
                                   updateVariant(v.id, "price", e.target.value)
                                 }
@@ -514,7 +514,7 @@ export function ProductForm({
                             <td className="p-3">
                               <input
                                 type="number"
-                                value={v.stock}
+                                value={v.stock === 0 ? "" : v.stock}
                                 onChange={(e) =>
                                   updateVariant(v.id, "stock", e.target.value)
                                 }

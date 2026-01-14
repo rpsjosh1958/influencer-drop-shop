@@ -8,6 +8,7 @@ import { Package, Clock, Plus, Menu } from "lucide-react-native";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { router } from "expo-router";
+import { ServiceDetailsModal } from "@/components/vendor/service-details-modal";
 
 export default function VendorInventory() {
   const { store, products } = useVendor();
@@ -15,6 +16,7 @@ export default function VendorInventory() {
     "products"
   );
   const [services, setServices] = useState<any[]>([]);
+  const [selectedService, setSelectedService] = useState<any>(null);
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -31,13 +33,31 @@ export default function VendorInventory() {
 
   const handleAdd = () => {
     if (activeTab === "products") {
-      router.push("/(vendor)/add-product" as any);
+      router.push("/(vendor)/product-form" as any);
     } else {
       Alert.alert(
         "Services",
         "Service creation is currently only available on the Web Dashboard."
       );
     }
+  };
+
+  const handleProductPress = (product: any) => {
+    if (store?.status === "open") {
+      Alert.alert(
+        "Store is Open",
+        "You must close your store before editing products."
+      );
+      return;
+    }
+    router.push({
+      pathname: "/(vendor)/product-form",
+      params: { id: product.id },
+    } as any);
+  };
+
+  const handleServicePress = (service: any) => {
+    setSelectedService(service);
   };
 
   return (
@@ -91,13 +111,17 @@ export default function VendorInventory() {
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
         {activeTab === "products"
           ? products.map((p) => (
-              <View
+              <Pressable
                 key={p.id}
-                className="flex-row mb-4 bg-zinc-50 p-3 rounded-2xl border border-zinc-100"
+                onPress={() => handleProductPress(p)}
+                className="flex-row mb-4 bg-zinc-50 p-3 rounded-2xl border border-zinc-100 active:bg-zinc-100"
               >
                 <Image
                   source={{
-                    uri: p.images?.[0] || "https://via.placeholder.com/150",
+                    uri:
+                      p.images?.[0] ||
+                      p.imageUrl ||
+                      "https://via.placeholder.com/150",
                   }}
                   className="w-20 h-20 rounded-xl bg-zinc-200"
                 />
@@ -117,12 +141,13 @@ export default function VendorInventory() {
                     </P>
                   </View>
                 </View>
-              </View>
+              </Pressable>
             ))
           : services.map((s) => (
-              <View
+              <Pressable
                 key={s.id}
-                className="flex-row mb-4 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 items-center"
+                onPress={() => handleServicePress(s)}
+                className="flex-row mb-4 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 items-center active:bg-zinc-100"
               >
                 <View className="w-12 h-12 bg-white rounded-full items-center justify-center border border-zinc-100">
                   <Clock size={20} color="black" />
@@ -133,9 +158,15 @@ export default function VendorInventory() {
                     {s.duration} minutes • GHS {s.price?.toFixed(2)}
                   </P>
                 </View>
-              </View>
+              </Pressable>
             ))}
       </ScrollView>
+
+      <ServiceDetailsModal
+        visible={!!selectedService}
+        service={selectedService}
+        onClose={() => setSelectedService(null)}
+      />
     </SafeAreaView>
   );
 }

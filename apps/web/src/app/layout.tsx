@@ -7,6 +7,7 @@ import {
   Playfair_Display,
   Courier_Prime,
 } from "next/font/google";
+import DatadogInit from "../components/datadog-init";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -100,6 +101,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${roboto.variable} ${playfair.variable} ${courier.variable} antialiased`}
       >
+        <DatadogInit />
         {children}
       </body>
     </html>
