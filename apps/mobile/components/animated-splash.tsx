@@ -14,7 +14,7 @@ export function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     // Simulate loading time
     const timer = setTimeout(() => {
       setShouldExit(true); // Trigger exit animation
-    }, 2500); // Slightly longer to ensure app is ready
+    }, 3500); // Increased to ensure animation finishes
 
     return () => clearTimeout(timer);
   }, []);

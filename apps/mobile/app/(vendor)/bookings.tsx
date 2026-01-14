@@ -1,62 +1,151 @@
+/// <reference types="nativewind/types" />
 import {
   View,
   ScrollView,
   Pressable,
   RefreshControl,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
-import { useState, useEffect, useMemo } from "react";
+import { DrawerActions, useNavigation } from "@react-navigation/native";
+import { VendorBookingDetails } from "@/components/vendor/vendor-booking-details";
 import { useVendor } from "@/context/vendor-context";
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { addDays, format, startOfDay, parseISO } from "date-fns";
-import { Calendar, Clock, Briefcase, Menu } from "lucide-react-native";
-import { VendorBookingDetails } from "@/components/vendor/vendor-booking-details";
+  addDays,
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  isSameDay,
+  subMonths,
+  addMonths,
+} from "date-fns";
+import {
+  Menu,
+  CalendarIcon,
+  List,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react-native";
+import { useState, useEffect, useMemo } from "react";
+// ... imports
 
 export default function VendorBookings() {
-  const { store } = useVendor();
+  const navigation = useNavigation<any>();
+  const { store, bookings: allBookings, refreshStore } = useVendor();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
-  const navigation = useNavigation();
+  const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
+  const [showFullCalendar, setShowFullCalendar] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Generate next 14 days
-  const dates = useMemo(() => {
-    return Array.from({ length: 14 }).map((_, i) => addDays(new Date(), i));
-  }, []);
+  // Deep linking logic temporarily disabled to fix crash
+  // useEffect(() => {
+  //   if (params.bookingId && allBookings.length > 0) {
+  //     const booking = allBookings.find((b: any) => b.id === params.bookingId);
+  //     if (booking) {
+  //       setSelectedBooking(booking);
+  //     }
+  //   }
+  // }, [params.bookingId, allBookings]);
 
-  useEffect(() => {
-    if (!store?.id) return;
-    setLoading(true);
+  // Generate Date Strip
+  const dateStripDocs = useMemo(() => {
+    const start = addDays(selectedDate, -3);
+    return Array.from({ length: 14 }).map((_, i) => addDays(start, i));
+  }, [selectedDate]);
 
-    // Fetch bookings for the selected date
+  // Filter bookings for selected date (Calendar View)
+  const calendarViewBookings = useMemo(() => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
-
-    const q = query(
-      collection(db, "stores", store.id, "bookings"),
-      where("date", "==", dateStr)
+    const items = allBookings.filter((b: any) => b.date === dateStr);
+    return items.sort((a: any, b: any) =>
+      a.startTime.localeCompare(b.startTime)
     );
+  }, [allBookings, selectedDate]);
 
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      // Sort by time
-      items.sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
-      setBookings(items);
-      setLoading(false);
+  // All Bookings Sorted (List View)
+  const listViewBookings = useMemo(() => {
+    return [...allBookings].sort((a: any, b: any) => {
+      const dateA = a.date + a.startTime;
+      const dateB = b.date + b.startTime;
+      return dateB.localeCompare(dateA); // Newest first
     });
+  }, [allBookings]);
 
-    return () => unsub();
-  }, [store?.id, selectedDate]);
+  // Check if a date has bookings
+  const hasBookings = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    return allBookings.some((b: any) => b.date === dateStr);
+  };
+
+  // Full Calendar Days
+  const fullCalendarDays = useMemo(() => {
+    const start = startOfMonth(currentMonth);
+    const end = endOfMonth(currentMonth);
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth]);
+
+  const BookingCard = ({ booking }: { booking: any }) => (
+    <Pressable
+      onPress={() => setSelectedBooking(booking)}
+      className="flex-row mb-4 bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm active:scale-[0.98] transition-all"
+    >
+      {/* Time Column */}
+      <View className="bg-zinc-50 p-4 items-center justify-center w-24 border-r border-zinc-100">
+        <P className="font-bold text-lg text-center leading-5 mb-1">
+          {booking.startTime}
+        </P>
+        <P className="text-xs text-zinc-400 font-bold">{booking.endTime}</P>
+        <View className="mt-2 pt-2 border-t border-zinc-200 w-full items-center">
+          <P className="text-[10px] text-zinc-400 font-bold uppercase">
+            {format(new Date(booking.date), "MMM d")}
+          </P>
+        </View>
+      </View>
+      {/* Info */}
+      <View className="flex-1 p-4 justify-center">
+        <P className="font-bold text-base mb-1" numberOfLines={1}>
+          {booking.customerName}
+        </P>
+        <P className="text-xs text-zinc-500 font-medium mb-2">
+          {booking.serviceName}
+        </P>
+        <View
+          className={`self-start px-2 py-0.5 rounded-md ${
+            booking.status === "confirmed"
+              ? "bg-blue-100"
+              : booking.status === "completed"
+              ? "bg-green-100"
+              : booking.status === "cancelled"
+              ? "bg-red-100"
+              : booking.status === "pending"
+              ? "bg-amber-100"
+              : "bg-zinc-100"
+          }`}
+        >
+          <P
+            className={`text-[10px] font-bold uppercase ${
+              booking.status === "confirmed"
+                ? "text-blue-700"
+                : booking.status === "completed"
+                ? "text-green-700"
+                : booking.status === "cancelled"
+                ? "text-red-700"
+                : booking.status === "pending"
+                ? "text-amber-700"
+                : "text-zinc-500"
+            }`}
+          >
+            {booking.status}
+          </P>
+        </View>
+      </View>
+    </Pressable>
+  );
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -68,111 +157,260 @@ export default function VendorBookings() {
           >
             <Menu size={24} color="black" />
           </Pressable>
-          <H1 className="text-xl font-black uppercase">Schedule</H1>
+          <H1 className="text-xl font-black uppercase">Bookings</H1>
+        </View>
+
+        {/* Tabs */}
+        <View className="px-6 py-4 flex-row gap-6 border-b border-zinc-100">
+          <Pressable onPress={() => setViewMode("calendar")}>
+            <P
+              className={`text-lg font-bold ${
+                viewMode === "calendar" ? "text-black" : "text-zinc-300"
+              }`}
+            >
+              Calendar
+            </P>
+            {viewMode === "calendar" && (
+              <View className="h-1 bg-black w-4 mt-1 rounded-full" />
+            )}
+          </Pressable>
+          <Pressable onPress={() => setViewMode("list")}>
+            <P
+              className={`text-lg font-bold ${
+                viewMode === "list" ? "text-black" : "text-zinc-300"
+              }`}
+            >
+              List
+            </P>
+            {viewMode === "list" && (
+              <View className="h-1 bg-black w-4 mt-1 rounded-full" />
+            )}
+          </Pressable>
         </View>
       </View>
 
-      {/* Date Strip */}
-      <View className="bg-zinc-50 pt-4 pb-4">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 24, gap: 10 }}
-        >
-          {dates.map((date, i) => {
-            const isSelected =
-              format(date, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
-            return (
-              <Pressable
-                key={i}
-                onPress={() => setSelectedDate(date)}
-                className={`items-center justify-center w-14 h-20 rounded-2xl border ${
-                  isSelected
-                    ? "bg-black border-black"
-                    : "bg-white border-zinc-200"
-                }`}
-              >
-                <P
-                  className={`text-xs font-bold mb-1 ${
-                    isSelected ? "text-zinc-400" : "text-zinc-400"
-                  }`}
-                >
-                  {format(date, "EEE")}
-                </P>
-                <P
-                  className={`text-xl font-black ${
-                    isSelected ? "text-white" : "text-black"
-                  }`}
-                >
-                  {format(date, "d")}
-                </P>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* Bookings List */}
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
-        <P className="font-bold text-lg mb-4">
-          {format(selectedDate, "MMMM d, yyyy")}
-        </P>
-
-        {loading ? (
-          <ActivityIndicator color="black" />
-        ) : bookings.length === 0 ? (
-          <View className="items-center justify-center py-20 bg-zinc-50 rounded-2xl border border-zinc-100 dashed">
-            <Calendar size={40} color="#d4d4d8" />
-            <P className="text-zinc-400 font-bold mt-4">
-              No bookings for this day
+      {/* CALENDAR VIEW */}
+      {viewMode === "calendar" ? (
+        <View className="flex-1">
+          {/* Selected Date Header + Full Calendar Button */}
+          <View className="px-6 pt-6 pb-2 flex-row items-center justify-between">
+            <P className="font-bold text-2xl">
+              {format(selectedDate, "MMMM d, yyyy")}
             </P>
-          </View>
-        ) : (
-          bookings.map((booking) => (
             <Pressable
-              key={booking.id}
-              onPress={() => setSelectedBooking(booking)}
-              className="flex-row mb-4 bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm active:scale-[0.98] transition-all"
+              onPress={() => {
+                setCurrentMonth(selectedDate);
+                setShowFullCalendar(true);
+              }}
+              className="flex-row items-center gap-1 bg-zinc-100 px-3 py-2 rounded-lg"
             >
-              {/* Time Column */}
-              <View className="bg-zinc-50 p-4 items-center justify-center w-20 border-r border-zinc-100">
-                <P className="font-bold text-lg">{booking.startTime}</P>
-                <P className="text-xs text-zinc-400 font-bold">
-                  {booking.endTime}
-                </P>
-              </View>
-              {/* Info */}
-              <View className="flex-1 p-4 justify-center">
-                <P className="font-bold text-base mb-1">
-                  {booking.customerName}
-                </P>
-                <P className="text-xs text-zinc-500 font-medium mb-2">
-                  {booking.serviceName}
-                </P>
-                <View
-                  className={`self-start px-2 py-0.5 rounded-md ${
-                    booking.status === "confirmed"
-                      ? "bg-blue-50 text-blue-600"
-                      : booking.status === "completed"
-                      ? "bg-green-50 text-green-600"
-                      : "bg-zinc-100 text-zinc-500"
-                  }`}
-                >
-                  <P className="text-[10px] font-bold uppercase">
-                    {booking.status}
-                  </P>
-                </View>
-              </View>
+              <P className="text-xs font-bold">Full Calendar</P>
+              <CalendarIcon size={12} color="black" />
             </Pressable>
-          ))
-        )}
-      </ScrollView>
+          </View>
+
+          {/* Booking Count Summary */}
+          <P className="px-6 text-zinc-500 text-xs font-bold mb-4">
+            {calendarViewBookings.length} bookings for this day
+          </P>
+
+          {/* Date Strip */}
+          <View className="bg-zinc-50 pt-4 pb-4 border-b border-zinc-100 mb-4">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 24, gap: 10 }}
+            >
+              {dateStripDocs.map((date, i) => {
+                const isSelected = isSameDay(date, selectedDate);
+                const hasDots = hasBookings(date);
+
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => setSelectedDate(date)}
+                    className={`items-center justify-center w-14 h-20 rounded-2xl border relative ${
+                      isSelected
+                        ? "bg-black border-black"
+                        : "bg-white border-zinc-200"
+                    }`}
+                  >
+                    <P
+                      className={`text-xs font-bold mb-1 ${
+                        isSelected ? "text-zinc-400" : "text-zinc-400"
+                      }`}
+                    >
+                      {format(date, "EEE")}
+                    </P>
+                    <P
+                      className={`text-xl font-black ${
+                        isSelected ? "text-white" : "text-black"
+                      }`}
+                    >
+                      {format(date, "d")}
+                    </P>
+                    {hasDots && (
+                      <View
+                        className={`w-1.5 h-1.5 rounded-full absolute bottom-2 ${
+                          isSelected ? "bg-white" : "bg-black"
+                        }`}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          <ScrollView
+            className="flex-1"
+            contentContainerStyle={{
+              paddingHorizontal: 24,
+              paddingBottom: 100,
+            }}
+            refreshControl={
+              <RefreshControl refreshing={false} onRefresh={refreshStore} />
+            }
+          >
+            {calendarViewBookings.length === 0 ? (
+              <View className="items-center justify-center py-20 bg-zinc-50 rounded-2xl border border-zinc-100 dashed">
+                <CalendarIcon size={40} color="#d4d4d8" />
+                <P className="text-zinc-400 font-bold mt-4">No bookings</P>
+              </View>
+            ) : (
+              calendarViewBookings.map((b) => (
+                <BookingCard key={b.id} booking={b} />
+              ))
+            )}
+          </ScrollView>
+        </View>
+      ) : (
+        /* LIST VIEW */
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{ padding: 24, paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl refreshing={false} onRefresh={refreshStore} />
+          }
+        >
+          <P className="text-xs font-bold text-zinc-400 uppercase mb-4">
+            All Bookings
+          </P>
+          {listViewBookings.length === 0 ? (
+            <View className="items-center justify-center py-20">
+              <P className="text-zinc-400">No bookings found</P>
+            </View>
+          ) : (
+            listViewBookings.map((b) => <BookingCard key={b.id} booking={b} />)
+          )}
+        </ScrollView>
+      )}
+
+      {/* FULL CALENDAR MODAL */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showFullCalendar}
+        onRequestClose={() => setShowFullCalendar(false)}
+      >
+        <View className="flex-1 bg-black/50 justify-end">
+          <Pressable
+            className="flex-1"
+            onPress={() => setShowFullCalendar(false)}
+          />
+          <View className="bg-white rounded-t-3xl h-[60%] p-6">
+            <View className="flex-row items-center justify-between mb-6">
+              <H1 className="text-xl font-black uppercase">Select Date</H1>
+              <Pressable
+                onPress={() => setShowFullCalendar(false)}
+                className="bg-zinc-100 p-2 rounded-full"
+              >
+                <X size={20} color="black" />
+              </Pressable>
+            </View>
+
+            {/* Controls */}
+            <View className="flex-row items-center justify-between mb-6 bg-zinc-50 p-2 rounded-xl border border-zinc-100">
+              <Pressable
+                onPress={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                className="p-2"
+              >
+                <ChevronLeft size={20} color="black" />
+              </Pressable>
+              <P className="font-bold text-lg">
+                {format(currentMonth, "MMMM yyyy")}
+              </P>
+              <Pressable
+                onPress={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                className="p-2"
+              >
+                <ChevronRight size={20} color="black" />
+              </Pressable>
+            </View>
+
+            {/* Grid */}
+            <View className="flex-row flex-wrap">
+              {/* Days Header */}
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                <View key={d} className="w-[14.28%] items-center mb-2">
+                  <P className="text-xs font-bold text-zinc-400">{d}</P>
+                </View>
+              ))}
+
+              {fullCalendarDays.map((date, i) => {
+                const isSelected = isSameDay(date, selectedDate);
+                const hasDots = hasBookings(date);
+                const isTodayDate = isSameDay(date, new Date());
+
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => {
+                      setSelectedDate(date);
+                      setShowFullCalendar(false);
+                    }}
+                    className={`w-[14.28%] aspect-square items-center justify-center rounded-lg border mb-1 ${
+                      isSelected
+                        ? "bg-black border-black"
+                        : isTodayDate
+                        ? "bg-white border-blue-500"
+                        : "bg-white border-transparent"
+                    }`}
+                  >
+                    <P
+                      className={`text-sm font-bold ${
+                        isSelected
+                          ? "text-white"
+                          : isTodayDate
+                          ? "text-blue-600"
+                          : "text-black"
+                      }`}
+                    >
+                      {format(date, "d")}
+                    </P>
+                    {hasDots && (
+                      <View
+                        className={`w-1 h-1 rounded-full absolute bottom-1 ${
+                          isSelected ? "bg-white" : "bg-black"
+                        }`}
+                      />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <VendorBookingDetails
         visible={!!selectedBooking}
         booking={selectedBooking}
         onClose={() => setSelectedBooking(null)}
-        onUpdate={() => setSelectedBooking(null)}
+        onUpdate={() => {
+          refreshStore();
+          setSelectedBooking(null);
+        }}
       />
     </SafeAreaView>
   );

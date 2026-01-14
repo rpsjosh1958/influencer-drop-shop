@@ -6,6 +6,7 @@ import {
   ReactNode,
   useRef,
 } from "react";
+import { router } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
@@ -57,6 +58,8 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   latestNotification: Notification | null; // For Banner
   refetch: () => Promise<any>;
+  mode: "customer" | "vendor";
+  setMode: (mode: "customer" | "vendor") => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -72,6 +75,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
+
+  const [mode, setMode] = useState<"customer" | "vendor">("customer");
 
   useEffect(() => {
     if (user?.uid) {
@@ -93,6 +98,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data;
         console.log("Notification Tapped:", data);
+
+        if (data?.screen) {
+          // Basic routing if screen provided
+          router.push(data.screen as any);
+        } else if (data?.type === "vendor_order") {
+          router.push("/(vendor)/orders" as any);
+        } else if (data?.type === "vendor_booking") {
+          router.push("/(vendor)/bookings" as any);
+        } else if (data?.type === "vendor_complaint") {
+          router.push("/(vendor)/(tabs)" as any); // Fallback to Dashboard for now
+        }
       });
 
     return () => {
@@ -111,8 +127,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         expoPushToken: token,
       });
     } catch (e) {
-      // If doc doesn't exist, we might need setDoc or handle error.
-      // Allowing fail silently for 'users' collection assumption
       console.log("Error saving push token:", e);
     }
   };
@@ -177,23 +191,33 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!user) return;
 
-    // Listen to notifications
-    const q = query(
+    // Filter types based on mode
+    // Customer: order_update, broadcast, booking_confirmed, booking_cancelled_admin
+    // Vendor: store_order_received, store_booking_received, payout_success
+    const vendorTypes = [
+      "store_order_received",
+      "store_booking_received",
+      "payout_success",
+      "vendor_order",
+      "vendor_booking",
+      "vendor_complaint",
+    ];
+
+    let q = query(
       collection(db, "notifications"),
       where("userId", "in", [user.uid, "all"]),
       orderBy("createdAt", "desc"),
       limit(50)
     );
 
+    // Ideally we would filter by 'type' in Firestore, but 'in' (user.uid, 'all') takes up the logical OR slot
+    // and Firestore has limitations. We can filter client-side or use a composite index if needed.
+    // Given the volume per user is low, client-side filtering after fetching is acceptable for MVP,
+    // OR we rely on separate queries.
+    // For now, let's fetch all for the user and filter in the callback to keep it real-time.
+
     const unsub = onSnapshot(q, async (snapshot) => {
       const items: Notification[] = [];
-      let isFirstLoad = loading; // simplistic check
-
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "added") {
-          // If this is a new notification added *after* initial load (or very top of list), potentially trigger banner
-        }
-      });
 
       const readBroadcasts = JSON.parse(
         (await AsyncStorage.getItem("read_broadcasts")) || "[]"
@@ -210,7 +234,14 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           isRead = true;
         }
 
-        items.push({ id: doc.id, ...data, read: isRead } as Notification);
+        // Mode Filtering Logic
+        const isVendorType = vendorTypes.includes(data.type);
+
+        if (mode === "vendor" && isVendorType) {
+          items.push({ id: doc.id, ...data, read: isRead } as Notification);
+        } else if (mode === "customer" && !isVendorType) {
+          items.push({ id: doc.id, ...data, read: isRead } as Notification);
+        }
       });
 
       setNotifications(items);
@@ -223,7 +254,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsub();
-  }, [user]);
+  }, [user, mode]);
 
   const markAsRead = async (id: string) => {
     try {
@@ -302,6 +333,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         markAllAsRead,
         latestNotification,
         refetch,
+        mode,
+        setMode,
       }}
     >
       {children}

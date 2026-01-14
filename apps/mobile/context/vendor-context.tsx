@@ -26,8 +26,15 @@ interface Metrics {
 interface VendorContextType {
   store: any | null;
   orders: any[];
+  bookings: any[];
+  complaints: any[];
   products: any[];
   metrics: Metrics;
+  badgeCounts: {
+    orders: number;
+    bookings: number;
+    complaints: number;
+  };
   loading: boolean;
   toggleStoreStatus: () => Promise<void>;
   refreshStore: () => Promise<any>;
@@ -39,6 +46,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [store, setStore] = useState<any | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [complaints, setComplaints] = useState<any[]>([]); // Added
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,17 +88,33 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     return () => unsubStore();
   }, [user]);
 
-  // 3. Orders & Products Listener (Dependent on Store ID)
+  // 3. Orders, Products, Bookings, Complaints Listener
   useEffect(() => {
     if (!store?.id) return;
 
-    // Orders Listener
+    // Others... (Orders/Products/Bookings existing queries)
+
+    // Complaints Listener
+    const complaintsQuery = query(
+      collection(db, "stores", store.id, "complaints"),
+      orderBy("createdAt", "desc")
+    );
+    const unsubComplaints = onSnapshot(complaintsQuery, (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setComplaints(items);
+    });
+
+    // Orders Listener (Keep existing logic)
     const ordersQuery = query(
       collection(db, "stores", store.id, "orders"),
       orderBy("createdAt", "desc")
     );
-
     const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+      // ... (existing metric calculation)
+
       const items: any[] = [];
       let revenue = 0;
       let activeCount = 0;
@@ -132,23 +157,29 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       }));
     });
 
-    // Products Listener
+    // Products Listener (Keep existing)
     const productsQuery = query(
       collection(db, "stores", store.id, "products"),
       orderBy("createdAt", "desc")
     );
-
     const unsubProducts = onSnapshot(productsQuery, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setProducts(items);
+      setProducts(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    // Bookings Listener (Keep existing)
+    const bookingsQuery = query(
+      collection(db, "stores", store.id, "bookings"),
+      orderBy("createdAt", "desc")
+    );
+    const unsubBookings = onSnapshot(bookingsQuery, (snapshot) => {
+      setBookings(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
     return () => {
       unsubOrders();
       unsubProducts();
+      unsubBookings();
+      unsubComplaints();
     };
   }, [store?.id]);
 
@@ -174,8 +205,19 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       value={{
         store,
         orders,
+        bookings,
         products,
+        complaints: complaints || [],
         metrics,
+        badgeCounts: {
+          orders: orders.filter((o) =>
+            ["paid", "processing", "packaged"].includes(o.status)
+          ).length,
+          bookings: bookings.filter((b) => b.status === "pending").length,
+          complaints: (complaints || []).filter((c) =>
+            ["unread", "open"].includes(c.status)
+          ).length,
+        },
         loading,
         toggleStoreStatus,
         refreshStore,

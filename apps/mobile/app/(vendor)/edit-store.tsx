@@ -8,29 +8,75 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Image,
+  Pressable as NativePressable
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { useState, useEffect } from "react";
 import { useVendor } from "@/context/vendor-context";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { router } from "expo-router";
-import { ArrowLeft, Save } from "lucide-react-native";
+import { ArrowLeft, Save, Camera, Upload } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+// Custom Pressable to avoid conflict
+const Pressable = NativePressable;
 
 export default function EditStoreScreen() {
   const { store } = useVendor();
   const [name, setName] = useState(store?.name || "");
-  const [description, setDescription] = useState(store?.description || "");
   const [loading, setLoading] = useState(false);
+  const [logo, setLogo] = useState(store?.logo || null);
+  const [uploading, setUploading] = useState(false);
 
   // Sync state if store loads late
   useEffect(() => {
     if (store) {
       if (!name) setName(store.name);
-      if (!description) setDescription(store.description);
+      if (store.logo && !logo) setLogo(store.logo);
     }
   }, [store]);
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled) {
+        uploadImage(result.assets[0].uri);
+      }
+    } catch (e) {
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    setUploading(true);
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      const filename = `stores/${store.id}/logo_${Date.now()}.jpg`;
+      const storageRef = ref(storage, filename);
+      
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      setLogo(downloadURL);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "Failed to upload image");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -41,7 +87,7 @@ export default function EditStoreScreen() {
     try {
       await updateDoc(doc(db, "stores", store.id), {
         name: name.trim(),
-        description: description.trim(),
+        logo: logo,
       });
       Alert.alert("Success", "Store profile updated");
       router.back();
@@ -67,6 +113,29 @@ export default function EditStoreScreen() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView className="flex-1 p-6">
+            
+            {/* Logo Section */}
+            <View className="items-center mb-8">
+                <Pressable onPress={pickImage} disabled={uploading}>
+                    <View className="w-24 h-24 rounded-full bg-zinc-100 border border-zinc-200 items-center justify-center overflow-hidden relative">
+                        {logo ? (
+                            <Image source={{ uri: logo }} className="w-full h-full" />
+                        ) : (
+                            <Camera size={32} color="#a1a1aa" />
+                        )}
+                        {uploading && (
+                            <View className="absolute inset-0 bg-black/50 items-center justify-center">
+                                <ActivityIndicator color="white" />
+                            </View>
+                        )}
+                    </View>
+                    <View className="absolute bottom-0 right-0 bg-black p-2 rounded-full border border-white">
+                        <Upload size={12} color="white" />
+                    </View>
+                </Pressable>
+                <P className="text-zinc-400 text-xs font-bold uppercase mt-3">Tap to change logo</P>
+            </View>
+
             <P className="text-xs font-bold text-zinc-400 uppercase mb-2">
               Store Name
             </P>
@@ -77,28 +146,6 @@ export default function EditStoreScreen() {
               placeholder="Enter store name"
             />
 
-            <P className="text-xs font-bold text-zinc-400 uppercase mb-2">
-              Description
-            </P>
-            <TextInput
-              value={description}
-              onChangeText={setDescription}
-              className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 font-medium text-base mb-6 h-32"
-              placeholder="Tell customers about your store..."
-              multiline
-              textAlignVertical="top"
-            />
-
-            <P className="text-xs font-bold text-zinc-400 uppercase mb-2">
-              Logo & Banner
-            </P>
-            <View className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 mb-6">
-              <P className="text-zinc-500 text-sm">
-                Media editing is currently available only on the Web Dashboard.
-              </P>
-            </View>
-
-            <View className="h-10" />
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -106,8 +153,10 @@ export default function EditStoreScreen() {
       <View className="p-6 border-t border-zinc-100">
         <Pressable
           onPress={handleSave}
-          disabled={loading}
-          className="w-full bg-black py-4 rounded-2xl items-center justify-center flex-row gap-2 active:scale-[0.98]"
+          disabled={loading || uploading}
+          className={`w-full bg-black py-4 rounded-2xl items-center justify-center flex-row gap-2 active:scale-[0.98] ${
+              (loading || uploading) ? 'opacity-50' : ''
+          }`}
         >
           {loading ? (
             <ActivityIndicator color="white" />
@@ -124,7 +173,3 @@ export default function EditStoreScreen() {
     </SafeAreaView>
   );
 }
-
-// Custom Pressable to avoid importing from react-native which might conflict name wise if I wasn't careful (but I am)
-import { Pressable as NativePressable } from "react-native";
-const Pressable = NativePressable;

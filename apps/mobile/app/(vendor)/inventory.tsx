@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { Package, Clock, Plus, Menu } from "lucide-react-native";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { router } from "expo-router";
 
 export default function VendorInventory() {
   const { store, products } = useVendor();
@@ -29,10 +30,14 @@ export default function VendorInventory() {
   }, [store?.id]);
 
   const handleAdd = () => {
-    Alert.alert(
-      "Coming Soon",
-      "Mobile editing and creation will be available in the next update. Please use the Web Dashboard."
-    );
+    if (activeTab === "products") {
+      router.push("/(vendor)/add-product" as any);
+    } else {
+      Alert.alert(
+        "Services",
+        "Service creation is currently only available on the Web Dashboard."
+      );
+    }
   };
 
   return (

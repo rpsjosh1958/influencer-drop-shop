@@ -504,7 +504,12 @@ export default function ProfileScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.push("/(auth)/login")}
+            onPress={() =>
+              router.push({
+                pathname: "/(auth)/login",
+                params: { intent: "vendor" },
+              })
+            }
             className="mt-8 py-2 px-4 bg-zinc-100 rounded-lg"
           >
             <P className="text-zinc-500 text-xs font-bold uppercase tracking-wider">
@@ -573,11 +578,6 @@ export default function ProfileScreen() {
                 {/* Menu Items */}
                 <View className="space-y-6">
                   <MenuItem
-                    icon={Store}
-                    label="Switch to Seller Mode"
-                    onPress={handleServicesSwitch}
-                  />
-                  <MenuItem
                     icon={User}
                     label="Personal Info"
                     onPress={() => setActiveSection("personal")}
@@ -601,6 +601,11 @@ export default function ProfileScreen() {
                     icon={AlertCircle}
                     label="Report an Issue"
                     onPress={() => setIsComplaintOpen(true)}
+                  />
+                  <MenuItem
+                    icon={Store}
+                    label="Switch to Seller Mode"
+                    onPress={handleServicesSwitch}
                   />
                 </View>
 

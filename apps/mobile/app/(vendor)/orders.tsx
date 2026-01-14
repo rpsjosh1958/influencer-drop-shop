@@ -1,27 +1,28 @@
-import { View, ScrollView, RefreshControl, Pressable } from "react-native";
+/// <reference types="nativewind/types" />
+import { View, ScrollView, Pressable, Image, Alert, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
-import { Package, Search, Menu } from "lucide-react-native";
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Package, Menu, Search, Filter } from "lucide-react-native";
 import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";
 
 export default function VendorOrders() {
+  const navigation = useNavigation<any>();
   const { orders, loading, refreshStore } = useVendor();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const navigation = useNavigation();
 
   const filteredOrders = useMemo(() => {
     if (filter === "all") return orders;
     if (filter === "active") {
       return orders.filter(
-        (o) => !["completed", "cancelled", "delivered"].includes(o.status)
+        (o: any) => !["completed", "cancelled", "delivered"].includes(o.status)
       );
     }
     if (filter === "completed") {
-      return orders.filter((o) =>
+      return orders.filter((o: any) =>
         ["completed", "delivered", "cancelled"].includes(o.status)
       );
     }
@@ -45,29 +46,45 @@ export default function VendorOrders() {
         </View>
       </View>
 
-      {/* Filter Tabs */}
-      <View className="px-6 py-4">
-        <View className="flex-row bg-zinc-100 p-1 rounded-xl">
-          {["all", "active", "completed"].map((f) => (
-            <Pressable
-              key={f}
-              onPress={() => setFilter(f)}
-              className={`flex-1 py-2 items-center justify-center rounded-lg ${
-                filter === f ? "bg-white shadow-sm" : ""
-              }`}
-            >
-              <P
-                className={`text-xs font-bold uppercase ${
-                  filter === f ? "text-black" : "text-zinc-500"
-                }`}
-              >
-                {f}
-              </P>
-            </Pressable>
-          ))}
-        </View>
+      {/* Tabs */}
+      <View className="px-6 py-4 flex-row gap-6 border-b border-zinc-100">
+        <Pressable onPress={() => setFilter("all")}>
+          <P
+            className={`text-lg font-bold ${
+              filter === "all" ? "text-black" : "text-zinc-300"
+            }`}
+          >
+            All
+          </P>
+          {filter === "all" && (
+            <View className="h-1 bg-black w-4 mt-1 rounded-full" />
+          )}
+        </Pressable>
+        <Pressable onPress={() => setFilter("active")}>
+          <P
+            className={`text-lg font-bold ${
+              filter === "active" ? "text-black" : "text-zinc-300"
+            }`}
+          >
+            Open
+          </P>
+          {filter === "active" && (
+            <View className="h-1 bg-black w-4 mt-1 rounded-full" />
+          )}
+        </Pressable>
+        <Pressable onPress={() => setFilter("completed")}>
+          <P
+            className={`text-lg font-bold ${
+              filter === "completed" ? "text-black" : "text-zinc-300"
+            }`}
+          >
+            Delivered
+          </P>
+          {filter === "completed" && (
+            <View className="h-1 bg-black w-4 mt-1 rounded-full" />
+          )}
+        </Pressable>
       </View>
-
       <ScrollView
         className="flex-1"
         contentContainerStyle={{ padding: 24 }}
@@ -100,13 +117,25 @@ export default function VendorOrders() {
                   </P>
                   <View
                     className={`self-start px-2 py-0.5 rounded-md ${
-                      order.status === "paid" ? "bg-green-100" : "bg-zinc-100"
+                      ["paid", "delivered", "completed"].includes(order.status)
+                        ? "bg-green-100"
+                        : order.status === "sent-out"
+                        ? "bg-blue-100"
+                        : ["processing", "packaged"].includes(order.status)
+                        ? "bg-amber-100"
+                        : "bg-zinc-100"
                     }`}
                   >
                     <P
                       className={`text-[10px] font-black uppercase ${
-                        order.status === "paid"
+                        ["paid", "delivered", "completed"].includes(
+                          order.status
+                        )
                           ? "text-green-700"
+                          : order.status === "sent-out"
+                          ? "text-blue-700"
+                          : ["processing", "packaged"].includes(order.status)
+                          ? "text-amber-700"
                           : "text-zinc-500"
                       }`}
                     >

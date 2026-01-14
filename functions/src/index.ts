@@ -267,6 +267,60 @@ export const onStoreUpdated = onDocumentUpdated(
 
 // --- ORDER TRIGGER ---
 
+// Helper to send Notification (Push + Firestore)
+async function sendNotificationToUser(
+  userId: string,
+  title: string,
+  body: string,
+  type: string,
+  data: any
+) {
+  try {
+    // 1. Save to Firestore
+    await admin.firestore().collection("notifications").add({
+      userId,
+      title,
+      message: body,
+      type,
+      data,
+      read: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // 2. Send Push
+    const userDoc = await admin
+      .firestore()
+      .collection("users")
+      .doc(userId)
+      .get();
+    const user = userDoc.data();
+    if (
+      !user ||
+      !user.expoPushToken ||
+      !Expo.isExpoPushToken(user.expoPushToken)
+    )
+      return;
+
+    const messages = [
+      {
+        to: user.expoPushToken,
+        sound: "default",
+        title,
+        body,
+        data: { ...data, type }, // Ensure type is in data for routing
+      },
+    ];
+
+    // Safety check for Expo SDK instance, assuming global 'expo' const or init here
+    const expoClient = new Expo();
+    await expoClient.sendPushNotificationsAsync(messages as any);
+  } catch (error) {
+    logger.error(`Failed to send notification to ${userId}`, error);
+  }
+}
+
+// --- ORDER TRIGGER ---
+
 export const onOrderCreated = onDocumentCreated(
   "stores/{storeId}/orders/{orderId}",
   async (event) => {
@@ -283,6 +337,187 @@ export const onOrderCreated = onDocumentCreated(
     }
 
     await processOrderWallet(orderId, order, storeId);
+
+    // --- NOTIFICATION LOGIC ---
+    try {
+      // 1. Fetch Store & Owner
+      const storeDoc = await admin
+        .firestore()
+        .collection("stores")
+        .doc(storeId)
+        .get();
+      const store = storeDoc.data();
+      if (!store || !store.ownerId) return;
+
+      const ownerDoc = await admin
+        .firestore()
+        .collection("users")
+        .doc(store.ownerId)
+        .get();
+      const owner = ownerDoc.data();
+      if (!owner || !owner.email) return;
+
+      // 2. Send Notification to Vendor
+      await sendNotificationToUser(
+        store.ownerId,
+        "New Order! 💰",
+        `New order from ${
+          order.customerName || "Customer"
+        } (GHS ${order.total.toFixed(2)})`,
+        "vendor_order",
+        { screen: "/(vendor)/orders", id: orderId, storeId }
+      );
+
+      // 3. Send Email to Vendor (DISABLED: Notifications handle this now)
+      // const resend = new Resend(process.env.RESEND_API_KEY);
+      // await resend.emails.send({
+      //   from: "The Drop Orders <orders@copdrop.io>",
+      //   to: [owner.email],
+      //   subject: `New Order: #${orderId.slice(0, 8).toUpperCase()} - ${
+      //     store.name
+      //   }`,
+      //   html: `
+      //     <div style="font-family: sans-serif; padding: 20px;">
+      //       <h2>New Order Received! 💰</h2>
+      //       <p>You have a new order from <strong>${
+      //         order.customerName || "Customer"
+      //       }</strong>.</p>
+      //       <p><strong>Total:</strong> GHS ${order.total.toFixed(2)}</p>
+      //       <p><strong>Items:</strong> ${order.items.length}</p>
+      //       <hr />
+      //       <a href="https://copdrop.io/admin/orders" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Order</a>
+      //     </div>
+      //   `,
+      // });
+      logger.info(
+        `Order notification sent to vendor ${owner.email} (Email Disabled)`
+      );
+      logger.info(`Order notification sent to vendor ${owner.email}`);
+    } catch (err) {
+      logger.error("Failed to send order notification", err);
+    }
+  }
+);
+
+/*
+ * TRIGGER: When a Booking is created
+ * ACTION: Notify Vendor & Customer
+ */
+export const onBookingCreated = onDocumentCreated(
+  "stores/{storeId}/bookings/{bookingId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const booking = snapshot.data();
+    const storeId = event.params.storeId;
+    const bookingId = event.params.bookingId;
+
+    try {
+      // Fetch Store Info
+      const storeDoc = await admin
+        .firestore()
+        .collection("stores")
+        .doc(storeId)
+        .get();
+      const store = storeDoc.data();
+      if (!store) return;
+
+      // const resend = new Resend(process.env.RESEND_API_KEY);
+
+      // 1. Notify Vendor (Email + Push)
+      if (store.ownerId) {
+        // Push + App Notification
+        await sendNotificationToUser(
+          store.ownerId,
+          "New Booking Request 📅",
+          `${booking.customerName} booked ${booking.serviceName} for ${booking.date}`,
+          "vendor_booking",
+          { screen: "/(vendor)/bookings", id: bookingId, storeId }
+        );
+
+        // const owner = ownerDoc.data();
+        // if (owner && owner.email) {
+          // Email to Vendor DISABLED
+          // await resend.emails.send({ ... });
+        // }
+      }
+
+      // 2. Notify Customer (Email DISABLED)
+      if (booking.customerEmail) {
+        // await resend.emails.send({ ... });
+      }
+    } catch (err) {
+      logger.error("Failed to process booking creation", err);
+    }
+  }
+);
+
+/*
+ * TRIGGER: When Booking Status Changes
+ * ACTION: Notify Customer
+ */
+export const onBookingStatusUpdated = onDocumentUpdated(
+  "stores/{storeId}/bookings/{bookingId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const before = snapshot.before.data();
+    const after = snapshot.after.data();
+    const storeId = event.params.storeId;
+
+    // Only run if status changed
+    if (before.status === after.status) return;
+
+    try {
+      const storeDoc = await admin
+        .firestore()
+        .collection("stores")
+        .doc(storeId)
+        .get();
+      const store = storeDoc.data();
+      if (!store || !after.customerEmail) return;
+
+      // Push to Customer (Optional: if they have app)
+      // await sendPushToUser(after.customerId, "Booking Update", `Status: ${after.status}`, { type: "customer_booking", id: bookingId });
+
+      // const resend = new Resend(process.env.RESEND_API_KEY);
+      // let subject = `Update on your booking with ${store.name}`;
+      // let message = `The status of your booking has been updated to <strong>${after.status}</strong>.`;
+
+      // if (after.status === "confirmed") {
+      //   subject = `Booking Confirmed! 🎉 - ${store.name}`;
+      //   message = `Great news! Your appointment for <strong>${after.serviceName}</strong> has been confirmed.`;
+      // } else if (after.status === "cancelled") {
+      //   subject = `Booking Cancelled - ${store.name}`;
+      //   message = `Your appointment for <strong>${after.serviceName}</strong> has been cancelled. Please contact the store if this was a mistake.`;
+      // } else if (after.status === "completed") {
+      //   subject = `Thanks for visiting ${store.name}!`;
+      //   message = `We hope you enjoyed your service! Thanks for booking with us.`;
+      // }
+
+      /* EMAILS DISABLED
+      await resend.emails.send({
+        from: "The Drop <reservations@copdrop.io>",
+        to: [after.customerEmail],
+        subject: subject,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2>Booking Update</h2>
+            <p>Hi ${after.customerName},</p>
+            <p>${message}</p>
+            <div style="background: #f4f4f5; padding: 15px; border-radius: 10px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Date:</strong> ${after.date}</p>
+                <p style="margin: 5px 0;"><strong>Time:</strong> ${after.startTime}</p>
+            </div>
+          </div>
+        `,
+      });
+      */
+    } catch (err) {
+      logger.error("Failed to send booking status update", err);
+    }
   }
 );
 
@@ -338,7 +573,7 @@ export const onReviewCreated = onDocumentCreated(
 
 /*
  * TRIGGER: When a Complaint is created
- * ACTION: Notify the Store Owner via Email
+ * ACTION: Notify the Store Owner via Email & Push
  */
 export const onComplaintCreated = onDocumentCreated(
   "stores/{storeId}/complaints/{complaintId}",
@@ -348,6 +583,7 @@ export const onComplaintCreated = onDocumentCreated(
 
     const complaint = snapshot.data();
     const storeId = event.params.storeId;
+    const complaintId = event.params.complaintId;
     const target = complaint.target || "store";
 
     try {
@@ -367,6 +603,17 @@ export const onComplaintCreated = onDocumentCreated(
         .get();
       const user = userDoc.data();
       if (!user || !user.email) return;
+
+      // Notify Vendor via Push
+      if (target === "store") {
+        await sendNotificationToUser(
+          store.ownerId,
+          "New Complaint ⚠️",
+          `${complaint.subject} - ${complaint.customerName}`,
+          "vendor_complaint",
+          { screen: "/(vendor)/(tabs)", id: complaintId, storeId }
+        );
+      }
 
       // 2. Prepare Email Content
       const resend = new Resend(process.env.RESEND_API_KEY);

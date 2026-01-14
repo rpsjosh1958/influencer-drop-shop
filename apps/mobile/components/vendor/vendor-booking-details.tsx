@@ -75,8 +75,8 @@ export function VendorBookingDetails({
 
   const statusOptions = [
     { label: "Confirm Booking", value: "confirmed" },
-    { label: "Mark Completed", value: "completed" },
-    { label: "Mark No Show", value: "no-show" },
+    { label: "Completed", value: "completed" },
+    { label: "No Show", value: "no-show" },
     { label: "Cancel Booking", value: "cancelled", destructive: true },
   ];
 
@@ -98,10 +98,12 @@ export function VendorBookingDetails({
         await addDoc(collection(db, "notifications"), {
           userId: booking.customerId,
           type: "booking_cancelled_admin",
-          title: "Booking Cancelled ❌",
-          message: `Your appointment for ${booking.serviceName} on ${formatDate(
+          title: "Booking Unavailable ❌",
+          message: `Unfortunately, your appointment for ${
+            booking.serviceName
+          } on ${formatDate(
             booking.date
-          )} has been cancelled by the store.`,
+          )} is unavailable. Please reschedule at your convenience.`,
           isRead: false,
           createdAt: serverTimestamp(),
           metadata: { bookingId: booking.id, storeId: booking.storeId },

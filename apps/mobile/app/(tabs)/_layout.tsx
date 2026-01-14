@@ -84,7 +84,18 @@ function TabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+import { useNotifications } from "@/context/notification-context";
+import { useEffect } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 export default function TabLayout() {
+  const { setMode } = useNotifications();
+
+  useEffect(() => {
+    setMode("customer");
+    AsyncStorage.setItem("appMode", "customer");
+  }, []);
+
   return (
     <Tabs
       tabBar={(props) => <TabBar {...props} />}

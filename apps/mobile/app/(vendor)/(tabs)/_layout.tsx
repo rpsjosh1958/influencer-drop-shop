@@ -1,8 +1,10 @@
 import { Tabs } from "expo-router";
 import { Platform } from "react-native";
 import { LayoutDashboard, Bell, Settings } from "lucide-react-native";
+import { useNotifications } from "@/context/notification-context";
 
 export default function VendorTabsLayout() {
+  const { unreadCount } = useNotifications();
   return (
     <Tabs
       screenOptions={{
@@ -40,6 +42,7 @@ export default function VendorTabsLayout() {
           tabBarIcon: ({ color }: { color: string }) => (
             <Bell size={24} color={color} />
           ),
+          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
         }}
       />
       <Tabs.Screen

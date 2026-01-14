@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { Stack, useRouter, Link } from "expo-router";
+import { Stack, useRouter, Link, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { H1, P } from "@/components/ui/text";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase"; // Need to ensure firebase is setup in mobile
+import { auth } from "@/lib/firebase";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -16,6 +17,7 @@ const loginSchema = z.object({
 
 export default function Login() {
   const router = useRouter();
+  const { intent } = useLocalSearchParams();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -32,12 +34,15 @@ export default function Login() {
       // Validate
       const data = loginSchema.parse(form);
 
+      // Set App Mode if intent is vendor
+      if (intent === "vendor") {
+        await AsyncStorage.setItem("appMode", "vendor");
+      }
+
       // Auth
-      // Note: Firebase JS SDK works in Expo but requires proper config.
       await signInWithEmailAndPassword(auth, data.email, data.password);
 
-      // Router replacement is handled by root layout listener, but we can do it here too for safety/speed
-      // router.replace("/(tabs)");
+      // Router replacement is handled by root layout listener
     } catch (err: any) {
       console.log("Login error:", err);
       if (err instanceof z.ZodError) {
@@ -77,7 +82,9 @@ export default function Login() {
           <View className="space-y-8">
             <View>
               <H1>WELCOME BACK.</H1>
-              <P className="mt-2 text-center mb-3 text-lg">Sign in to access your drops.</P>
+              <P className="mt-2 text-center mb-3 text-lg">
+                Sign in to access your drops.
+              </P>
             </View>
 
             <View className="space-y-6">
@@ -108,7 +115,6 @@ export default function Login() {
                 onPress={handleLogin}
                 loading={loading}
               />
-
             </View>
 
             <View className="items-center pt-1">
@@ -117,7 +123,7 @@ export default function Login() {
                 variant="ghost"
                 onPress={() => router.push("/(auth)/signup")}
               />
-              
+
               <Button
                 title="CONTINUE AS GUEST"
                 variant="ghost"

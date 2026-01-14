@@ -76,12 +76,10 @@ export function VendorOrderDetails({
   };
 
   const statusOptions = [
-    { label: "Mark as Paid", value: "paid" },
-    { label: "Processing", value: "processing" },
+    { label: "Open", value: "paid" },
     { label: "Packaged", value: "packaged" },
-    { label: "Shipped", value: "shipped" },
+    { label: "Sent-Out", value: "sent-out" },
     { label: "Delivered", value: "delivered" },
-    { label: "Completed", value: "completed" },
     { label: "Cancel Order", value: "cancelled", destructive: true },
   ];
 
@@ -112,9 +110,10 @@ export function VendorOrderDetails({
         message = "Your order has been cancelled.";
       }
 
-      if (order.customerId) {
+      const targetUserId = order.userId || order.customerId;
+      if (targetUserId) {
         await addDoc(collection(db, "notifications"), {
-          userId: order.customerId,
+          userId: targetUserId,
           type: "order_update",
           title,
           message,
@@ -272,6 +271,36 @@ export function VendorOrderDetails({
                   </View>
                 </View>
               </View>
+
+              {/* Shipping Address */}
+              {order.shipping && (
+                <View className="bg-zinc-50 p-5 rounded-2xl space-y-4 mb-8">
+                  <View className="flex-row items-start gap-3">
+                    <MapPin size={18} color="#a1a1aa" className="mt-1" />
+                    <View>
+                      <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
+                        Shipping Address
+                      </P>
+                      <P className="font-bold text-base mb-1">
+                        {order.shipping.street}
+                      </P>
+                      <P className="text-zinc-500">
+                        {order.shipping.city}
+                        {order.shipping.zip ? `, ${order.shipping.zip}` : ""}
+                      </P>
+                      <P className="text-zinc-500">{order.shipping.country}</P>
+                      {order.shipping.phone && (
+                        <Pressable className="mt-2 flex-row items-center gap-2">
+                          <Phone size={14} color="#2563eb" />
+                          <P className="text-blue-600 font-bold">
+                            {order.shipping.phone}
+                          </P>
+                        </Pressable>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              )}
 
               {/* Items List */}
               <H1 className="text-lg font-bold mb-4">

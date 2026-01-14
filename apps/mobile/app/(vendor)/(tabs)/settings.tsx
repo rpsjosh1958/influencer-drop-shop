@@ -9,6 +9,8 @@ import {
   Store,
   Clock,
   ChevronRight,
+  User,
+  Shield,
 } from "lucide-react-native";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -51,9 +53,9 @@ export default function VendorSettings() {
           showChevron
         />
         <SettingsItem
-          icon={Clock}
-          label="Booking Policy"
-          onPress={() => router.push("/(vendor)/availability" as any)}
+          icon={User}
+          label="Profile Settings"
+          onPress={() => router.push("/(vendor)/profile-settings" as any)}
           showChevron
         />
 
