@@ -79,15 +79,19 @@ export default function VendorDashboard() {
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Header */}
       <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between bg-white z-10">
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-3 flex-1 pr-4">
           <Pressable
             onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
           >
             <Menu size={24} color="black" />
           </Pressable>
-          <View>
+          <View className="flex-1">
             <View className="flex-row items-center gap-1">
-              <H1 className="text-xl font-black uppercase">
+              <H1
+                className="text-xl font-black uppercase"
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {store?.name || "Dashboard"}
               </H1>
               {isVerified && (

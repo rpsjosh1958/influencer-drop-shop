@@ -57,6 +57,7 @@ export default function CheckoutScreen() {
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
   const [initializing, setInitializing] = useState(true);
+  const [customerNote, setCustomerNote] = useState("");
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
@@ -106,7 +107,7 @@ export default function CheckoutScreen() {
             const ref = doc(db, "stores", storeId, "products", item.id); // Updated path
             const snapshot = await transaction.get(ref);
             return { ref, snapshot, item };
-          })
+          }),
         );
 
         // ... validation logic (same as before)
@@ -120,21 +121,21 @@ export default function CheckoutScreen() {
           if (item.variant) {
             const variants = productData.variants || [];
             const variant = variants.find(
-              (v: any) => v.id === item.variant!.id
+              (v: any) => v.id === item.variant!.id,
             );
             if (!variant)
               throw new Error(
-                `Variant ${item.variant.name} of ${item.name} no longer exists.`
+                `Variant ${item.variant.name} of ${item.name} no longer exists.`,
               );
             if (variant.stock < item.quantity)
               throw new Error(
-                `Not enough stock for ${item.name} (${item.variant.name}). Only ${variant.stock} left.`
+                `Not enough stock for ${item.name} (${item.variant.name}). Only ${variant.stock} left.`,
               );
           } else {
             const currentStock = productData.stock ?? 0;
             if (currentStock < item.quantity)
               throw new Error(
-                `Not enough stock for ${item.name}. Only ${currentStock} left.`
+                `Not enough stock for ${item.name}. Only ${currentStock} left.`,
               );
           }
         }
@@ -181,8 +182,8 @@ export default function CheckoutScreen() {
       await runTransaction(db, async (transaction) => {
         const reads = await Promise.all(
           cart.map((item) =>
-            transaction.get(doc(db, "stores", storeId, "products", item.id))
-          )
+            transaction.get(doc(db, "stores", storeId, "products", item.id)),
+          ),
         );
 
         reads.forEach((snap, idx) => {
@@ -198,7 +199,7 @@ export default function CheckoutScreen() {
             const updated = variants.map((v: any) =>
               v.id === item.variant!.id
                 ? { ...v, stock: v.stock + item.quantity }
-                : v
+                : v,
             );
             transaction.update(ref, {
               variants: updated,
@@ -245,6 +246,7 @@ export default function CheckoutScreen() {
         userId: user?.uid || "guest",
         customerEmail: user?.email || email,
         customerName: name,
+        customerNote, // Added customer note
         storeId, // Tag with storeId
         storeName: store?.name || "Unknown Store",
       };
@@ -465,6 +467,25 @@ export default function CheckoutScreen() {
                       onChangeText={setAddress}
                       className="flex-1 ml-3 font-medium text-base text-black"
                       placeholderTextColor="#a1a1aa"
+                    />
+                  </View>
+                </View>
+
+                {/* Customer Note */}
+                <View className="mt-6">
+                  <H2 className="text-sm font-black text-zinc-400 mb-2 uppercase tracking-widest">
+                    Order Note (Optional)
+                  </H2>
+                  <View className="bg-zinc-50 border border-zinc-100 rounded-2xl px-4 py-3">
+                    <TextInput
+                      placeholder="Any special instructions for delivery..."
+                      value={customerNote}
+                      onChangeText={setCustomerNote}
+                      multiline
+                      numberOfLines={3}
+                      className="font-medium text-base text-black h-24"
+                      placeholderTextColor="#a1a1aa"
+                      textAlignVertical="top"
                     />
                   </View>
                 </View>

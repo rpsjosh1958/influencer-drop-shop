@@ -99,8 +99,10 @@ export function StoreSwitcher() {
           </View>
         )}
         <H1
-          className="text-xl tracking-tighter uppercase"
+          className="text-xl tracking-tighter uppercase shrink"
           style={{ color: store?.theme?.primaryColor || "black" }}
+          numberOfLines={1}
+          ellipsizeMode="tail"
         >
           {store?.name || "DROP."}
         </H1>

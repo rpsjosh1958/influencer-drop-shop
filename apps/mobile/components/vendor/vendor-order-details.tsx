@@ -45,6 +45,7 @@ export function VendorOrderDetails({
   onUpdate,
 }: VendorOrderDetailsProps) {
   const [updating, setUpdating] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
 
   if (!order) return null;
 
@@ -149,22 +150,9 @@ export function VendorOrderDetails({
         }
       );
     } else {
-      Alert.alert(
-        "Update Status",
-        "Select new status",
-        statusOptions
-          .map((o) => ({
-            text: o.label,
-            style: (o.destructive ? "destructive" : "default") as
-              | "destructive"
-              | "default"
-              | "cancel",
-            onPress: () => {
-              handleUpdateStatus(o.value);
-            },
-          }))
-          .concat([{ text: "Cancel", style: "cancel", onPress: () => {} }])
-      );
+      // Android Custom Picker Logic (Alert has 3 button limit)
+      // We will trigger a state to show a custom view instead
+      setShowStatusPicker(true);
     }
   };
 
@@ -259,9 +247,7 @@ export function VendorOrderDetails({
                     </View>
                   </View>
                 )}
-                <View className="flex-row items-center gap-3 pt-4 border-t border-zinc-200">
-                  <Calendar size={18} color="#a1a1aa" />
-                  <View>
+                  <View className="pt-4 border-t border-zinc-200">
                     <P className="text-xs text-zinc-400 font-bold uppercase">
                       Placed On
                     </P>
@@ -269,7 +255,20 @@ export function VendorOrderDetails({
                       {formatDate(order.createdAt)}
                     </P>
                   </View>
-                </View>
+                {order.customerNote && (
+                  <View className="flex-row items-start gap-3 pt-4 border-t border-zinc-200">
+                     {/* Reuse Calendar or similar sizing placeholder */}
+                     <View className="w-[18px]" /> 
+                    <View className="flex-1">
+                      <P className="text-xs text-zinc-400 font-bold uppercase">
+                        Customer Note
+                      </P>
+                      <P className="font-medium text-black italic">
+                        "{order.customerNote}"
+                      </P>
+                    </View>
+                  </View>
+                )}
               </View>
 
               {/* Shipping Address */}
@@ -337,6 +336,56 @@ export function VendorOrderDetails({
           </SafeAreaView>
         </View>
       </View>
+
+      {/* Custom Status Picker for Android */}
+      <Modal
+        visible={showStatusPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStatusPicker(false)}
+      >
+        <Pressable
+          className="flex-1 bg-black/60 items-center justify-center p-6"
+          onPress={() => setShowStatusPicker(false)}
+        >
+          <Pressable
+            className="bg-white w-full max-w-sm rounded-3xl overflow-hidden p-6 shadow-xl"
+            onPress={(e) => e.stopPropagation()}
+          >
+            <H1 className="text-center text-xl font-black uppercase mb-6">
+              Update Status
+            </H1>
+            <View className="space-y-2">
+              {statusOptions.map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  onPress={() => {
+                    handleUpdateStatus(opt.value);
+                    setShowStatusPicker(false);
+                  }}
+                  className={`p-4 rounded-xl border border-zinc-100 ${
+                    opt.destructive ? "bg-red-50 border-red-100" : "bg-zinc-50"
+                  }`}
+                >
+                  <P
+                    className={`text-center font-bold ${
+                      opt.destructive ? "text-red-600" : "text-zinc-900"
+                    }`}
+                  >
+                    {opt.label}
+                  </P>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable
+              onPress={() => setShowStatusPicker(false)}
+              className="mt-4 bg-black p-4 rounded-xl"
+            >
+              <P className="text-center font-bold text-white">Cancel</P>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }

@@ -13,6 +13,8 @@ import {
   X,
   ChevronLeft,
   Store as StoreIcon,
+  Filter,
+  SlidersHorizontal,
 } from "lucide-react-native";
 import {
   collectionGroup,
@@ -38,6 +40,17 @@ export default function GlobalSearchScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
+  // Filter State
+  const [filterType, setFilterType] = useState<"all" | "product" | "service">(
+    "all",
+  );
+  const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({
+    min: "",
+    max: "",
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
+
   const { setStoreId, storeId } = useStore();
   const { addToCart } = useCart();
 
@@ -46,31 +59,71 @@ export default function GlobalSearchScreen() {
     async function fetchGlobal() {
       setLoading(true);
       try {
-        const q = query(
+        const qProducts = query(
           collectionGroup(db, "products"),
           orderBy("createdAt", "desc"),
-          limit(100)
+          limit(50),
         );
 
-        const snapshot = await getDocs(q);
-        const allProducts = snapshot.docs.map((doc) => {
+        const qServices = query(
+          collectionGroup(db, "services"),
+          orderBy("createdAt", "desc"),
+          limit(50),
+        );
+
+        const [snapProducts, snapServices] = await Promise.all([
+          getDocs(qProducts),
+          getDocs(qServices),
+        ]);
+
+        const products = snapProducts.docs.map((doc) => {
           const data = doc.data();
           return {
             id: doc.id,
             ...data,
             storeId: data.storeId || doc.ref.parent.parent?.id,
+            type: "product" as const,
           };
-        }) as Product[];
+        }) as (Product & { type: "product" | "service" })[];
 
-        if (!queryText) {
-          setResults(allProducts);
-        } else {
+        const services = snapServices.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            storeId: data.storeId || doc.ref.parent.parent?.id,
+            type: "service" as const,
+          };
+        }) as (Product & { type: "product" | "service" })[];
+
+        const allItems = [...products, ...services];
+
+        // Filter Logic
+        let filtered = allItems;
+        if (queryText) {
           const lowerQ = queryText.toLowerCase();
-          const filtered = allProducts.filter((p) =>
-            p.name.toLowerCase().includes(lowerQ)
+          filtered = filtered.filter((p) =>
+            p.name.toLowerCase().includes(lowerQ),
           );
-          setResults(filtered);
         }
+
+        // Apply Client-Side Filters
+        filtered = filtered
+          .filter((item) => {
+            if (filterType !== "all" && item.type !== filterType) return false;
+            if (priceRange.min && item.price < parseFloat(priceRange.min))
+              return false;
+            if (priceRange.max && item.price > parseFloat(priceRange.max))
+              return false;
+            return true;
+          })
+          .sort((a, b) => {
+            if (sortOrder === "asc") return a.price - b.price;
+            if (sortOrder === "desc") return b.price - a.price;
+            return 0;
+          });
+
+        setResults(filtered);
       } catch (err) {
         console.error("Global search failed:", err);
       } finally {
@@ -118,6 +171,113 @@ export default function GlobalSearchScreen() {
         </View>
       </View>
 
+      {/* Filter Bar */}
+      <View className="px-4 py-2 bg-white">
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: 8, paddingRight: 16 }}
+        >
+          <Pressable
+            onPress={() => setShowFilters(!showFilters)}
+            className={`flex-row items-center px-3 py-2 rounded-full border ${showFilters ? "bg-black border-black" : "bg-white border-zinc-200"}`}
+          >
+            <SlidersHorizontal
+              size={14}
+              color={showFilters ? "white" : "black"}
+            />
+            <P
+              className={`ml-2 text-xs font-bold ${showFilters ? "text-white" : "text-black"}`}
+            >
+              Filters
+            </P>
+          </Pressable>
+
+          {/* Type Chips */}
+          {(["all", "product", "service"] as const).map((t) => (
+            <Pressable
+              key={t}
+              onPress={() => setFilterType(t)}
+              className={`px-4 py-2 rounded-full border ${filterType === t ? "bg-zinc-900 border-zinc-900" : "bg-white border-zinc-200"}`}
+            >
+              <P
+                className={`text-xs font-bold uppercase ${filterType === t ? "text-white" : "text-zinc-500"}`}
+              >
+                {t === "all"
+                  ? "All"
+                  : t === "product"
+                    ? "Products"
+                    : "Services"}
+              </P>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        {/* Expanded Filters */}
+        {showFilters && (
+          <View className="mt-4 p-4 bg-zinc-50 rounded-2xl space-y-4">
+            <View>
+              <P className="text-xs font-bold text-zinc-500 mb-2 uppercase">
+                Price Range
+              </P>
+              <View className="flex-row items-center gap-3">
+                <TextInput
+                  placeholder="Min"
+                  keyboardType="numeric"
+                  value={priceRange.min}
+                  onChangeText={(t) =>
+                    setPriceRange((prev) => ({ ...prev, min: t }))
+                  }
+                  className="flex-1 bg-white px-3 py-2 rounded-xl border border-zinc-200 text-sm font-bold"
+                />
+                <P className="text-zinc-400">-</P>
+                <TextInput
+                  placeholder="Max"
+                  keyboardType="numeric"
+                  value={priceRange.max}
+                  onChangeText={(t) =>
+                    setPriceRange((prev) => ({ ...prev, max: t }))
+                  }
+                  className="flex-1 bg-white px-3 py-2 rounded-xl border border-zinc-200 text-sm font-bold"
+                />
+              </View>
+            </View>
+
+            <View>
+              <P className="text-xs font-bold text-zinc-500 mb-2 uppercase">
+                Sort By Price
+              </P>
+              <View className="flex-row gap-2">
+                <Pressable
+                  onPress={() =>
+                    setSortOrder((prev) => (prev === "asc" ? null : "asc"))
+                  }
+                  className={`flex-1 py-2 rounded-xl border items-center ${sortOrder === "asc" ? "bg-white border-black" : "bg-white border-zinc-200"}`}
+                >
+                  <P
+                    className={`text-xs font-bold ${sortOrder === "asc" ? "text-black" : "text-zinc-500"}`}
+                  >
+                    Low to High
+                  </P>
+                </Pressable>
+                <Pressable
+                  onPress={() =>
+                    setSortOrder((prev) => (prev === "desc" ? null : "desc"))
+                  }
+                  className={`flex-1 py-2 rounded-xl border items-center ${sortOrder === "desc" ? "bg-white border-black" : "bg-white border-zinc-200"}`}
+                >
+                  <P
+                    className={`text-xs font-bold ${sortOrder === "desc" ? "text-black" : "text-zinc-500"}`}
+                  >
+                    High to Low
+                  </P>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+
       {/* Results */}
       <ScrollView
         contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
@@ -160,6 +320,15 @@ export default function GlobalSearchScreen() {
                     setSelectedProduct(p);
                   }}
                 />
+
+                {/* Service Tag */}
+                {(product as any).type === "service" && (
+                  <View className="absolute top-2 left-2 bg-zinc-100 px-2 py-1 rounded-md">
+                    <P className="text-[8px] font-black tracking-widest text-zinc-500 uppercase">
+                      SERVICE
+                    </P>
+                  </View>
+                )}
 
                 {/* Store Badge for clarity */}
                 <Pressable
