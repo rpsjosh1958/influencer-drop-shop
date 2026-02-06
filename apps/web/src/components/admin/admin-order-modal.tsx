@@ -133,7 +133,7 @@ export function AdminOrderModal({
                   <span className="text-sm text-zinc-500">
                     {order.createdAt?.seconds
                       ? new Date(
-                          order.createdAt.seconds * 1000
+                          order.createdAt.seconds * 1000,
                         ).toLocaleString()
                       : "Date N/A"}
                   </span>
@@ -208,6 +208,18 @@ export function AdminOrderModal({
                       <p className="text-zinc-600">{order.shipping?.zip}</p>
                     </div>
                   </div>
+
+                  {/* Customer Note */}
+                  {order.customerNote && (
+                    <div className="col-span-1 md:col-span-2">
+                      <h4 className="text-xs font-bold uppercase text-zinc-400 mb-2 tracking-wider">
+                        Note from Customer
+                      </h4>
+                      <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl text-sm italic text-yellow-900">
+                        "{order.customerNote}"
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Items */}

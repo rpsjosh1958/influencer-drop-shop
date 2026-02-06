@@ -7,11 +7,15 @@ const FEATURES = [
   {
     title: "Command Center.",
     description:
-      "A powerful dashboard to manage your business. Track sales in real-time, manage inventory, and customize your store's look and feel without writing a single line of code.",
+      "A powerful dashboard to manage your business. Track sales in real-time and manage basics like inventory and orders even from your phone.",
     icon: BarChart3,
     color: "text-purple-500",
     mockup: "dashboard",
-    bullets: ["✨ Live Sales Tracker", "✨ Easy Inventory", "✨ Customer Orders"],
+    bullets: [
+      "✨ Live Sales Tracker",
+      "✨ Easy Inventory",
+      "✨ Essential Mobile Admin",
+    ],
   },
   {
     title: "Your Brand, Your Rules.",
@@ -132,7 +136,7 @@ export function LandingFeatures() {
                     <div
                       className={`absolute -inset-10 bg-gradient-to-r ${feature.color.replace(
                         "text",
-                        "from"
+                        "from",
                       )}/20 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none`}
                     />
                   </div>
@@ -202,7 +206,7 @@ function MockupStore({ color }: { color: string }) {
         <div
           className={`absolute inset-0 opacity-20 bg-gradient-to-r ${color.replace(
             "text",
-            "from"
+            "from",
           )} to-transparent`}
         />
         <div className="absolute bottom-4 left-4">

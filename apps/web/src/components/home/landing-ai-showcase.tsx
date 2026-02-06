@@ -17,12 +17,12 @@ export function LandingAiShowcase() {
         <div className="text-center mb-16 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-widest mb-6">
             <Sparkles size={12} />
-            Introducing Drop Assistant
+            Your Store Runs Itself.
           </div>
           <h2 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
-            The AI that runs your <br />
+            While They're Doing It Manual, <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-white">
-              store for you.
+              You're On Autopilot.
             </span>
           </h2>
           <p className="text-xl text-zinc-400 leading-relaxed">

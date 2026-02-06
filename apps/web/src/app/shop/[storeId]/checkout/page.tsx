@@ -63,6 +63,7 @@ export default function CheckoutPage() {
   // Form State
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [customerNote, setCustomerNote] = useState("");
   const [phone, setPhone] = useState("");
 
   const [country, setCountry] = useState("Ghana");
@@ -153,7 +154,7 @@ export default function CheckoutPage() {
             const ref = doc(db, "stores", storeId, "products", item.id);
             const snapshot = await transaction.get(ref);
             return { ref, snapshot, item };
-          })
+          }),
         );
 
         // 2. Validate availability
@@ -168,18 +169,18 @@ export default function CheckoutPage() {
             // Variant Logic
             const variants = productData.variants || [];
             const variant = variants.find(
-              (v: any) => v.id === item.selectedVariant!.id
+              (v: any) => v.id === item.selectedVariant!.id,
             );
 
             if (!variant) {
               throw new Error(
-                `Variant ${item.selectedVariant.name} of ${item.name} no longer exists.`
+                `Variant ${item.selectedVariant.name} of ${item.name} no longer exists.`,
               );
             }
 
             if (variant.stock < item.quantity) {
               throw new Error(
-                `Not enough stock for ${item.name} (${item.selectedVariant.name}). Only ${variant.stock} left.`
+                `Not enough stock for ${item.name} (${item.selectedVariant.name}). Only ${variant.stock} left.`,
               );
             }
           } else {
@@ -187,7 +188,7 @@ export default function CheckoutPage() {
             const currentStock = productData.stock ?? 0;
             if (currentStock < item.quantity) {
               throw new Error(
-                `Not enough stock for ${item.name}. Only ${currentStock} left.`
+                `Not enough stock for ${item.name}. Only ${currentStock} left.`,
               );
             }
           }
@@ -239,8 +240,8 @@ export default function CheckoutPage() {
       await runTransaction(db, async (transaction) => {
         const reads = await Promise.all(
           cart.map((item) =>
-            transaction.get(doc(db, "stores", storeId, "products", item.id))
-          )
+            transaction.get(doc(db, "stores", storeId, "products", item.id)),
+          ),
         );
 
         reads.forEach((snap, idx) => {
@@ -256,7 +257,7 @@ export default function CheckoutPage() {
             const updated = variants.map((v: any) =>
               v.id === item.selectedVariant!.id
                 ? { ...v, stock: v.stock + item.quantity }
-                : v
+                : v,
             );
             transaction.update(ref, {
               variants: updated,
@@ -305,6 +306,7 @@ export default function CheckoutPage() {
         userId: user?.uid || "guest",
         customerEmail: user?.email || email,
         customerName: name,
+        customerNote, // Added
         storeId: store?.id,
         storeName: store?.name || "Unknown Store",
       };
@@ -318,7 +320,7 @@ export default function CheckoutPage() {
       // If saving order fails (very rare), we should probably refund or alert admin.
       // For now, alerting user.
       alert(
-        "Payment successful but order saving failed. Please contact support."
+        "Payment successful but order saving failed. Please contact support.",
       );
     } finally {
       setLoading(false);
@@ -595,6 +597,20 @@ export default function CheckoutPage() {
                   className="w-full bg-white border border-zinc-200 p-3 rounded-xl outline-none focus:ring-2 focus:ring-black transition-all"
                 />
               </div>
+            </div>
+
+            {/* Customer Note */}
+            <div className="space-y-4 pt-4 border-t border-zinc-100">
+              <h3 className="text-xs font-bold uppercase text-zinc-400">
+                Order Note (Optional)
+              </h3>
+              <textarea
+                value={customerNote}
+                onChange={(e) => setCustomerNote(e.target.value)}
+                placeholder="Any special instructions..."
+                rows={3}
+                className="w-full p-3 rounded-xl border border-zinc-200 bg-white outline-none focus:ring-2 focus:ring-black transition-all resize-none"
+              />
             </div>
 
             <div className="bg-blue-50 p-4 rounded-xl flex items-start gap-3 mt-6">

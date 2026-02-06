@@ -41,8 +41,7 @@ export function LandingHowItWorks() {
               .
             </h2>
             <p className="text-xl text-zinc-400">
-              We've stripped away the complexity of e-commerce. You just bring
-              the heat.
+              From idea to cash in your pocket—faster than you can skip a song.
             </p>
           </div>
         </div>

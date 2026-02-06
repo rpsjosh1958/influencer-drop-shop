@@ -71,10 +71,23 @@ function PlatformLandingContent() {
             </span>
           </h1>
 
-          <p className="text-xl md:text-2xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-12">
+          <p className="text-xl md:text-2xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-6">
             Launch your professional online store in seconds. Manage products,
             accept payments, and sell directly to your audience.
           </p>
+
+          {/* Trust Badges */}
+          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6 mb-12">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-zinc-300">
+              <span className="text-lg"></span> Zero Setup Cost
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-zinc-300">
+              <span className="text-lg"></span> Go Live in Minutes
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-zinc-300">
+              <span className="text-lg"></span> Universal Payment Options
+            </div>
+          </div>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full md:w-auto">
             {lastStoreId ? (

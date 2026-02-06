@@ -39,7 +39,7 @@ export default function CreateStoreWizard() {
 
   // Vendor Type: Individual vs Company
   const [vendorType, setVendorType] = useState<"individual" | "company">(
-    "individual"
+    "individual",
   );
   const [companyFile, setCompanyFile] = useState<File | null>(null);
 
@@ -78,7 +78,7 @@ export default function CreateStoreWizard() {
   }, []);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => {
@@ -107,6 +107,34 @@ export default function CreateStoreWizard() {
     }
   };
 
+  const handleGhanaCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value.toUpperCase();
+
+    // Allow full clearing
+    if (input === "") {
+      setFormData((prev) => ({ ...prev, ghanaCard: "" }));
+      return;
+    }
+
+    // Extract numbers only
+    const digits = input.replace(/[^0-9]/g, "");
+
+    // Reconstruct with GHA- prefix
+    let formatted = "GHA-";
+
+    // Append first 9 digits
+    if (digits.length > 0) {
+      formatted += digits.substring(0, 9);
+    }
+
+    // Append last digit with hyphen
+    if (digits.length > 9) {
+      formatted += "-" + digits.substring(9, 10);
+    }
+
+    setFormData((prev) => ({ ...prev, ghanaCard: formatted }));
+  };
+
   // --- Step 1A: Login (Existing User) ---
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,7 +145,7 @@ export default function CreateStoreWizard() {
         throw new Error("Please enter email and password.");
       }
       await import("firebase/auth").then(({ signInWithEmailAndPassword }) =>
-        signInWithEmailAndPassword(auth, formData.email, formData.password)
+        signInWithEmailAndPassword(auth, formData.email, formData.password),
       );
       setStep(2);
     } catch (err: any) {
@@ -146,14 +174,14 @@ export default function CreateStoreWizard() {
           const credential = await createUserWithEmailAndPassword(
             auth,
             formData.email,
-            formData.password
+            formData.password,
           );
           uid = credential.user.uid;
         } catch (authErr: any) {
           if (authErr.code === "auth/email-already-in-use") {
             setIsLoginMode(true);
             throw new Error(
-              "Looks like you already have an account! Please login to add a new store."
+              "Looks like you already have an account! Please login to add a new store.",
             );
           }
           throw authErr;
@@ -165,7 +193,7 @@ export default function CreateStoreWizard() {
       if (vendorType === "company" && companyFile && uid) {
         const storageRef = ref(
           storage,
-          `verifications/${uid}/${companyFile.name}`
+          `verifications/${uid}/${companyFile.name}`,
         );
         await uploadBytes(storageRef, companyFile);
         verificationDocUrl = await getDownloadURL(storageRef);
@@ -266,7 +294,7 @@ export default function CreateStoreWizard() {
         {
           ownedStores: arrayUnion(storeId),
         },
-        { merge: true }
+        { merge: true },
       );
 
       // Set Cookie & Redirect
@@ -453,7 +481,13 @@ export default function CreateStoreWizard() {
                   <input
                     name="ghanaCard"
                     value={formData.ghanaCard}
-                    onChange={handleChange}
+                    onChange={handleGhanaCardChange}
+                    onFocus={() => {
+                      if (!formData.ghanaCard) {
+                        setFormData((prev) => ({ ...prev, ghanaCard: "GHA-" }));
+                      }
+                    }}
+                    maxLength={15}
                     placeholder="GHA-xxxxxxxxx-x"
                     className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
                     required

@@ -67,6 +67,7 @@ export interface Order {
   };
   createdAt: any;
   userId?: string;
+  customerNote?: string;
   hasReview?: boolean;
 }
 

@@ -9,7 +9,7 @@ const PLANS = [
   {
     name: "Starter",
     description:
-      "Launch your brand with zero upfront risk. perfect for testing the waters.",
+      "Zero risk, zero catch. Start selling today, pay nothing upfront.",
     features: [
       "Web Store Only",
       "Unlimited Products",
@@ -17,7 +17,7 @@ const PLANS = [
       "8% Transaction Fee",
       "Payouts in 48 Hours",
     ],
-    cta: "Start Free",
+    cta: "Run It Free",
     popular: false,
   },
   {
@@ -69,7 +69,10 @@ export function LandingPricing() {
             Simple, Transparent <br />{" "}
             <span className="text-zinc-600">Pricing</span>
           </h2>
-          <p className="text-zinc-400 mb-8">
+          <p className="text-zinc-400 mb-2">
+            We eat when you eat. No upfront costs. No surprises.
+          </p>
+          <p className="text-sm text-zinc-500 mb-8">
             Scale your revenue without breaking the bank.
           </p>
 

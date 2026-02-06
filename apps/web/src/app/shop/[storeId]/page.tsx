@@ -20,6 +20,9 @@ import {
   Star,
   MoreHorizontal,
   X,
+  Filter,
+  ArrowUpDown,
+  Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Product, Category, ServiceItem } from "@/types";
@@ -57,6 +60,17 @@ export default function ShopHome() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
+
+  // Filter State
+  const [filterType, setFilterType] = useState<"all" | "product" | "service">(
+    "all",
+  );
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({
+    min: "",
+    max: "",
+  });
 
   // UI State
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -101,7 +115,7 @@ export default function ShopHome() {
       try {
         const qProducts = query(
           collection(db, "stores", storeId, "products"),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
         );
         const snapshotProducts = await getDocs(qProducts);
         const itemsProducts = snapshotProducts.docs.map((doc) => ({
@@ -112,7 +126,7 @@ export default function ShopHome() {
 
         const qCategories = query(
           collection(db, "stores", storeId, "categories"),
-          orderBy("name", "asc")
+          orderBy("name", "asc"),
         );
         const unsubCategories = onSnapshot(qCategories, (snapshot) => {
           const itemsCategories = snapshot.docs.map((doc) => ({
@@ -125,7 +139,7 @@ export default function ShopHome() {
         // Fetch Services (for service/hybrid stores)
         const qServices = query(
           collection(db, "stores", storeId, "services"),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
         );
         const snapshotServices = await getDocs(qServices);
         const itemsServices = snapshotServices.docs.map((doc) => ({
@@ -144,10 +158,39 @@ export default function ShopHome() {
     fetchData();
   }, [storeId]);
 
-  const filteredProducts =
-    selectedCategory === "All"
-      ? products
-      : products.filter((p) => p.category === selectedCategory);
+  // Merged & Filtered Items
+  const filteredItems = [
+    ...products.map((p) => ({ ...p, type: "product" as const })),
+    ...services.map((s) => ({ ...s, type: "service" as const })),
+  ]
+    .filter((item) => {
+      // 1. Category Filter
+      if (selectedCategory !== "All" && item.type === "product") {
+        // Services usually don't have the same category structure yet, or if they do, match it.
+        // For now, if category is selected, only show products of that category (unless services have it).
+        if ((item as Product).category !== selectedCategory) return false;
+      }
+
+      // 2. Type Filter
+      if (filterType !== "all" && item.type !== filterType) return false;
+
+      // 3. Price Filter
+      if (priceRange.min && item.price < parseFloat(priceRange.min))
+        return false;
+      if (priceRange.max && item.price > parseFloat(priceRange.max))
+        return false;
+
+      return true;
+    })
+    .sort((a, b) => {
+      // 4. Sort
+      if (!sortOrder) return 0; // Default: createdAt desc (from query) implies mixed order might be messy, but usually products/services are fetched desc.
+      // If we want strict "Newest" we need to compare `createdAt`.
+      // But user asked for Price Sort.
+      if (sortOrder === "asc") return a.price - b.price;
+      if (sortOrder === "desc") return b.price - a.price;
+      return 0;
+    });
 
   // Theme Config
   const theme = store?.theme || {};
@@ -493,27 +536,113 @@ export default function ShopHome() {
         </section>
       )}
 
-      {/* Services Section (for service/hybrid stores) */}
-      {services.length > 0 && (
-        <section className="px-4 md:px-8 max-w-7xl mx-auto mb-12">
-          <h2
-            className="text-2xl md:text-3xl font-bold mb-6"
-            style={{ color: primaryColor }}
+      {/* Filters & Sort Bar */}
+      <section className="px-6 max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Mobile Toggle */}
+        <div className="flex md:hidden">
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-bold bg-white"
+            style={{ borderColor: `${primaryColor}20`, color: primaryColor }}
           >
-            Our Services
-          </h2>
-          <div className={`grid ${getGridClass()}`}>
-            {services.map((service, i) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                index={i}
-                storeId={storeId}
-              />
+            <Filter size={14} />
+            Filters & Sort
+          </button>
+        </div>
+
+        {/* Filter Content (Collapsible on Mobile, Visible on Desktop) */}
+        <div
+          className={`flex flex-col md:flex-row md:items-center gap-4 w-full ${isFilterOpen ? "flex" : "hidden md:flex"}`}
+        >
+          {/* Type Toggle */}
+          <div className="flex bg-zinc-100 p-1 rounded-lg self-start">
+            {(["all", "product", "service"] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setFilterType(t)}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${
+                  filterType === t
+                    ? "bg-white shadow text-black"
+                    : "text-zinc-400 hover:text-zinc-600"
+                }`}
+              >
+                {t === "all"
+                  ? "All"
+                  : t === "product"
+                    ? "Products"
+                    : "Services"}
+              </button>
             ))}
           </div>
-        </section>
-      )}
+
+          {/* Price Range */}
+          <div className="flex items-center gap-2">
+            <input
+              placeholder="Min"
+              value={priceRange.min}
+              onChange={(e) =>
+                setPriceRange((p) => ({ ...p, min: e.target.value }))
+              }
+              className="w-20 px-3 py-1.5 rounded-lg border text-sm font-medium bg-white"
+              style={{ borderColor: `${primaryColor}20` }}
+              type="number"
+            />
+            <span className="text-zinc-300">-</span>
+            <input
+              placeholder="Max"
+              value={priceRange.max}
+              onChange={(e) =>
+                setPriceRange((p) => ({ ...p, max: e.target.value }))
+              }
+              className="w-20 px-3 py-1.5 rounded-lg border text-sm font-medium bg-white"
+              style={{ borderColor: `${primaryColor}20` }}
+              type="number"
+            />
+          </div>
+
+          {/* Sort Dropdown */}
+          <div className="flex items-center gap-2 md:ml-auto">
+            <div
+              className="flex bg-white border rounded-lg overflow-hidden"
+              style={{ borderColor: `${primaryColor}20` }}
+            >
+              <button
+                onClick={() => setSortOrder("asc")}
+                className={`px-3 py-2 flex items-center gap-1 hover:bg-zinc-50 ${sortOrder === "asc" ? "bg-zinc-50" : ""}`}
+              >
+                <span
+                  className="text-xs font-bold"
+                  style={{
+                    color: sortOrder === "asc" ? primaryColor : "#a1a1aa",
+                  }}
+                >
+                  Price Low
+                </span>
+                {sortOrder === "asc" && (
+                  <Check size={12} color={primaryColor} />
+                )}
+              </button>
+              <div className="w-px bg-zinc-100" />
+              <button
+                onClick={() => setSortOrder("desc")}
+                className={`px-3 py-2 flex items-center gap-1 hover:bg-zinc-50 ${sortOrder === "desc" ? "bg-zinc-50" : ""}`}
+              >
+                <span
+                  className="text-xs font-bold"
+                  style={{
+                    color: sortOrder === "desc" ? primaryColor : "#a1a1aa",
+                  }}
+                >
+                  Price High
+                </span>
+                {sortOrder === "desc" && (
+                  <Check size={12} color={primaryColor} />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Product Feed */}
       <section className="px-4 mt-5 md:px-8 max-w-7xl mx-auto">
@@ -526,39 +655,32 @@ export default function ShopHome() {
               />
             ))}
           </div>
-        ) : products.length > 0 ? (
-          <>
-            {services.length > 0 && (
-              <h2
-                className="text-2xl md:text-3xl font-bold mb-6"
-                style={{ color: primaryColor }}
-              >
-                Products
-              </h2>
-            )}
-            <div className={`grid ${getGridClass()}`}>
-              {filteredProducts.length > 0 ? (
-                filteredProducts.map((product, i) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    index={i}
-                    addToCart={addToCart}
-                    initialOpen={searchParams.get("productId") === product.id}
-                  />
-                ))
+        ) : filteredItems.length > 0 ? (
+          <div className={`grid ${getGridClass()}`}>
+            {filteredItems.map((item, i) =>
+              item.type === "product" ? (
+                <ProductCard
+                  key={item.id}
+                  product={item as Product}
+                  index={i}
+                  addToCart={addToCart}
+                  initialOpen={searchParams.get("productId") === item.id}
+                />
               ) : (
-                <div className="col-span-full py-20 text-center opacity-50">
-                  <p>No products found in this category.</p>
-                </div>
-              )}
-            </div>
-          </>
-        ) : services.length === 0 ? (
-          <div className="col-span-full py-20 text-center opacity-50">
-            <p>No products or services available.</p>
+                <ServiceCard
+                  key={item.id}
+                  service={item as ServiceItem}
+                  index={i}
+                  storeId={storeId}
+                />
+              ),
+            )}
           </div>
-        ) : null}
+        ) : (
+          <div className="col-span-full py-20 text-center opacity-50">
+            <p>No items found matching your filters.</p>
+          </div>
+        )}
       </section>
 
       {/* Footer */}
@@ -613,8 +735,8 @@ function ShopHero({ theme }: { theme: any }) {
     layout === "left"
       ? "text-left items-start"
       : layout === "right"
-      ? "text-right items-end"
-      : "text-center items-center";
+        ? "text-right items-end"
+        : "text-center items-center";
 
   const [bgIndex, setBgIndex] = useState(0);
 
