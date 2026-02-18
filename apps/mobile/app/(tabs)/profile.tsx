@@ -55,6 +55,7 @@ import {
   Eye,
   EyeOff,
   Store,
+  Zap,
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
@@ -62,6 +63,7 @@ import { Country, City } from "country-state-city";
 import { SelectionModal } from "@/components/ui/selection-modal";
 import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
 import { AlertCircle } from "lucide-react-native"; // Added
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<any>(null);
@@ -102,7 +104,7 @@ export default function ProfileScreen() {
         label: c.name,
         value: c.isoCode,
       })),
-    []
+    [],
   );
 
   const cityOptions = useMemo(() => {
@@ -172,7 +174,7 @@ export default function ProfileScreen() {
           displayName: name,
           phone,
         },
-        { merge: true }
+        { merge: true },
       );
       showAlert({
         title: "Success",
@@ -206,7 +208,7 @@ export default function ProfileScreen() {
       if (editingAddressId) {
         // Update existing
         updatedAddresses = addresses.map((addr) =>
-          addr.id === editingAddressId ? { ...addr, ...newAddr } : addr
+          addr.id === editingAddressId ? { ...addr, ...newAddr } : addr,
         );
       } else {
         // Add new
@@ -223,7 +225,7 @@ export default function ProfileScreen() {
         {
           addresses: updatedAddresses,
         },
-        { merge: true }
+        { merge: true },
       );
 
       setAddresses(updatedAddresses);
@@ -254,7 +256,7 @@ export default function ProfileScreen() {
         {
           addresses: updatedAddresses,
         },
-        { merge: true }
+        { merge: true },
       );
       setAddresses(updatedAddresses);
       showAlert({
@@ -296,7 +298,7 @@ export default function ProfileScreen() {
             {
               addresses: arrayRemove(addr),
             },
-            { merge: true }
+            { merge: true },
           );
           setAddresses(addresses.filter((a) => a.id !== addr.id));
         } catch (e) {
@@ -335,7 +337,7 @@ export default function ProfileScreen() {
           } else if (selectedOption === "Remove") {
             handleRemoveAddress(addr);
           }
-        }
+        },
       );
     } else {
       // Android / Other Alert fallback
@@ -356,7 +358,7 @@ export default function ProfileScreen() {
             onPress: () => handleRemoveAddress(addr),
           },
           { text: "Cancel", style: "cancel" },
-        ].filter(Boolean)
+        ].filter(Boolean),
       );
     }
   };
@@ -422,7 +424,7 @@ export default function ProfileScreen() {
       const storeQuery = query(
         collection(db, "stores"),
         where("ownerId", "==", user.uid),
-        limit(1)
+        limit(1),
       );
       const snapshot = await getDocs(storeQuery);
 
@@ -440,10 +442,10 @@ export default function ProfileScreen() {
               text: "Create Store",
               onPress: () =>
                 Linking.openURL(
-                  "https://thedrop-admin.vercel.app/create-store"
+                  "https://thedrop-admin.vercel.app/create-store",
                 ), // Replace with actual URL if known, assuming prod/dev URL
             },
-          ]
+          ],
         );
       }
     } catch (e) {
@@ -607,6 +609,15 @@ export default function ProfileScreen() {
                     label="Switch to Seller Mode"
                     onPress={handleServicesSwitch}
                   />
+                  {/* DEV: Test Onboarding */}
+                  <MenuItem
+                    icon={Zap}
+                    label="[DEV] View Onboarding"
+                    onPress={async () => {
+                      await AsyncStorage.removeItem("hasSeenOnboarding");
+                      router.replace("/(auth)/onboarding");
+                    }}
+                  />
                 </View>
 
                 <Pressable
@@ -677,7 +688,7 @@ export default function ProfileScreen() {
                                     <P className="font-bold">
                                       {addr.city},{" "}
                                       {countryOptions.find(
-                                        (c) => c.value === addr.country
+                                        (c) => c.value === addr.country,
                                       )?.label || addr.country}
                                     </P>
                                     {addr.isDefault && (
@@ -725,7 +736,7 @@ export default function ProfileScreen() {
                           >
                             <P className="font-bold text-base">
                               {countryOptions.find(
-                                (c) => c.value === newAddr.country
+                                (c) => c.value === newAddr.country,
                               )?.label || "Select Country"}
                             </P>
                             <ChevronRight size={20} color="#a1a1aa" />

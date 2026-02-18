@@ -162,8 +162,8 @@ function VendorLayout() {
         <Drawer.Screen
           name="inventory"
           options={{
-            drawerLabel: "Inventory",
-            title: "Inventory",
+            drawerLabel: "Products",
+            title: "Products",
             drawerIcon: ({ color, size }) => (
               <Package size={22} color={color} />
             ),

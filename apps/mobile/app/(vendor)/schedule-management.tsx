@@ -45,7 +45,7 @@ export default function ScheduleManagementScreen() {
     const fetchSettings = async () => {
       try {
         const snap = await getDoc(
-          doc(db, "stores", store.id, "availability", "settings")
+          doc(db, "stores", store.id, "availability", "settings"),
         );
         if (snap.exists()) {
           const data = snap.data();
@@ -53,7 +53,7 @@ export default function ScheduleManagementScreen() {
         }
 
         const generalSnap = await getDoc(
-          doc(db, "stores", store.id, "availability", "general")
+          doc(db, "stores", store.id, "availability", "general"),
         );
         if (generalSnap.exists()) {
           setBlockedDates(generalSnap.data().blockedDates || []);
@@ -79,14 +79,14 @@ export default function ScheduleManagementScreen() {
       await setDoc(
         doc(db, "stores", store.id, "availability", "settings"),
         { cancellationHours: hours },
-        { merge: true }
+        { merge: true },
       );
 
       // Save Blocked Dates
       await setDoc(
         doc(db, "stores", store.id, "availability", "general"),
         { blockedDates },
-        { merge: true }
+        { merge: true },
       );
 
       Alert.alert("Success", "Schedule settings updated");
@@ -118,7 +118,7 @@ export default function ScheduleManagementScreen() {
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between">
         <ArrowLeft size={24} color="black" onPress={() => router.back()} />
-        <H1 className="text-xl font-black uppercase">Schedule Mgmt</H1>
+        <H1 className="text-xl font-black uppercase">Schedule Management</H1>
         <View style={{ width: 24 }} />
       </View>
 
@@ -183,8 +183,26 @@ export default function ScheduleManagementScreen() {
               </Pressable>
             </View>
 
+            {/* Day of Week Headers */}
+            <View className="flex-row mb-2">
+              {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
+                <View key={i} className="w-[14.28%] items-center">
+                  <P className="text-xs font-bold text-zinc-400">{day}</P>
+                </View>
+              ))}
+            </View>
+
             {/* Calendar Grid */}
             <View className="flex-row flex-wrap">
+              {/* Empty cells for days before the first of the month */}
+              {Array.from({ length: startOfMonth(currentMonth).getDay() }).map(
+                (_, i) => (
+                  <View
+                    key={`empty-${i}`}
+                    className="w-[14.28%] aspect-square"
+                  />
+                ),
+              )}
               {calendarDays.map((date, i) => {
                 const dateStr = format(date, "yyyy-MM-dd");
                 const isBlocked = blockedDates.includes(dateStr);
@@ -198,8 +216,8 @@ export default function ScheduleManagementScreen() {
                       isBlocked
                         ? "bg-red-500 border-red-500"
                         : isToday
-                        ? "bg-black border-black"
-                        : "bg-white border-zinc-100"
+                          ? "bg-black border-black"
+                          : "bg-white border-zinc-100"
                     }`}
                   >
                     <P

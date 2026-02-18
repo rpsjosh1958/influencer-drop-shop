@@ -14,6 +14,7 @@ export interface StoreConfig {
   name: string;
   slug: string;
   ownerId: string;
+  type?: "product" | "service" | "hybrid";
   logo?: string;
   isVerified?: boolean;
   plan?: "starter" | "growth";
@@ -117,7 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       (error) => {
         console.error("Error fetching store:", error);
         setLoading(false);
-      }
+      },
     );
 
     return () => unsub();

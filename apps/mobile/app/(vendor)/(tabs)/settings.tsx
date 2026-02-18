@@ -66,9 +66,7 @@ export default function VendorSettings() {
         <SettingsItem
           icon={ExternalLink}
           label="Open Web Dashboard"
-          onPress={() =>
-            Linking.openURL("https://thedrop-admin.vercel.app/admin")
-          }
+          onPress={() => Linking.openURL("https://copdrop.io/admin")}
         />
         <SettingsItem
           icon={ArrowLeft}

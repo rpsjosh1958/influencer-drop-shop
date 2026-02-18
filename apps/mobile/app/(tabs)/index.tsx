@@ -82,7 +82,7 @@ export default function ShopHome() {
   const [products, setProducts] = useState<Product[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -91,10 +91,15 @@ export default function ShopHome() {
   const [isComplaintOpen, setIsComplaintOpen] = useState(false); // Added
 
   // Filter State
-  const [filterType, setFilterType] = useState<"all" | "product" | "service">("all");
+  const [filterType, setFilterType] = useState<"all" | "product" | "service">(
+    "all",
+  );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc" | null>(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({ min: "", max: "" });
+  const [priceRange, setPriceRange] = useState<{ min: string; max: string }>({
+    min: "",
+    max: "",
+  });
 
   // Hero Slideshow
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
@@ -106,7 +111,7 @@ export default function ShopHome() {
     if (store?.theme) {
       console.log(
         "🎨 MOBILE THEME DEBUG:",
-        JSON.stringify(store.theme, null, 2)
+        JSON.stringify(store.theme, null, 2),
       );
     }
   }, [store?.theme]);
@@ -134,7 +139,7 @@ export default function ShopHome() {
   // Notification State
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notifFilter, setNotifFilter] = useState<"all" | "unread" | "read">(
-    "all"
+    "all",
   );
 
   const { notifications, unreadCount, markAsRead } = useNotifications();
@@ -182,7 +187,7 @@ export default function ShopHome() {
           { duration: 300, easing: Easing.out(Easing.quad) },
           (finished) => {
             if (finished) runOnJS(setIsNotificationOpen)(true);
-          }
+          },
         );
       } else {
         translateX.value = withTiming(
@@ -190,7 +195,7 @@ export default function ShopHome() {
           { duration: 300, easing: Easing.out(Easing.quad) },
           (finished) => {
             if (finished) runOnJS(setIsNotificationOpen)(false);
-          }
+          },
         );
       }
     });
@@ -206,7 +211,7 @@ export default function ShopHome() {
     try {
       const q = query(
         collection(db, "stores", storeId, "products"),
-        orderBy("createdAt", "desc")
+        orderBy("createdAt", "desc"),
       );
       const snapshot = await getDocs(q);
       const items = snapshot.docs.map((doc) => ({
@@ -231,7 +236,7 @@ export default function ShopHome() {
     const unsubCategories = onSnapshot(
       query(
         collection(db, "stores", storeId, "categories"),
-        orderBy("name", "asc")
+        orderBy("name", "asc"),
       ),
       (snapshot) => {
         const items = snapshot.docs.map((doc) => ({
@@ -240,7 +245,7 @@ export default function ShopHome() {
         })) as Category[];
         setCategories(items);
       },
-      (error) => console.log("Error fetching categories:", error)
+      (error) => console.log("Error fetching categories:", error),
     );
 
     // Fetch Services (for service/hybrid stores)
@@ -248,7 +253,7 @@ export default function ShopHome() {
       try {
         const qServices = query(
           collection(db, "stores", storeId, "services"),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
         );
         const snapshot = await getDocs(qServices);
         const items = snapshot.docs.map((doc) => ({
@@ -301,7 +306,7 @@ export default function ShopHome() {
       // Client-side suggestions
       const textLower = text.toLowerCase();
       const matched = products.filter((p) =>
-        p.name.toLowerCase().includes(textLower)
+        p.name.toLowerCase().includes(textLower),
       );
       setSuggestions(matched.slice(0, 5));
     } else {
@@ -332,7 +337,7 @@ export default function ShopHome() {
       const q = query(
         collection(db, "stores", storeId, "products"),
         where("name", ">=", searchQuery),
-        where("name", "<=", searchQuery + "\uf8ff")
+        where("name", "<=", searchQuery + "\uf8ff"),
       );
 
       const snapshot = await getDocs(q);
@@ -352,7 +357,7 @@ export default function ShopHome() {
         // Fallback for case-insensitive local filtering (Store Scope)
         const textLower = searchQuery.toLowerCase();
         const localResults = products.filter((p) =>
-          p.name.toLowerCase().includes(textLower)
+          p.name.toLowerCase().includes(textLower),
         );
         setSearchResults(localResults);
       }
@@ -361,7 +366,7 @@ export default function ShopHome() {
       // Fallback
       const textLower = searchQuery.toLowerCase();
       const localResults = products.filter((p) =>
-        p.name.toLowerCase().includes(textLower)
+        p.name.toLowerCase().includes(textLower),
       );
       setSearchResults(localResults);
     } finally {
@@ -372,32 +377,44 @@ export default function ShopHome() {
   const displayedProducts = isSearching
     ? searchResults
     : selectedCategory === "All"
-    ? products
-    : products.filter((p) => p.category === selectedCategory);
+      ? products
+      : products.filter((p) => p.category === selectedCategory);
 
   // Filter Logic
-  const isFilteredView = filterType !== 'all' || !!sortOrder || !!priceRange.min || !!priceRange.max;
+  const isFilteredView =
+    filterType !== "all" || !!sortOrder || !!priceRange.min || !!priceRange.max;
 
-  const filteredItems = isFilteredView ? [
-    ...products.map(p => ({ ...p, type: 'product' as const })),
-    ...services.map(s => ({ ...s, type: 'service' as const }))
-  ].filter(item => {
-    // 1. Category (If selected and item is product - similar to web logic)
-    if (selectedCategory !== 'All' && item.type === 'product' && (item as Product).category !== selectedCategory) return false;
-    
-    // 2. Type
-    if (filterType !== 'all' && item.type !== filterType) return false;
+  const filteredItems = isFilteredView
+    ? [
+        ...products.map((p) => ({ ...p, type: "product" as const })),
+        ...services.map((s) => ({ ...s, type: "service" as const })),
+      ]
+        .filter((item) => {
+          // 1. Category (If selected and item is product - similar to web logic)
+          if (
+            selectedCategory !== "All" &&
+            item.type === "product" &&
+            (item as Product).category !== selectedCategory
+          )
+            return false;
 
-    // 3. Price
-    if (priceRange.min && item.price < parseFloat(priceRange.min)) return false;
-    if (priceRange.max && item.price > parseFloat(priceRange.max)) return false;
+          // 2. Type
+          if (filterType !== "all" && item.type !== filterType) return false;
 
-    return true;
-  }).sort((a,b) => {
-    if (sortOrder === 'asc') return a.price - b.price;
-    if (sortOrder === 'desc') return b.price - a.price;
-    return 0; // Default handling order: Mixed
-  }) : [];
+          // 3. Price
+          if (priceRange.min && item.price < parseFloat(priceRange.min))
+            return false;
+          if (priceRange.max && item.price > parseFloat(priceRange.max))
+            return false;
+
+          return true;
+        })
+        .sort((a, b) => {
+          if (sortOrder === "asc") return a.price - b.price;
+          if (sortOrder === "desc") return b.price - a.price;
+          return 0; // Default handling order: Mixed
+        })
+    : [];
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -524,7 +541,7 @@ export default function ShopHome() {
                             <P className="text-zinc-500 text-xs">
                               {item.createdAt?.seconds
                                 ? new Date(
-                                    item.createdAt.seconds * 1000
+                                    item.createdAt.seconds * 1000,
                                   ).toLocaleTimeString([], {
                                     hour: "2-digit",
                                     minute: "2-digit",
@@ -757,8 +774,8 @@ export default function ShopHome() {
                           store?.theme?.hero?.layout === "left"
                             ? "items-start"
                             : store?.theme?.hero?.layout === "right"
-                            ? "items-end"
-                            : "items-center"
+                              ? "items-end"
+                              : "items-center",
                         )}
                       >
                         {!!store?.theme?.hero?.headline && (
@@ -768,8 +785,8 @@ export default function ShopHome() {
                               store?.theme?.hero?.layout === "left"
                                 ? "text-left"
                                 : store?.theme?.hero?.layout === "right"
-                                ? "text-right"
-                                : "text-center"
+                                  ? "text-right"
+                                  : "text-center",
                             )}
                             style={{
                               color:
@@ -786,8 +803,8 @@ export default function ShopHome() {
                               store?.theme?.hero?.layout === "left"
                                 ? "text-left"
                                 : store?.theme?.hero?.layout === "right"
-                                ? "text-right"
-                                : "text-center"
+                                  ? "text-right"
+                                  : "text-center",
                             )}
                             style={{
                               color:
@@ -852,79 +869,120 @@ export default function ShopHome() {
                       ))}
                     </ScrollView>
                   </View>
-                  </View>
                 )}
 
                 {/* Filter Bar */}
                 {!isSearching && (
-                 <View className="px-6 mb-6">
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                        <Pressable 
-                            onPress={() => setShowFilters(!showFilters)}
-                            className={`flex-row items-center px-4 py-2.5 rounded-full border ${showFilters ? 'bg-black border-black' : 'bg-white border-zinc-200'}`}
+                  <View className="px-6 mb-6">
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ gap: 8 }}
+                    >
+                      <Pressable
+                        onPress={() => setShowFilters(!showFilters)}
+                        className={`flex-row items-center px-4 py-2.5 rounded-full border ${showFilters ? "bg-black border-black" : "bg-white border-zinc-200"}`}
+                      >
+                        <SlidersHorizontal
+                          size={14}
+                          color={showFilters ? "white" : "black"}
+                        />
+                        <P
+                          className={`ml-2 text-xs font-bold ${showFilters ? "text-white" : "text-black"}`}
                         >
-                            <SlidersHorizontal size={14} color={showFilters ? "white" : "black"} />
-                            <P className={`ml-2 text-xs font-bold ${showFilters ? 'text-white' : 'text-black'}`}>Filters</P>
-                        </Pressable>
+                          Filters
+                        </P>
+                      </Pressable>
 
-                         {/* Type Chips */}
-                        {(["all", "product", "service"] as const).map(t => (
-                            <Pressable
-                                key={t}
-                                onPress={() => setFilterType(t)}
-                                className={`px-4 py-2.5 rounded-full border ${filterType === t ? 'bg-zinc-900 border-zinc-900' : 'bg-white border-zinc-200'}`}
+                      {/* Type Chips - Only show for hybrid stores */}
+                      {store?.type === "hybrid" &&
+                        (["all", "product", "service"] as const).map((t) => (
+                          <Pressable
+                            key={t}
+                            onPress={() => setFilterType(t)}
+                            className={`px-4 py-2.5 rounded-full border ${filterType === t ? "bg-zinc-900 border-zinc-900" : "bg-white border-zinc-200"}`}
+                          >
+                            <P
+                              className={`text-xs font-bold uppercase ${filterType === t ? "text-white" : "text-zinc-500"}`}
                             >
-                                <P className={`text-xs font-bold uppercase ${filterType === t ? 'text-white' : 'text-zinc-500'}`}>
-                                    {t === 'all' ? 'All' : t === 'product' ? 'Products' : 'Services'}
-                                </P>
-                            </Pressable>
+                              {t === "all"
+                                ? "All"
+                                : t === "product"
+                                  ? "Products"
+                                  : "Services"}
+                            </P>
+                          </Pressable>
                         ))}
                     </ScrollView>
 
-                     {/* Expanded Filters */}
+                    {/* Expanded Filters */}
                     {showFilters && (
-                        <View className="mt-4 p-4 bg-zinc-50 rounded-2xl space-y-4">
-                            <View>
-                                <P className="text-xs font-bold text-zinc-500 mb-2 uppercase">Price Range</P>
-                                <View className="flex-row items-center gap-3">
-                                    <TextInput 
-                                        placeholder="Min"
-                                        keyboardType="numeric"
-                                        value={priceRange.min}
-                                        onChangeText={t => setPriceRange(prev => ({...prev, min: t}))}
-                                        className="flex-1 bg-white px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-bold"
-                                    />
-                                    <P className="text-zinc-400">-</P>
-                                    <TextInput 
-                                        placeholder="Max"
-                                        keyboardType="numeric"
-                                        value={priceRange.max}
-                                        onChangeText={t => setPriceRange(prev => ({...prev, max: t}))}
-                                        className="flex-1 bg-white px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-bold"
-                                    />
-                                </View>
-                            </View>
-
-                            <View>
-                                <P className="text-xs font-bold text-zinc-500 mb-2 uppercase">Sort By Price</P>
-                                <View className="flex-row gap-2">
-                                    <Pressable 
-                                        onPress={() => setSortOrder(prev => prev === 'asc' ? null : 'asc')}
-                                        className={`flex-1 py-2.5 rounded-xl border items-center ${sortOrder === 'asc' ? 'bg-white border-black' : 'bg-white border-zinc-200'}`}
-                                    >
-                                        <P className={`text-xs font-bold ${sortOrder === 'asc' ? 'text-black' : 'text-zinc-500'}`}>Low to High</P>
-                                    </Pressable>
-                                    <Pressable 
-                                        onPress={() => setSortOrder(prev => prev === 'desc' ? null : 'desc')}
-                                        className={`flex-1 py-2.5 rounded-xl border items-center ${sortOrder === 'desc' ? 'bg-white border-black' : 'bg-white border-zinc-200'}`}
-                                    >
-                                        <P className={`text-xs font-bold ${sortOrder === 'desc' ? 'text-black' : 'text-zinc-500'}`}>High to Low</P>
-                                    </Pressable>
-                                </View>
-                            </View>
+                      <View className="mt-4 p-4 bg-zinc-50 rounded-2xl space-y-4">
+                        <View>
+                          <P className="text-xs font-bold text-zinc-500 mb-2 uppercase">
+                            Price Range
+                          </P>
+                          <View className="flex-row items-center gap-3">
+                            <TextInput
+                              placeholder="Min"
+                              keyboardType="numeric"
+                              value={priceRange.min}
+                              onChangeText={(t) =>
+                                setPriceRange((prev) => ({ ...prev, min: t }))
+                              }
+                              className="flex-1 bg-white px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-bold"
+                            />
+                            <P className="text-zinc-400">-</P>
+                            <TextInput
+                              placeholder="Max"
+                              keyboardType="numeric"
+                              value={priceRange.max}
+                              onChangeText={(t) =>
+                                setPriceRange((prev) => ({ ...prev, max: t }))
+                              }
+                              className="flex-1 bg-white px-3 py-2.5 rounded-xl border border-zinc-200 text-sm font-bold"
+                            />
+                          </View>
                         </View>
+
+                        <View>
+                          <P className="text-xs font-bold text-zinc-500 mb-2 uppercase">
+                            Sort By Price
+                          </P>
+                          <View className="flex-row gap-2">
+                            <Pressable
+                              onPress={() =>
+                                setSortOrder((prev) =>
+                                  prev === "asc" ? null : "asc",
+                                )
+                              }
+                              className={`flex-1 py-2.5 rounded-xl border items-center ${sortOrder === "asc" ? "bg-white border-black" : "bg-white border-zinc-200"}`}
+                            >
+                              <P
+                                className={`text-xs font-bold ${sortOrder === "asc" ? "text-black" : "text-zinc-500"}`}
+                              >
+                                Low to High
+                              </P>
+                            </Pressable>
+                            <Pressable
+                              onPress={() =>
+                                setSortOrder((prev) =>
+                                  prev === "desc" ? null : "desc",
+                                )
+                              }
+                              className={`flex-1 py-2.5 rounded-xl border items-center ${sortOrder === "desc" ? "bg-white border-black" : "bg-white border-zinc-200"}`}
+                            >
+                              <P
+                                className={`text-xs font-bold ${sortOrder === "desc" ? "text-black" : "text-zinc-500"}`}
+                              >
+                                High to Low
+                              </P>
+                            </Pressable>
+                          </View>
+                        </View>
+                      </View>
                     )}
-                 </View>
+                  </View>
                 )}
 
                 {isSearching && (
@@ -947,134 +1005,143 @@ export default function ShopHome() {
                       ))}
                     </View>
                   ) : isFilteredView ? (
-                     // FILTERED VIEW (Unified Grid)
+                    // FILTERED VIEW (Unified Grid)
                     <View className="mb-8 px-4">
-                         <H1 className="text-lg font-bold mb-4 px-2">Filtered Results</H1>
-                          <View
-                            className={cn(
-                              "flex-row flex-wrap gap-3",
-                              store?.theme?.cardSize === "large" ? "justify-center" : "justify-between"
-                            )}
-                          >
-                             {filteredItems.length > 0 ? (
-                                filteredItems.map((item, i) => (
-                                  <View
-                                    key={item.id}
-                                    style={{
-                                      width: store?.theme?.cardSize === "large" ? "100%" : store?.theme?.cardSize === "small" ? "31%" : "48%",
-                                    }}
-                                    className="mb-4"
-                                  >
-                                    {item.type === 'service' ? (
-                                        <ServiceCard
-                                            service={item as ServiceItem}
-                                            index={i}
-                                            onPress={(s) => setSelectedService(s)}
-                                        />
-                                    ) : (
-                                        <ProductCard
-                                            product={item as Product}
-                                            index={i}
-                                            onPress={async (p) => {
-                                                // Simplified nav for store home (we are already here, just open modal)
-                                                setSelectedProduct(p);
-                                            }}
-                                        />
-                                    )}
-                                  </View>
-                                ))
-                             ) : (
-                                <View className="w-full py-20 items-center">
-                                    <P className="text-zinc-400">No items match your filters.</P>
-                                </View>
-                             )}
-                          </View>
-                    </View>
-                  ) : (
-                    // DEFAULT VIEW (Separated)
-                    <>
-                      {/* Services Section */}
-                      {services.length > 0 && (
-                        <View className="mb-8 pl-4">
-                          <H1 className="text-lg font-bold mb-4 px-2">
-                            Our Services
-                          </H1>
-                          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 24, gap: 12 }}>
-                            {services.map((service, i) => (
-                              <View key={service.id} className="w-64">
-                                <ServiceCard
-                                  service={service}
-                                  index={i}
-                                  onPress={(s) => setSelectedService(s)}
-                                />
-                              </View>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      )}
-
-                      {/* Products Section Header */}
-                      {services.length > 0 && products.length > 0 && (
-                        <H1 className="text-lg font-bold mb-4 px-6">
-                          Products
-                        </H1>
-                      )}
-
-                      {/* Products Grid */}
-                      <View className="px-4">
+                      <H1 className="text-lg font-bold mb-4 px-2">
+                        Filtered Results
+                      </H1>
                       <View
                         className={cn(
                           "flex-row flex-wrap gap-3",
                           store?.theme?.cardSize === "large"
                             ? "justify-center"
-                            : "justify-between"
+                            : "justify-between",
                         )}
                       >
-                        {displayedProducts.map((product, i) => (
-                          <View
-                            key={product.id}
-                            style={{
-                              width:
-                                store?.theme?.cardSize === "large"
-                                  ? "100%"
-                                  : store?.theme?.cardSize === "small"
-                                  ? "31%"
-                                  : "48%",
-                            }}
-                            className="mb-4"
-                          >
-                            <ProductCard
-                              product={product}
-                              index={i}
-                              onPress={async (p) => {
-                                if (p.storeId && p.storeId !== storeId) {
-                                  await setStoreId(p.storeId);
-                                  // Provide small delay for context update
-                                  setTimeout(() => setSelectedProduct(p), 100);
-                                } else {
-                                  setSelectedProduct(p);
-                                }
+                        {filteredItems.length > 0 ? (
+                          filteredItems.map((item, i) => (
+                            <View
+                              key={item.id}
+                              style={{
+                                width:
+                                  store?.theme?.cardSize === "large"
+                                    ? "100%"
+                                    : store?.theme?.cardSize === "small"
+                                      ? "31%"
+                                      : "48%",
                               }}
-                            />
-                          </View>
-                        ))}
-                        {isSearching && searchResults.length === 0 && (
-                          <View className="w-full py-10 items-center">
+                              className="mb-4"
+                            >
+                              {item.type === "service" ? (
+                                <ServiceCard
+                                  service={item as ServiceItem}
+                                  index={i}
+                                  onPress={(s) => setSelectedService(s)}
+                                />
+                              ) : (
+                                <ProductCard
+                                  product={item as Product}
+                                  index={i}
+                                  onPress={async (p) => {
+                                    // Simplified nav for store home (we are already here, just open modal)
+                                    setSelectedProduct(p);
+                                  }}
+                                />
+                              )}
+                            </View>
+                          ))
+                        ) : (
+                          <View className="w-full py-20 items-center">
                             <P className="text-zinc-400">
-                              No drops found matching "{searchQuery}"
+                              No items match your filters.
                             </P>
                           </View>
                         )}
-                        {!isSearching &&
-                          displayedProducts.length === 0 &&
-                          services.length === 0 && (
-                            <View className="w-full py-20 items-center">
+                      </View>
+                    </View>
+                  ) : (
+                    // DEFAULT VIEW (Unified Grid like Web)
+                    <>
+                      <View className="px-4">
+                        <View
+                          className={cn(
+                            "flex-row flex-wrap gap-3",
+                            store?.theme?.cardSize === "large"
+                              ? "justify-center"
+                              : "justify-between",
+                          )}
+                        >
+                          {/* Products First */}
+                          {displayedProducts.map((product, i) => (
+                            <View
+                              key={product.id}
+                              style={{
+                                width:
+                                  store?.theme?.cardSize === "large"
+                                    ? "100%"
+                                    : store?.theme?.cardSize === "small"
+                                      ? "31%"
+                                      : "48%",
+                              }}
+                              className="mb-4"
+                            >
+                              <ProductCard
+                                product={product}
+                                index={i}
+                                onPress={async (p) => {
+                                  if (p.storeId && p.storeId !== storeId) {
+                                    await setStoreId(p.storeId);
+                                    setTimeout(
+                                      () => setSelectedProduct(p),
+                                      100,
+                                    );
+                                  } else {
+                                    setSelectedProduct(p);
+                                  }
+                                }}
+                              />
+                            </View>
+                          ))}
+
+                          {/* Services After Products */}
+                          {services.map((service, i) => (
+                            <View
+                              key={service.id}
+                              style={{
+                                width:
+                                  store?.theme?.cardSize === "large"
+                                    ? "100%"
+                                    : store?.theme?.cardSize === "small"
+                                      ? "31%"
+                                      : "48%",
+                              }}
+                              className="mb-4"
+                            >
+                              <ServiceCard
+                                service={service}
+                                index={displayedProducts.length + i}
+                                onPress={(s) => setSelectedService(s)}
+                              />
+                            </View>
+                          ))}
+
+                          {isSearching && searchResults.length === 0 && (
+                            <View className="w-full py-10 items-center">
                               <P className="text-zinc-400">
-                                No products or services available.
+                                No drops found matching "{searchQuery}"
                               </P>
                             </View>
                           )}
-                      </View>
+                          {!isSearching &&
+                            displayedProducts.length === 0 &&
+                            services.length === 0 && (
+                              <View className="w-full py-20 items-center">
+                                <P className="text-zinc-400">
+                                  No products or services available.
+                                </P>
+                              </View>
+                            )}
+                        </View>
                       </View>
                     </>
                   )}

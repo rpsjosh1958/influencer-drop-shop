@@ -43,7 +43,7 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
       from={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "timing", duration: 500, delay: index * 100 }}
-      className="flex-1 m-2 mb-6"
+      className="flex-1"
     >
       <Pressable onPress={() => onPress(service)} className="active:opacity-95">
         <View className="aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-3 relative shadow-sm">
