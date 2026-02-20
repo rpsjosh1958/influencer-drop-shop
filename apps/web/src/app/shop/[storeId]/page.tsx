@@ -21,7 +21,7 @@ import {
   MoreHorizontal,
   X,
   Filter,
-  ArrowUpDown,
+  // ArrowUpDown,
   Check,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -40,6 +40,7 @@ import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Adde
 import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
 import { useAlert } from "@/context/alert-context";
 import { useNotifications } from "@/context/notification-context";
+import Link from "next/link";
 
 const fontMap: Record<string, string> = {
   Inter: "var(--font-inter)",
@@ -499,7 +500,7 @@ export default function ShopHome() {
       {/* Category Filter */}
       {categories.length > 0 && (
         <section
-          className="px-6 mb-8 max-w-7xl mx-auto sticky top-20 z-30 py-4 backdrop-blur-sm -mx-6 md:mx-auto overflow-hidden transition-colors duration-300"
+          className="px-6 mb-8 max-w-7xl mx-auto sticky top-20 z-30 py-4 backdrop-blur-sm md:mx-auto overflow-hidden transition-colors duration-300"
           style={{ backgroundColor: `${bgColor}F2` }}
         >
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-2 md:pb-0 px-6 md:px-0 md:justify-center">
@@ -537,7 +538,7 @@ export default function ShopHome() {
       )}
 
       {/* Filters & Sort Bar */}
-      <section className="px-6 max-w-7xl mx-auto mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <section className="px-6 max-w-7xl mx-auto mt-2 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Mobile Toggle */}
         <div className="flex md:hidden">
           <button
@@ -651,7 +652,7 @@ export default function ShopHome() {
             {[1, 2, 3, 4].map((i) => (
               <div
                 key={i}
-                className="aspect-[4/5] bg-black/5 rounded-2xl animate-pulse"
+                className="aspect-4/5 bg-black/5 rounded-2xl animate-pulse"
               />
             ))}
           </div>
@@ -717,7 +718,7 @@ export default function ShopHome() {
 }
 
 function ShopHero({ theme }: { theme: any }) {
-  if (!theme?.hero?.enabled) return <div className="pt-24" />;
+  const [bgIndex, setBgIndex] = useState(0);
 
   const hero = theme.hero || {};
   const {
@@ -731,15 +732,6 @@ function ShopHero({ theme }: { theme: any }) {
     subheadlineFont = "Inter",
   } = hero;
 
-  const alignClass =
-    layout === "left"
-      ? "text-left items-start"
-      : layout === "right"
-        ? "text-right items-end"
-        : "text-center items-center";
-
-  const [bgIndex, setBgIndex] = useState(0);
-
   useEffect(() => {
     if (backgroundImages.length > 1) {
       const interval = setInterval(() => {
@@ -748,6 +740,15 @@ function ShopHero({ theme }: { theme: any }) {
       return () => clearInterval(interval);
     }
   }, [backgroundImages]);
+
+  if (!theme?.hero?.enabled) return <div className="pt-24" />;
+
+  const alignClass =
+    layout === "left"
+      ? "text-left items-start"
+      : layout === "right"
+        ? "text-right items-end"
+        : "text-center items-center";
 
   return (
     <section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[60vh] flex flex-col justify-center">
@@ -864,12 +865,12 @@ function ShopFooter({
           <p className="opacity-60">{text || "© 2025 All rights reserved."}</p>
           <div className="pt-4 space-y-2">
             <div>
-              <a
+              <Link
                 href="/?stay=true"
                 className="text-xs font-bold opacity-30 hover:opacity-100 transition-opacity uppercase tracking-widest border-b border-transparent hover:border-current pb-0.5"
               >
                 Powered by The Drop
-              </a>
+              </Link>
             </div>
             <div>
               <button
@@ -887,7 +888,7 @@ function ShopFooter({
           <h4 className="font-bold opacity-40 uppercase tracking-widest text-xs">
             Follow Us
           </h4>
-          <div className="flex flex-col gap-2 opacity-80 decoration-slice">
+          <div className="flex flex-col gap-2 opacity-80 box-decoration-slice">
             {socials.instagram && <span>IG: {socials.instagram}</span>}
             {socials.twitter && <span>TW: {socials.twitter}</span>}
             {socials.tiktok && <span>TT: {socials.tiktok}</span>}
@@ -918,13 +919,10 @@ function ShopFooter({
 }
 
 function NotificationBadge() {
-  try {
-    const { unreadCount } = useNotifications();
-    if (unreadCount === 0) return null;
-    return (
-      <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
-    );
-  } catch (e) {
-    return null;
-  }
+  const { unreadCount } = useNotifications();
+  if (!unreadCount || unreadCount <= 0) return null;
+
+  return (
+    <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
+  );
 }

@@ -41,16 +41,42 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
     async function fetchStoreProducts() {
       if (storeProducts.length > 0 || !storeId) return;
       try {
-        const q = query(
+        const productsQuery = query(
           collection(db, "stores", storeId, "products"),
-          orderBy("createdAt", "desc")
+          orderBy("createdAt", "desc"),
         );
-        const snapshot = await getDocs(q);
-        const items = snapshot.docs.map((doc) => ({
+
+        const servicesQuery = query(
+          collection(db, "stores", storeId, "services"),
+          orderBy("createdAt", "desc"),
+        );
+
+        const [productsSnapshot, servicesSnapshot] = await Promise.all([
+          getDocs(productsQuery),
+          getDocs(servicesQuery),
+        ]);
+
+        const productList = productsSnapshot.docs.map((doc) => ({
           id: doc.id,
+          type: "product",
           ...doc.data(),
         }));
-        setStoreProducts(items);
+
+        const serviceList = servicesSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          type: "service",
+          ...doc.data(),
+        }));
+
+        const combinedItems = [...productList, ...serviceList];
+
+        combinedItems.sort((a: any, b: any) => {
+          const timeA = a.createdAt?.toMillis() || 0;
+          const timeB = b.createdAt?.toMillis() || 0;
+          return timeB - timeA;
+        });
+
+        setStoreProducts(combinedItems);
       } catch (error) {
         console.error("Failed to fetch store products", error);
       }
@@ -97,7 +123,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
     try {
       const lower = text.toLowerCase();
       const filtered = storeProducts.filter((p: any) =>
-        p.name.toLowerCase().includes(lower)
+        p.name.toLowerCase().includes(lower),
       );
       setResults(filtered.slice(0, 5));
     } catch (e) {
@@ -130,7 +156,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
         ref={containerRef}
         className={`relative z-40 flex items-center bg-white rounded-full transition-all duration-300 shadow-sm ${
           isOpen
-            ? "w-full md:w-[400px] border border-zinc-200 pl-4 py-1"
+            ? "w-full md:w-100 border border-zinc-200 pl-4 py-1"
             : "hover:bg-zinc-100/50"
         }`}
       >
