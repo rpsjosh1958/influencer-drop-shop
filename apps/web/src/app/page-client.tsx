@@ -59,10 +59,6 @@ function PlatformLandingContent() {
 
         {/* Hero Content */}
         <div className="relative z-20 text-center px-6 pt-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 text-white text-xs font-bold uppercase tracking-widest mb-8 border border-white/10 hover:bg-white/20 transition-colors cursor-default">
-            <Zap size={14} className="text-yellow-400 fill-yellow-400" />
-            The Drop Platform
-          </div>
 
           <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-none mb-8">
             OWN THE <br />
