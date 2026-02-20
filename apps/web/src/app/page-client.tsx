@@ -1,14 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, ShoppingBag, ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { StoreSelector } from "@/components/home/store-selector";
 import { useEffect, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-
 import { HeroBackground } from "@/components/home/hero-background";
 import { LandingFeatures } from "@/components/home/landing-features";
 import { LandingAiShowcase } from "@/components/home/landing-ai-showcase";
@@ -59,7 +55,6 @@ function PlatformLandingContent() {
 
         {/* Hero Content */}
         <div className="relative z-20 text-center px-6 pt-20">
-
           <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-none mb-8">
             OWN THE <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500">

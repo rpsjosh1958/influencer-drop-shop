@@ -22,7 +22,7 @@ export function StoreSelector() {
   const [search, setSearch] = useState("");
 
   const filteredStores = stores.filter((store) =>
-    store.name.toLowerCase().includes(search.toLowerCase())
+    store.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function StoreSelector() {
       try {
         const q = query(
           collection(db, "stores"),
-          where("status", "==", "live") // Only show live stores
+          where("status", "==", "live"), // Only show live stores
         );
         const snapshot = await getDocs(q);
         const storeData = snapshot.docs.map((doc) => ({
@@ -54,10 +54,14 @@ export function StoreSelector() {
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleSelect = (storeId: string) => {
-    console.log("StoreSelector: Selected store:", storeId);
     setIsNavigating(true);
     setIsOpen(false);
+
+    const pushStart = performance.now();
     router.push(`/shop/${storeId}`);
+    console.log(
+      `[StoreSelector] router.push initiated in ${performance.now() - pushStart}ms`,
+    );
   };
 
   return (
@@ -69,15 +73,15 @@ export function StoreSelector() {
       >
         <ShoppingBag size={20} />
         {loading
-          ? "Loading..."
+          ? "Loading Stores..."
           : isNavigating
-          ? "Redirecting..."
-          : "Shop A Store"}
+            ? "Opening Store..."
+            : "Shop A Store"}
         <ChevronDown
           size={16}
           className={cn(
             "text-zinc-500 transition-transform",
-            isOpen && "rotate-180"
+            isOpen && "rotate-180",
           )}
         />
       </button>
