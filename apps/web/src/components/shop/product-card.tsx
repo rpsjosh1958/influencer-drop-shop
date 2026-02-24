@@ -22,12 +22,12 @@ export function ProductCard({
 }: ProductCardProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(initialOpen || false);
 
-  // Sync initialOpen prop to state
-  useEffect(() => {
-    if (initialOpen) setIsModalOpen(true);
-  }, [initialOpen]);
+  // // Sync initialOpen prop to state
+  // useEffect(() => {
+  //   if (initialOpen) setIsModalOpen(true);
+  // }, [initialOpen]);
 
   // Use images array if available, fallback to legacy imageUrl
   const images =
@@ -128,9 +128,9 @@ export function ProductCard({
             {product.stock > 0
               ? `${product.stock} Left`
               : product.hasVariants &&
-                product.variants?.some((v) => v.stock > 0)
-              ? "Available"
-              : "Sold Out"}
+                  product.variants?.some((v) => v.stock > 0)
+                ? "Available"
+                : "Sold Out"}
           </div>
 
           {/* Quick Add / Select Options */}

@@ -669,6 +669,7 @@ export default function ShopHome() {
                 />
               ) : (
                 <ServiceCard
+                  initialOpen={searchParams.get("productId") === item.id}
                   key={item.id}
                   service={item as ServiceItem}
                   index={i}

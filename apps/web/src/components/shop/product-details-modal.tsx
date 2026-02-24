@@ -22,11 +22,12 @@ export function ProductDetailsModal({
   const { addToCart } = useCart();
   const { store } = useStore();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
 
   // Dynamic Selections
   const [selections, setSelections] = useState<Record<string, string>>({});
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    null
+    null,
   );
 
   // Reset state when product opens
@@ -58,11 +59,11 @@ export function ProductDetailsModal({
             ...(v.size && { Size: v.size }),
           };
           return Object.entries(selections).every(
-            ([k, val]) => mock[k] === val
+            ([k, val]) => mock[k] === val,
           );
         }
         return Object.entries(selections).every(
-          ([key, val]) => v.options[key] === val
+          ([key, val]) => v.options[key] === val,
         );
       });
       setSelectedVariant(match || null);
@@ -70,6 +71,12 @@ export function ProductDetailsModal({
       setSelectedVariant(null);
     }
   }, [selections, product]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   if (!product) return null;
 
@@ -80,10 +87,10 @@ export function ProductDetailsModal({
   // Only if product.options is missing/empty
   if (product.hasVariants && displayOptions.length === 0 && product.variants) {
     const colors = Array.from(
-      new Set(product.variants.map((v) => v.color).filter(Boolean))
+      new Set(product.variants.map((v) => v.color).filter(Boolean)),
     ) as string[];
     const sizes = Array.from(
-      new Set(product.variants.map((v) => v.size).filter(Boolean))
+      new Set(product.variants.map((v) => v.size).filter(Boolean)),
     ) as string[];
 
     if (colors.length)
@@ -111,12 +118,12 @@ export function ProductDetailsModal({
   const isVariantAvailable = (
     optionName: string,
     value: string,
-    currentSelections: Record<string, string>
+    currentSelections: Record<string, string>,
   ) => {
     if (!product.variants) return false;
 
     const optionIndex = displayOptions.findIndex(
-      (opt) => opt.name === optionName
+      (opt) => opt.name === optionName,
     );
     if (optionIndex === -1) return false;
 
@@ -147,7 +154,7 @@ export function ProductDetailsModal({
 
     // Check downstream options and clear if invalid
     const optionIndex = displayOptions.findIndex(
-      (opt) => opt.name === optionName
+      (opt) => opt.name === optionName,
     );
     if (optionIndex !== -1) {
       for (let i = optionIndex + 1; i < displayOptions.length; i++) {
@@ -158,7 +165,7 @@ export function ProductDetailsModal({
           const isStillValid = isVariantAvailable(
             nextOption,
             nextValue,
-            newSelections
+            newSelections,
           );
           if (!isStillValid) {
             delete newSelections[nextOption];
@@ -187,14 +194,6 @@ export function ProductDetailsModal({
   const currentPrice = selectedVariant?.price || product.price;
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
   const isOutOfStock = currentStock <= 0;
-
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>
@@ -321,7 +320,7 @@ export function ProductDetailsModal({
                                 const v = product.variants.find(
                                   (v) =>
                                     v.options?.[option.name] === value ||
-                                    v.color === value
+                                    v.color === value,
                                 );
                                 if (v?.colorCode) colorCode = v.colorCode;
                               }
@@ -329,7 +328,7 @@ export function ProductDetailsModal({
                               // Check availability (stock)
                               const isAvailable = isValueAvailable(
                                 option.name,
-                                value
+                                value,
                               );
 
                               if (isColor) {
@@ -384,8 +383,8 @@ export function ProductDetailsModal({
                                     isSelected
                                       ? "border-black bg-black text-white"
                                       : !isAvailable
-                                      ? "border-zinc-100 text-zinc-300 cursor-not-allowed line-through"
-                                      : "border-zinc-200 text-zinc-600 hover:border-black"
+                                        ? "border-zinc-100 text-zinc-300 cursor-not-allowed line-through"
+                                        : "border-zinc-200 text-zinc-600 hover:border-black"
                                   }`}
                                 >
                                   {value}
@@ -410,15 +409,15 @@ export function ProductDetailsModal({
                       isOutOfStock
                         ? "bg-zinc-200 text-zinc-400 cursor-not-allowed"
                         : product.hasVariants && !selectedVariant
-                        ? "bg-zinc-100 text-zinc-400"
-                        : "bg-black text-white hover:bg-zinc-900"
+                          ? "bg-zinc-100 text-zinc-400"
+                          : "bg-black text-white hover:bg-zinc-900"
                     }`}
                   >
                     {isOutOfStock
                       ? "Sold Out"
                       : product.hasVariants && !selectedVariant
-                      ? "Select Options"
-                      : `Add to Cart — GHS ${currentPrice.toFixed(2)}`}
+                        ? "Select Options"
+                        : `Add to Cart — GHS ${currentPrice.toFixed(2)}`}
                   </button>
                   {currentStock > 0 && currentStock < 5 && (
                     <p className="text-center text-xs text-red-500 font-bold mt-3 animate-pulse">
@@ -432,6 +431,6 @@ export function ProductDetailsModal({
         </>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 }

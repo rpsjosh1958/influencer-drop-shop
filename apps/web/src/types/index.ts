@@ -38,6 +38,7 @@ export interface Product {
   stock: number;
   createdAt: number;
   category?: string;
+  type: string;
   storeId?: string; // Links product to a specific store
 }
 
@@ -149,6 +150,7 @@ export interface StoreConfig {
 export interface ServiceItem {
   id: string;
   name: string;
+  type: string;
   description: string;
   price: number;
   images: string[];

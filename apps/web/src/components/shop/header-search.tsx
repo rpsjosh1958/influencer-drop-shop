@@ -7,8 +7,9 @@ import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter, useParams } from "next/navigation";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
-import { Product } from "@/types";
+import { Product, ServiceItem } from "@/types";
 import { ProductDetailsModal } from "./product-details-modal";
+import { BookingModal } from "./booking-modal";
 
 interface HeaderSearchProps {
   onAddToCart?: (product: any, variant?: any) => void;
@@ -25,7 +26,11 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
   const [scope, setScope] = useState<"store" | "global">("store");
 
   const [storeProducts, setStoreProducts] = useState<any[]>([]);
-  const [productToView, setProductToView] = useState<Product | null>(null);
+  const [productToView, setProductToView] = useState<
+    Product | ServiceItem | null
+  >(null);
+
+  if (productToView !== null) console.log(productToView);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -288,9 +293,16 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
         </AnimatePresence>
       </div>
 
-      {productToView && (
+      {productToView && productToView?.type === "service" ? (
+        <BookingModal
+          service={productToView as ServiceItem}
+          isOpen={!!productToView}
+          onClose={() => setProductToView(null)}
+          storeId={storeId}
+        />
+      ) : (
         <ProductDetailsModal
-          product={productToView}
+          product={productToView as Product}
           isOpen={!!productToView}
           onClose={() => setProductToView(null)}
         />

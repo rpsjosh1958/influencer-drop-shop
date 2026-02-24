@@ -74,7 +74,7 @@ export function BookingModal({
   onClose,
 }: BookingModalProps) {
   const [step, setStep] = useState<"date" | "time" | "info" | "confirm">(
-    "date"
+    "date",
   );
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -82,7 +82,7 @@ export function BookingModal({
 
   // Availability
   const [availability, setAvailability] = useState<AvailabilitySettings | null>(
-    null
+    null,
   );
   const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
 
@@ -138,11 +138,11 @@ export function BookingModal({
         const q = query(
           collection(db, "stores", storeId, "bookings"),
           where("date", "==", dateKey),
-          where("status", "in", ["pending", "confirmed"])
+          where("status", "in", ["pending", "confirmed"]),
         );
         const snap = await getDocs(q);
         setExistingBookings(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Booking))
+          snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Booking),
         );
       } catch (err) {
         console.error("Failed to fetch bookings", err);
@@ -247,9 +247,9 @@ export function BookingModal({
       const endTime = format(
         addMinutes(
           parse(selectedSlot, "HH:mm", selectedDate),
-          service.duration
+          service.duration,
         ),
-        "HH:mm"
+        "HH:mm",
       );
 
       const bookingData: Omit<Booking, "id"> = {
@@ -400,12 +400,12 @@ export function BookingModal({
                           !isCurrentMonth
                             ? "text-zinc-200"
                             : !isAvailable
-                            ? "text-zinc-300 cursor-not-allowed"
-                            : isSelected
-                            ? "bg-black text-white"
-                            : isToday(day)
-                            ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
-                            : "hover:bg-zinc-100"
+                              ? "text-zinc-300 cursor-not-allowed"
+                              : isSelected
+                                ? "bg-black text-white"
+                                : isToday(day)
+                                  ? "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                  : "hover:bg-zinc-100"
                         }`}
                       >
                         {format(day, "d")}
