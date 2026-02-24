@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ShoppingBag, ChevronDown, Check, Search } from "lucide-react";
@@ -15,7 +14,6 @@ interface Store {
 }
 
 export function StoreSelector() {
-  const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
@@ -56,12 +54,7 @@ export function StoreSelector() {
   const handleSelect = (storeId: string) => {
     setIsNavigating(true);
     setIsOpen(false);
-
-    const pushStart = performance.now();
-    router.push(`/shop/${storeId}`);
-    console.log(
-      `[StoreSelector] router.push initiated in ${performance.now() - pushStart}ms`,
-    );
+    window.location.href = `/shop/${storeId}`;
   };
 
   return (
