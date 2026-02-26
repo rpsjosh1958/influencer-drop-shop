@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   X,
@@ -73,6 +74,7 @@ export function BookingModal({
   isOpen,
   onClose,
 }: BookingModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [step, setStep] = useState<"date" | "time" | "info" | "confirm">(
     "date",
   );
@@ -128,6 +130,10 @@ export function BookingModal({
     };
     fetchAvailability();
   }, [isOpen, storeId]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Fetch existing bookings for selected date
   useEffect(() => {
@@ -290,9 +296,9 @@ export function BookingModal({
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
+  return createPortal(
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
@@ -641,6 +647,7 @@ export function BookingModal({
           )}
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
