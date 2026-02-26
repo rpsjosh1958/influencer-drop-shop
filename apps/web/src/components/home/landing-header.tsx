@@ -39,12 +39,17 @@ export function LandingHeader() {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between transition-all duration-300">
-      <div className="flex items-center gap-2">
-        <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 shadow-lg shadow-purple-500/20" />
+      <Link href="/" className="flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/assets/landing/drop_logo.png"
+          alt="The Drop"
+          className="h-8 w-auto"
+        />
         <span className="font-black tracking-tighter text-2xl text-white">
           THE DROP.
         </span>
-      </div>
+      </Link>
 
       <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
         <a href="#features" className="hover:text-white transition-colors">

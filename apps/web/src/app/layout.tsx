@@ -86,8 +86,8 @@ export const metadata: Metadata = {
     creator: "@copdrop_io",
   },
   icons: {
-    icon: "/assets/landing/site-logo.png", // Updated path
-    apple: "/assets/landing/site-logo.png", // Added mobile support
+    icon: "/assets/landing/drop_logo.png",
+    apple: "/assets/landing/drop_logo.png",
   },
 };
 

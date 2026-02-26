@@ -1,14 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Zap, ShoppingBag, ArrowRight, ChevronDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { StoreSelector } from "@/components/home/store-selector";
 import { useEffect, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-
-import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
-
 import { HeroBackground } from "@/components/home/hero-background";
 import { LandingFeatures } from "@/components/home/landing-features";
 import { LandingAiShowcase } from "@/components/home/landing-ai-showcase";
@@ -35,18 +31,6 @@ export function PlatformLandingClient() {
 
 function PlatformLandingContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [lastStoreId, setLastStoreId] = useState<string | null>(null);
-  const [storeName, setStoreName] = useState<string | null>(null); // Optional: if we stored name too, otherwise just ID
-
-  useEffect(() => {
-    // Check local storage for last visited store
-    // We strictly avoid auto-redirecting for better UX performance
-    const storedId = localStorage.getItem("copdrop_last_visited_store");
-    if (storedId) {
-      setLastStoreId(storedId);
-    }
-  }, []);
 
   return (
     <div className="bg-black text-white font-sans selection:bg-purple-500 selection:text-white">
@@ -59,7 +43,6 @@ function PlatformLandingContent() {
 
         {/* Hero Content */}
         <div className="relative z-20 text-center px-6 pt-20">
-
           <h1 className="text-6xl md:text-8xl lg:text-9xl font-black tracking-tighter leading-none mb-8">
             OWN THE <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500">
@@ -86,27 +69,12 @@ function PlatformLandingContent() {
           </div>
 
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 w-full md:w-auto">
-            {lastStoreId ? (
-              <Link
-                href={`/shop/${lastStoreId}`}
-                className="w-full md:w-auto bg-white text-black h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)] border-2 border-transparent hover:border-purple-500"
-              >
-                <div className="flex flex-col items-start leading-none gap-0.5">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-purple-600">
-                    Resume Shopping
-                  </span>
-                  <span>Go to Last Store</span>
-                </div>
-                <ArrowRight size={20} />
-              </Link>
-            ) : (
-              <Link
-                href="/create-store"
-                className="w-full md:w-auto bg-white text-black h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:scale-105 transition-transform"
-              >
-                Launch Your Store <ArrowRight size={20} />
-              </Link>
-            )}
+            <Link
+              href="/create-store"
+              className="w-full md:w-auto bg-white text-black h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)] border-2 border-transparent hover:border-purple-500"
+            >
+              Launch Your Store <ArrowRight size={20} />
+            </Link>
             <StoreSelector />
           </div>
         </div>

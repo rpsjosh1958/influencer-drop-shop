@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ShoppingBag, ChevronDown, Check, Search } from "lucide-react";
@@ -15,14 +14,13 @@ interface Store {
 }
 
 export function StoreSelector() {
-  const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
 
   const filteredStores = stores.filter((store) =>
-    store.name.toLowerCase().includes(search.toLowerCase())
+    store.name.toLowerCase().includes(search.toLowerCase()),
   );
 
   useEffect(() => {
@@ -31,7 +29,7 @@ export function StoreSelector() {
       try {
         const q = query(
           collection(db, "stores"),
-          where("status", "==", "live") // Only show live stores
+          where("status", "==", "live"), // Only show live stores
         );
         const snapshot = await getDocs(q);
         const storeData = snapshot.docs.map((doc) => ({
@@ -54,10 +52,9 @@ export function StoreSelector() {
   const [isNavigating, setIsNavigating] = useState(false);
 
   const handleSelect = (storeId: string) => {
-    console.log("StoreSelector: Selected store:", storeId);
     setIsNavigating(true);
     setIsOpen(false);
-    router.push(`/shop/${storeId}`);
+    window.location.href = `/shop/${storeId}`;
   };
 
   return (
@@ -69,15 +66,15 @@ export function StoreSelector() {
       >
         <ShoppingBag size={20} />
         {loading
-          ? "Loading..."
+          ? "Loading Stores..."
           : isNavigating
-          ? "Redirecting..."
-          : "Shop A Store"}
+            ? "Opening Store..."
+            : "Shop A Store"}
         <ChevronDown
           size={16}
           className={cn(
             "text-zinc-500 transition-transform",
-            isOpen && "rotate-180"
+            isOpen && "rotate-180",
           )}
         />
       </button>
