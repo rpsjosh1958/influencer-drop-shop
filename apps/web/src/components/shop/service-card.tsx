@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Clock, Loader2, Briefcase } from "lucide-react";
@@ -11,13 +11,24 @@ interface ServiceCardProps {
   service: ServiceItem;
   index: number;
   storeId: string;
+  initialOpen?: boolean;
 }
 
-export function ServiceCard({ service, index, storeId }: ServiceCardProps) {
+export function ServiceCard({
+  service,
+  index,
+  storeId,
+  initialOpen = false,
+}: ServiceCardProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(initialOpen || false);
 
   const image = service.images?.[0] || service.imageUrl;
+
+  //initial open
+  // useEffect(() => {
+  //   if (initialOpen) setIsModalOpen(true);
+  // }, [initialOpen]);
 
   return (
     <>

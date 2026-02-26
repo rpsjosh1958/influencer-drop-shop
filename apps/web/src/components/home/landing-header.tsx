@@ -55,9 +55,6 @@ export function LandingHeader() {
         <a href="#features" className="hover:text-white transition-colors">
           Features
         </a>
-        <a href="#ecosystem" className="hover:text-white transition-colors">
-          Ecosystem
-        </a>
         <a href="#pricing" className="hover:text-white transition-colors">
           Pricing
         </a>
@@ -93,13 +90,13 @@ export function LandingHeader() {
           <>
             <Link
               href="/admin"
-              className="text-sm font-bold text-white hover:text-zinc-300 transition-colors mr-2"
+              className="hidden md:flex text-sm font-bold text-white hover:text-zinc-300 transition-colors mr-2"
             >
               Sign In
             </Link>
             <Link
               href="/create-store"
-              className="hidden md:flex bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg shadow-white/10"
+              className=" bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg shadow-white/10"
             >
               Start Selling
             </Link>
