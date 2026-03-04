@@ -8,7 +8,7 @@ import * as logger from "firebase-functions/logger";
  * Action: Downgrades expired "growth" plans to "starter" and removes verification.
  */
 export const checkSubscriptionExpiry = onSchedule(
-  "every 24 hours",
+  "every 1 hours",
   async (event) => {
     const db = admin.firestore();
     const now = admin.firestore.Timestamp.now();

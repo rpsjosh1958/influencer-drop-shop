@@ -18,6 +18,7 @@ interface AdminStoreContextType {
   storeId: string | null;
   storeName: string | null;
   storePlan: "starter" | "growth" | null;
+  planExpiresAt: any | null;
   storeType: StoreType | null;
   storeFeatures: StoreFeatures | null;
   pendingBookingsCount: number;
@@ -36,6 +37,7 @@ export function AdminStoreProvider({
   const [storeId, setStoreId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string | null>(null);
   const [storePlan, setStorePlan] = useState<"starter" | "growth" | null>(null);
+  const [planExpiresAt, setPlanExpiresAt] = useState<any | null>(null);
   const [storeType, setStoreType] = useState<StoreType | null>(null);
   const [storeFeatures, setStoreFeatures] = useState<StoreFeatures | null>(
     null
@@ -65,12 +67,33 @@ export function AdminStoreProvider({
               (doc) => {
                 if (doc.exists()) {
                   const data = doc.data();
+                  const rawPlan = data?.plan || "starter";
+                  const expiry = data?.planExpiresAt;
+                  
+                  // Check if expired locally
+                  let isExpired = false;
+                  if (expiry) {
+                    const expiryDate = expiry.toDate ? expiry.toDate() : new Date(expiry.seconds * 1000);
+                    if (new Date() > expiryDate) {
+                      isExpired = true;
+                    }
+                  }
+
+                  const activePlan = (rawPlan === "growth" && !isExpired) ? "growth" : "starter";
+
                   setStoreName(data?.name || "Store");
-                  setStorePlan(data?.plan || "starter");
+                  setStorePlan(activePlan);
+                  setPlanExpiresAt(expiry || null);
                   setStoreType(data?.type || "product");
 
-                  // Get features
-                  if (data?.features) {
+                  // Force features based on ACTIVE plan (ignoring database if expired)
+                  if (activePlan === "starter") {
+                    setStoreFeatures({
+                      hasProducts: true,
+                      hasServices: false,
+                      hasPreorders: false,
+                    });
+                  } else if (data?.features) {
                     setStoreFeatures(data.features);
                   } else {
                     const type = data?.type || "product";
@@ -114,6 +137,7 @@ export function AdminStoreProvider({
         storeId,
         storeName,
         storePlan,
+        planExpiresAt,
         storeType,
         storeFeatures,
         pendingBookingsCount,

@@ -308,19 +308,137 @@ export async function POST(req: Request) {
           },
         },
       },
+      // --- SERVICE TOOLS ---
+      {
+        type: "function",
+        function: {
+          name: "listServices",
+          description: "List the store's bookable services.",
+          parameters: {
+            type: "object",
+            properties: {
+              search: {
+                type: "string",
+                description: "Optional name to search for",
+              },
+            },
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "updateService",
+          description: "Update service details like price or duration.",
+          parameters: {
+            type: "object",
+            properties: {
+              serviceId: {
+                type: "string",
+                description: "The service ID OR exact service name",
+              },
+              price: { type: "number" },
+              duration: { type: "number", description: "Duration in minutes" },
+              isActive: { type: "boolean" },
+            },
+            required: ["serviceId"],
+          },
+        },
+      },
+      // --- BOOKING TOOLS ---
+      {
+        type: "function",
+        function: {
+          name: "getRecentBookings",
+          description: "Get recent bookings/appointments.",
+          parameters: {
+            type: "object",
+            properties: {
+              limit: { type: "number", description: "Max to return (default 5)" },
+              status: { type: "string", enum: ["pending", "confirmed", "completed", "cancelled"] },
+            },
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "updateBookingStatus",
+          description: "Confirm, complete, or cancel a booking.",
+          parameters: {
+            type: "object",
+            properties: {
+              bookingId: { type: "string" },
+              status: { type: "string", enum: ["confirmed", "completed", "cancelled", "no-show"] },
+            },
+            required: ["bookingId", "status"],
+          },
+        },
+      },
+      // --- STORE STRATEGY & ANALYTICS ---
+      {
+        type: "function",
+        function: {
+          name: "getTopSellingProducts",
+          description: "Identify top selling products based on order history.",
+          parameters: {
+            type: "object",
+            properties: {
+              limit: { type: "number", description: "Number of products (default 5)" },
+            },
+          },
+        },
+      },
+      {
+        type: "function",
+        function: {
+          name: "updateStoreSchedule",
+          description: "Update opening hours for a specific day.",
+          parameters: {
+            type: "object",
+            properties: {
+              day: { type: "string", enum: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] },
+              enabled: { type: "boolean" },
+              startTime: { type: "string", description: "HH:mm format (e.g. 09:00)" },
+              endTime: { type: "string", description: "HH:mm format (e.g. 17:00)" },
+            },
+            required: ["day", "enabled"],
+          },
+        },
+      },
+      // --- CUSTOMER TOOLS ---
+      {
+        type: "function",
+        function: {
+          name: "searchCustomer",
+          description: "Search for customer details and order history.",
+          parameters: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "Name or email of the customer",
+              },
+            },
+            required: ["query"],
+          },
+        },
+      },
     ];
 
     // 4. Initial Call
     const systemMessage: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
       role: "system",
       content:
-        "You are a helpful Store Admin Assistant. When listing data, use clean Markdown tables. \n\n" +
-        "You can now manage Categories, Orders, Support Tickets, and provide Financial Strategy. \n" +
-        "If the user asks about 'complaints' or 'tickets', use `getSupportTickets`. \n" +
-        "If the user asks for 'marketing advice' or 'how to boost sales', ALWAYS start by calling `getStoreInsights` to understand their revenue and plan context. \n" +
-        "When explaining fees or payouts, use the data from `getStoreInsights`. \n" +
-        "IMPORTANT: All currency values must be displayed in **Ghana Cedis (GHS)** or **GH₵**. Never use '$' or 'USD'. \n" +
-        "Be concise but professional.",
+        "You are 'The Drop Assistant', a premium Store Admin Executive. \n\n" +
+        "### STYLE GUIDELINES:\n" +
+        "1. **NO GUIDs:** Never show raw database IDs (e.g., 'yq2Q8jRZuc...') to the user. Refer to items by their Name or a truncated Order Number (e.g., #CGGILF).\n" +
+        "2. **LIST FORMATTING:** For lists of products, orders, or bookings, ALWAYS use a **bulleted list** (one item per line) with clear spacing. Avoid using Markdown tables as they can be hard to read. Use double newlines between separate items if they contain detailed info.\n" +
+        "3. **CURRENCY:** Always use GH₵ or GHS. Use **Bold** for all monetary values (e.g., **GH₵ 50.00**).\n" +
+        "4. **STATUS:** Use emojis for status (e.g., ✅ Resolved, 🕒 Pending, 📦 Shipped, 🛍️ Product, 📅 Booking).\n\n" +
+        "### CAPABILITIES:\n" +
+        "You manage Products, Services, Bookings, Categories, Orders, Customers, and Support. \n" +
+        "If asked for 'marketing advice', use `getStoreInsights` and `getTopSellingProducts` to give a professional data-driven summary.",
     };
 
     const response = await openai.chat.completions.create({
@@ -394,9 +512,7 @@ export async function POST(req: Request) {
                 : products
                     .map(
                       (p: any) =>
-                        `[ID: ${p.id}] ${p.name} ($${p.price}) - Stock: ${
-                          p.stock ?? "N/A"
-                        }`
+                        `Product: ${p.name} | Price: GH₵${p.price} | Stock: ${p.stock ?? "N/A"} | ID: ${p.id}`
                     )
                     .join("\n");
           } else if (fnName === "batchUpdateProducts") {
@@ -464,13 +580,11 @@ export async function POST(req: Request) {
               .limit(5)
               .get();
             result = snap.empty
-              ? "No orders."
+              ? "No orders found."
               : snap.docs
                   .map(
-                    (d: any) =>
-                      `Order ${d.id} - Total: $${d.data().total} - Status: ${
-                        d.data().status
-                      } - Customer: ${d.data().customerName}`
+                    (o: any) =>
+                      `Order #${o.id.slice(0, 8).toUpperCase()} | Customer: ${o.data().customerName} | Total: GH₵${o.data().total} | Status: ${o.data().status} | ID: ${o.id}`
                   )
                   .join("\n");
           } else if (fnName === "updateProduct") {
@@ -794,6 +908,227 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             }
 
             result = `Updated ${collectionName} ${ticketId} to ${status}.`;
+          } else if (fnName === "listServices") {
+            const search = (fnArgs as any).search?.toLowerCase();
+            const snap = await adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("services")
+              .limit(50)
+              .get();
+
+            let services = snap.docs.map((d: any) => ({
+              id: d.id,
+              ...d.data(),
+            }));
+
+            if (search) {
+              services = services.filter((s: any) =>
+                s.name?.toLowerCase().includes(search)
+              );
+            }
+
+            result =
+              services.length === 0
+                ? "No services found."
+                : services
+                    .map(
+                      (s: any) =>
+                        `Service: ${s.name} | Price: GH₵${s.price} | Duration: ${s.duration} min | Active: ${s.isActive} | ID: ${s.id}`
+                    )
+                    .join("\n");
+          } else if (fnName === "updateService") {
+            const serviceId = (fnArgs as any).serviceId;
+            const price = (fnArgs as any).price;
+            const duration = (fnArgs as any).duration;
+            const isActive = (fnArgs as any).isActive;
+
+            const serviceRef = adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("services")
+              .doc(serviceId);
+            let docSnap = await serviceRef.get();
+
+            if (!docSnap.exists) {
+              const searchSnap = await adminDb
+                .collection("stores")
+                .doc(storeId)
+                .collection("services")
+                .where("name", "==", serviceId)
+                .limit(1)
+                .get();
+              if (searchSnap.empty) throw new Error("Service not found.");
+              docSnap = searchSnap.docs[0];
+            }
+
+            const updates: any = {};
+            if (price !== undefined) updates.price = price;
+            if (duration !== undefined) updates.duration = duration;
+            if (isActive !== undefined) updates.isActive = isActive;
+            updates.updatedAt = new Date();
+
+            await docSnap.ref.update(updates);
+            result = `Updated service ${docSnap.id}.`;
+          } else if (fnName === "getRecentBookings") {
+            const limit = (fnArgs as any).limit || 5;
+            const status = (fnArgs as any).status;
+
+            let q = adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("bookings")
+              .orderBy("createdAt", "desc")
+              .limit(limit);
+
+            if (status) {
+              q = q.where("status", "==", status);
+            }
+
+            const snap = await q.get();
+            result = snap.empty
+              ? "No bookings found."
+              : snap.docs
+                  .map((d: any) => {
+                    const b = d.data();
+                    return `Booking: ${b.serviceName} for ${b.customerName} on ${b.date} at ${b.startTime} | Status: ${b.status} | ID: ${d.id}`;
+                  })
+                  .join("\n");
+          } else if (fnName === "updateBookingStatus") {
+            const bookingId = (fnArgs as any).bookingId;
+            const status = (fnArgs as any).status;
+
+            const bookingRef = adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("bookings")
+              .doc(bookingId);
+            const docSnap = await bookingRef.get();
+
+            if (!docSnap.exists) throw new Error("Booking not found.");
+
+            await bookingRef.update({
+              status,
+              updatedAt: new Date(),
+            });
+            result = `Updated booking ${bookingId} to ${status}.`;
+          } else if (fnName === "getTopSellingProducts") {
+            const limit = (fnArgs as any).limit || 5;
+
+            // Fetch recent orders to aggregate sales - Use direct path
+            const ordersSnap = await adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("orders")
+              .orderBy("createdAt", "desc")
+              .limit(100)
+              .get();
+
+            const salesMap: Record<string, { name: string; count: number; revenue: number }> = {};
+
+            ordersSnap.forEach((doc: any) => {
+              const order = doc.data();
+              order.items?.forEach((item: any) => {
+                const id = item.productId || item.id;
+                if (!salesMap[id]) {
+                  salesMap[id] = { name: item.name, count: 0, revenue: 0 };
+                }
+                salesMap[id].count += item.quantity || 1;
+                salesMap[id].revenue += (item.price || 0) * (item.quantity || 1);
+              });
+            });
+
+            const sorted = Object.values(salesMap)
+              .sort((a, b) => b.count - a.count)
+              .slice(0, limit);
+
+            result = sorted.length === 0
+              ? "No sales data found to analyze."
+              : "Top Selling Products:\n" + sorted
+                  .map((s, i) => `${i + 1}. ${s.name}: ${s.count} units (GH₵${s.revenue.toFixed(2)})`)
+                  .join("\n");
+          } else if (fnName === "updateStoreSchedule") {
+            const { day, enabled, startTime, endTime } = fnArgs as any;
+
+            const availRef = adminDb.collection("availability").doc(storeId);
+            const availSnap = await availRef.get();
+
+            const scheduleUpdate: any = {
+              [`schedule.${day}.enabled`]: enabled,
+            };
+            if (startTime && endTime) {
+              scheduleUpdate[`schedule.${day}.slots`] = [{ start: startTime, end: endTime }];
+            }
+
+            if (!availSnap.exists) {
+              // Create default availability if it doesn't exist
+              const defaultSched = {
+                monday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
+                tuesday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
+                wednesday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
+                thursday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
+                friday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
+                saturday: { enabled: false, slots: [] },
+                sunday: { enabled: false, slots: [] },
+              };
+              await availRef.set({
+                storeId,
+                schedule: {
+                  ...defaultSched,
+                  [day]: { enabled, slots: startTime && endTime ? [{ start: startTime, end: endTime }] : [] }
+                },
+                blockedDates: [],
+                cancellationHours: 24,
+                updatedAt: new Date(),
+              });
+            } else {
+              await availRef.update(scheduleUpdate);
+            }
+
+            result = `Updated ${day} schedule.`;
+          } else if (fnName === "searchCustomer") {
+            const queryStr = (fnArgs as any).query.toLowerCase();
+
+            const ordersSnap = await adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("orders")
+              .limit(200)
+              .get();
+
+            const customers: Record<string, { name: string; email: string; orderCount: number; totalSpent: number }> = {};
+
+            ordersSnap.forEach((doc: any) => {
+              const order = doc.data();
+              const email = order.customerEmail || order.shipping?.email;
+              if (email) {
+                if (!customers[email]) {
+                  customers[email] = {
+                    name: order.customerName || order.shipping?.fullName || "Guest",
+                    email: email,
+                    orderCount: 0,
+                    totalSpent: 0,
+                  };
+                }
+                customers[email].orderCount += 1;
+                customers[email].totalSpent += order.total || 0;
+              }
+            });
+
+            const filtered = Object.values(customers).filter(
+              (c) =>
+                c.name.toLowerCase().includes(queryStr) ||
+                c.email.toLowerCase().includes(queryStr)
+            );
+
+            result = filtered.length === 0
+              ? "No customers found matching that query."
+              : "Matching Customers:\n" + filtered
+                  .map(
+                    (c) =>
+                      `- ${c.name} (${c.email}): ${c.orderCount} orders, Total Spent: GH₵${c.totalSpent.toFixed(2)}`
+                  )
+                  .join("\n");
           } else {
             result = "Unknown tool.";
           }

@@ -48,7 +48,7 @@ const TABS = [
 ];
 
 export default function StoreSettingsPage() {
-  const { storeId, loading: storeLoading } = useAdminStore();
+  const { storeId, storeName, planExpiresAt, loading: storeLoading } = useAdminStore();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [success, setSuccess] = useState("");
@@ -110,6 +110,34 @@ export default function StoreSettingsPage() {
   });
 
   const isFreePlan = config.plan === "starter";
+
+  const getDaysLeft = () => {
+    let expiryDate: Date | null = null;
+
+    if (planExpiresAt) {
+      expiryDate = planExpiresAt.toDate 
+        ? planExpiresAt.toDate() 
+        : new Date(planExpiresAt.seconds * 1000);
+    } else if (config.plan === "growth" && config.createdAt) {
+      // Fallback: 30 days from creation if growth plan but no expiry set
+      const created = config.createdAt.toDate 
+        ? config.createdAt.toDate() 
+        : new Date(config.createdAt.seconds * 1000);
+      expiryDate = new Date(created.getTime() + 30 * 24 * 60 * 60 * 1000);
+    }
+
+    if (!expiryDate) return null;
+
+    const now = new Date();
+    const diff = expiryDate.getTime() - now.getTime();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    return {
+      days: days > 0 ? days : 0,
+      date: expiryDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    };
+  };
+
+  const expiryInfo = getDaysLeft();
 
   const [userData, setUserData] = useState<any>(null);
 
@@ -938,7 +966,7 @@ export default function StoreSettingsPage() {
                             )
                           }
                           multiple={true}
-                          maxSizeMB={5}
+                          maxSizeMB={2}
                         />
                         <div className="flex items-center gap-4">
                           <label className="text-sm font-bold flex-shrink-0 text-zinc-900">
@@ -1100,7 +1128,18 @@ export default function StoreSettingsPage() {
                         Current Plan
                       </h2>
                       <p className="text-zinc-500">
-                        Your active subscription tier.
+                        {config.plan === "growth" && expiryInfo ? (
+                          <span className="flex flex-col">
+                            <span className="text-purple-600 font-bold">
+                              Expires in {expiryInfo.days} days
+                            </span>
+                            <span className="text-[10px] text-zinc-400">
+                              Renewal Date: {expiryInfo.date}
+                            </span>
+                          </span>
+                        ) : (
+                          "Your active subscription tier."
+                        )}
                       </p>
                     </div>
                     <div className="flex gap-2">

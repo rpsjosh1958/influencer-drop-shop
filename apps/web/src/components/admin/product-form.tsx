@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
-import { Loader2, Upload, X } from "lucide-react";
+import { Loader2, Upload, X, Check } from "lucide-react";
 import { Product, Category, ProductOption, ProductVariant } from "@/types";
 
 interface ProductFormProps {
@@ -81,10 +81,21 @@ export function ProductForm({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
+      
+      // 1. Check Count
       if (files.length + imageFiles.length + previewUrls.length > 5) {
         alert("Maximum 5 images allowed");
         return;
       }
+
+      // 2. Check Size (2MB)
+      const MAX_SIZE = 2 * 1024 * 1024;
+      const oversized = files.filter(f => f.size > MAX_SIZE);
+      if (oversized.length > 0) {
+        alert(`Images must be under 2MB. ${oversized.length} image(s) exceeded this limit.`);
+        return;
+      }
+
       setImageFiles((prev) => [...prev, ...files]);
       const newPreviews = files.map((file) => URL.createObjectURL(file));
       setPreviewUrls((prev) => [...prev, ...newPreviews]);
@@ -293,9 +304,11 @@ export function ProductForm({
         >
           {/* Section 1: Images & Core Info */}
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Left: Images */}
             <div>
-              <label className="block text-sm font-bold mb-3">Gallery</label>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-bold">Gallery</label>
+                <span className="text-[10px] text-zinc-400 font-medium">Max 2MB per image</span>
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 {previewUrls.map((url, idx) => (
                   <div
@@ -448,26 +461,43 @@ export function ProductForm({
                           className="w-full p-2 text-sm text-black border border-zinc-200 rounded-lg"
                         />
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 w-full">
                         <label className="text-[10px] font-bold uppercase text-zinc-400 mb-1 block">
                           Values (comma separated)
                         </label>
-                        <input
-                          defaultValue={opt.values.join(", ")}
-                          onBlur={(e) =>
-                            updateOptionValues(idx, e.target.value)
-                          }
-                          placeholder="S, M, L, XL"
-                          className="w-full p-2 text-sm text-black border border-zinc-200 rounded-lg"
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            id={`opt-values-${idx}`}
+                            defaultValue={opt.values.join(", ")}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                updateOptionValues(idx, (e.target as HTMLInputElement).value);
+                              }
+                            }}
+                            placeholder="S, M, L, XL"
+                            className="flex-1 p-2 text-sm text-black border border-zinc-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                          />
+                          <button
+                            type="button"
+                            title="Commit Option"
+                            onClick={() => {
+                              const input = document.getElementById(`opt-values-${idx}`) as HTMLInputElement;
+                              if (input) updateOptionValues(idx, input.value);
+                            }}
+                            className="p-2 bg-zinc-100 text-zinc-600 hover:bg-green-500 hover:text-white rounded-lg transition-colors"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeOption(idx)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeOption(idx)}
-                        className="mt-6 p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                      >
-                        <X size={16} />
-                      </button>
                     </div>
                   ))}
                   <button

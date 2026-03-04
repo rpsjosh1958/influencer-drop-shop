@@ -29,13 +29,14 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldPlaySound: true,
     shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
+    shouldShowBanner: false, // Don't show OS banner in foreground
+    shouldShowList: false,   // Don't show in notification list if in foreground
   }),
 });
 
 export interface Notification {
   id: string;
+// ... (rest of the interface)
   type:
     | "order_update"
     | "drop"
@@ -79,6 +80,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<"customer" | "vendor">("customer");
 
   useEffect(() => {
+    // 1. Register Token (If not already done)
     if (user?.uid) {
       registerForPushNotificationsAsync().then(async (token) => {
         if (token) {
@@ -87,39 +89,32 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    // Explicitly add listeners
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
+    // 2. Set Up Listeners (One time setup on mount/unmount)
+    const sub1 = Notifications.addNotificationReceivedListener((notification) => {
         // Handle foreground notification
-        console.log("Foreground Notification Received");
-      });
+        console.log("Foreground Notification Received:", notification.request.content.title);
+    });
 
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
+    const sub2 = Notifications.addNotificationResponseReceivedListener((response) => {
         const data = response.notification.request.content.data;
         console.log("Notification Tapped:", data);
 
         if (data?.screen) {
-          // Basic routing if screen provided
           router.push(data.screen as any);
         } else if (data?.type === "vendor_order") {
           router.push("/(vendor)/orders" as any);
         } else if (data?.type === "vendor_booking") {
           router.push("/(vendor)/bookings" as any);
         } else if (data?.type === "vendor_complaint") {
-          router.push("/(vendor)/(tabs)" as any); // Fallback to Dashboard for now
+          router.push("/(vendor)/(tabs)" as any);
         }
-      });
+    });
 
     return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-      }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
+      sub1.remove();
+      sub2.remove();
     };
-  }, [user?.uid]); // Only re-run if UID changes (Login/Logout)
+  }, [user?.uid]);
 
   const savePushToken = async (uid: string, token: string) => {
     try {

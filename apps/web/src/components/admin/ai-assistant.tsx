@@ -82,7 +82,7 @@ export function AiAssistant() {
         );
       }
     }
-    return <div>{content}</div>;
+    return <div className="whitespace-pre-wrap">{content}</div>;
   };
 
   if (storePlan !== "growth") {
@@ -182,18 +182,31 @@ export function AiAssistant() {
               onSubmit={handleSubmit}
               className="p-3 bg-white dark:bg-zinc-950 border-t border-zinc-100 dark:border-zinc-800"
             >
-              <div className="relative">
-                <input
-                  ref={inputRef}
+              <div className="relative flex items-end gap-2">
+                <textarea
+                  ref={inputRef as any}
                   value={input}
                   onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSubmit(e as any);
+                    }
+                  }}
                   placeholder="Ask anything..."
-                  className="w-full pl-4 pr-12 py-3 bg-zinc-100 dark:bg-zinc-900 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 transition-all font-medium"
+                  rows={1}
+                  className="w-full pl-4 pr-12 py-3 bg-zinc-100 dark:bg-zinc-900 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-purple-500/20 transition-all font-medium resize-none min-h-[44px] max-h-[120px] overflow-y-auto"
+                  style={{ height: "auto" }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = "auto";
+                    target.style.height = `${target.scrollHeight}px`;
+                  }}
                 />
                 <button
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
+                  className="absolute right-2 bottom-1.5 p-2 bg-black dark:bg-white text-white dark:text-black rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
                 >
                   <Send size={16} />
                 </button>

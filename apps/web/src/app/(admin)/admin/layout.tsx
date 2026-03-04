@@ -226,7 +226,7 @@ function DynamicSidebar({
   setShowBroadcast: (value: boolean) => void;
   handleLogout: () => void;
 }) {
-  const { storeFeatures } = useAdminStore();
+  const { storeFeatures, storeName } = useAdminStore();
 
   // Dynamic navigation items based on store features
   const navItems = useMemo(() => {
@@ -267,8 +267,8 @@ function DynamicSidebar({
     <>
       {/* MOBILE HEADER - Visible only on mobile */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 z-40 w-full">
-        <div className="font-bold text-lg tracking-tighter bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-          DROP.
+        <div className="font-bold text-lg tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[200px]">
+          {storeName || "DROP."}
         </div>
         <button
           onClick={() => setMobileMenuOpen(true)}
@@ -290,8 +290,8 @@ function DynamicSidebar({
           {/* Drawer Content */}
           <div className="absolute top-0 bottom-0 left-0 w-[280px] bg-white dark:bg-zinc-900 shadow-xl animate-in slide-in-from-left duration-200 flex flex-col">
             <div className="p-4 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
-              <h1 className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                DROP.
+              <h1 className="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[180px]">
+                {storeName || "DROP."}
               </h1>
               <button
                 onClick={() => setMobileMenuOpen(false)}
@@ -361,8 +361,8 @@ function DynamicSidebar({
       >
         <div className="p-6 flex items-center justify-between h-20">
           {!collapsed && (
-            <h1 className="text-xl font-bold tracking-tighter bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              DROP.
+            <h1 className="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[160px]">
+              {storeName || "DROP."}
             </h1>
           )}
           <button

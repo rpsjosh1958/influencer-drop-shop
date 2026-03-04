@@ -19,7 +19,7 @@ export function ImageUpload({
   value,
   onChange,
   disabled,
-  maxSizeMB = 5,
+  maxSizeMB = 2,
   label = "Upload Image",
   className = "",
   multiple = false,
@@ -146,7 +146,7 @@ export function ImageUpload({
         )}
       </div>
       <p className="text-xs text-zinc-400">
-        Max size: {maxSizeMB}MB.{" "}
+        Max size: {maxSizeMB}MB per image.{" "}
         {multiple ? "Upload multiple images." : "Upload a single image."}
       </p>
     </div>

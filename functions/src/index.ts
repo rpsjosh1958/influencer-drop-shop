@@ -43,28 +43,31 @@ export const onNotificationCreated = onDocumentCreated(
       try {
         const usersSnapshot = await admin.firestore().collection("users").get();
         const messages: ExpoPushMessage[] = [];
+        const uniqueTokens = new Set<string>();
 
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
-          if (
-            userData.expoPushToken &&
-            Expo.isExpoPushToken(userData.expoPushToken)
-          ) {
+          const token = userData.expoPushToken;
+          
+          if (token && Expo.isExpoPushToken(token) && !uniqueTokens.has(token)) {
+            uniqueTokens.add(token);
             messages.push({
-              to: userData.expoPushToken,
+              to: token,
               sound: "default",
               title: title,
               body: message,
-              data: { orderId: orderId },
+              data: { orderId: orderId, type: "broadcast" }, // Tag broadcast for routing
             });
           }
         });
 
         if (messages.length === 0) {
-          logger.info("No users with valid tokens found for broadcast");
+          logger.info("No unique users with valid tokens found for broadcast");
           return;
         }
 
+        logger.info(`Sending broadcast to ${messages.length} unique tokens...`);
+        
         const chunks = expo.chunkPushNotifications(messages);
         const tickets = [];
 
@@ -258,8 +261,27 @@ export const onStoreUpdated = onDocumentUpdated(
     // Check for Plan Upgrade: Starter -> Growth
     if (before.plan === "starter" && after.plan === "growth") {
       logger.info(
-        `Detected Plan Upgrade for Store ${storeId}. Releasing funds...`
+        `Detected Plan Upgrade for Store ${storeId}. Setting expiry based on cycle...`
       );
+      
+      const now = admin.firestore.Timestamp.now();
+      const cycle = after.billingCycle || "monthly";
+      let days = 30;
+
+      if (cycle === "quarterly") days = 90;
+      if (cycle === "annually") days = 365;
+
+      const expiresAt = new admin.firestore.Timestamp(
+        now.seconds + days * 24 * 60 * 60,
+        now.nanoseconds
+      );
+
+      await snapshot.after.ref.update({
+        planExpiresAt: expiresAt,
+        isVerified: true,
+        planChangedAt: now,
+      });
+
       await releasePendingFunds(storeId);
     }
   }
