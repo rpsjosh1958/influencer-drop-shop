@@ -2,17 +2,26 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  // 1. Check if user is trying to access admin routes
-  if (request.nextUrl.pathname.startsWith("/admin/dashboard")) {
-    // 2. Check for a specific cookie or token (simplified logic)
-    // In reality, you will check the Firebase Auth token here.
+  const { pathname } = request.nextUrl;
+
+  // 1. Protect all admin routes except the login page itself
+  if (pathname.startsWith("/admin") && pathname !== "/admin") {
+    // 2. Check for the admin session cookie
     const isAdmin = request.cookies.get("isAdminLoggedIn");
 
     if (!isAdmin) {
-      // Kick them back to the Admin Login page
-      return NextResponse.redirect(new URL("/admin", request.url));
+      // Redirect to the Admin Login page if not authenticated
+      const loginUrl = new URL("/admin", request.url);
+      // Optional: keep the intended destination to redirect back after login
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 
   return NextResponse.next();
 }
+
+// 3. Configure the matcher for efficiency
+export const config = {
+  matcher: ["/admin/:path*"],
+};

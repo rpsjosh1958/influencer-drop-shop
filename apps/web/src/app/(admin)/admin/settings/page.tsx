@@ -268,7 +268,7 @@ export default function StoreSettingsPage() {
   };
 
   const onClose = () => {
-    console.log("Payment closed");
+    //
   };
 
   const initializePayment = usePaystackPayment(paystackConfig);
@@ -307,10 +307,9 @@ export default function StoreSettingsPage() {
         accountNumber: payoutState.accountNumber,
         bankCode: payoutState.bankCode,
       });
-      console.log("Verify Result:", result);
+
       // Determine account name from result.data
       const account_name = result.data.account_name;
-
       setPayoutState((prev) => ({
         ...prev,
         verifiedName: account_name,
@@ -341,9 +340,7 @@ export default function StoreSettingsPage() {
         bankCode: payoutState.bankCode,
       });
 
-      console.log("Recipient Created:", recipient);
       const recipientCode = recipient.data.recipient_code;
-
       // 2. Save to Firestore
       const payoutConfig = {
         provider: payoutState.provider,

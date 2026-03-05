@@ -51,12 +51,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const params = useParams();
 
   useEffect(() => {
-    console.log(
-      "ShopLayoutWrapper: Mounted. Params:",
-      params,
-      "Pathname:",
-      pathname
-    );
+    //
   }, [params, pathname]);
 
   // 1. Check Store Status
@@ -65,16 +60,11 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
       ? params.storeId[0]
       : (params?.storeId as string) || "default-store";
 
-    console.log(
-      `ShopLayoutWrapper: Subscribing to store config for: ${storeId}`
-    );
-
     const unsub = onSnapshot(
       doc(db, "stores", storeId),
       (doc) => {
         if (doc.exists()) {
           const data = doc.data();
-          console.log("ShopLayoutWrapper: Store config fetched:", data);
           // Assuming 'status' field controls live state. 'live' = open.
           setIsLive(data.status === "live");
         } else {
@@ -99,10 +89,6 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   // 2. Check Auth Status
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      console.log(
-        "ShopLayoutWrapper: Auth state changed. User:",
-        user ? user.uid : "null"
-      );
       setUser(user);
     });
     return () => unsub();

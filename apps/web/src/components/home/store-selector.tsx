@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { ShoppingBag, ChevronDown, Check, Search } from "lucide-react";
+import { ShoppingBag, ChevronDown, Check, Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 interface Store {
   id: string;
@@ -14,10 +15,12 @@ interface Store {
 }
 
 export function StoreSelector() {
+  const router = useRouter();
   const [stores, setStores] = useState<Store[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const filteredStores = stores.filter((store) =>
     store.name.toLowerCase().includes(search.toLowerCase()),
@@ -25,22 +28,19 @@ export function StoreSelector() {
 
   useEffect(() => {
     const fetchStores = async () => {
-      console.log("StoreSelector: Fetching stores...");
       try {
         const q = query(
           collection(db, "stores"),
-          where("status", "==", "live"), // Only show live stores
+          where("status", "==", "live"),
         );
         const snapshot = await getDocs(q);
         const storeData = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         })) as Store[];
-        console.log("StoreSelector: Stores fetched:", storeData);
         setStores(storeData);
       } catch (error) {
         console.error("StoreSelector: Failed to fetch stores", error);
-        // Fallback or empty state
       } finally {
         setLoading(false);
       }
@@ -49,12 +49,15 @@ export function StoreSelector() {
     fetchStores();
   }, []);
 
-  const [isNavigating, setIsNavigating] = useState(false);
-
   const handleSelect = (storeId: string) => {
     setIsNavigating(true);
     setIsOpen(false);
-    window.location.href = `/shop/${storeId}`;
+    router.push(`/shop/${storeId}`);
+  };
+
+  const handleMouseEnter = (storeId: string) => {
+    // Prefetch the store page for instant transition
+    router.prefetch(`/shop/${storeId}`);
   };
 
   return (
@@ -64,7 +67,7 @@ export function StoreSelector() {
         disabled={isNavigating}
         className="w-full md:w-auto bg-zinc-900 border border-zinc-800 text-white h-14 px-8 rounded-full text-lg font-bold flex items-center justify-center gap-2 hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        <ShoppingBag size={20} />
+        {isNavigating ? <Loader2 className="animate-spin" size={20} /> : <ShoppingBag size={20} />}
         {loading
           ? "Loading Stores..."
           : isNavigating
@@ -120,12 +123,12 @@ export function StoreSelector() {
                       <button
                         key={store.id}
                         onClick={() => handleSelect(store.id)}
+                        onMouseEnter={() => handleMouseEnter(store.id)}
                         className="w-full px-4 py-3 text-left hover:bg-zinc-800 flex items-center justify-between group transition-colors"
                       >
                         <span className="font-bold text-white group-hover:text-purple-400 transition-colors">
                           {store.name || "Untitled Store"}
                         </span>
-                        {/* Optional: Add status indicator or check */}
                       </button>
                     ))
                   )}

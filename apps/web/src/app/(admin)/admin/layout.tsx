@@ -93,7 +93,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     let unsubscribeSnapshot: (() => void) | undefined;
 
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      // 1. Not logged in
+      // 1. Not logged in - Middleware should catch this, but we'll keep a fallback
       if (!user) {
         if (pathname !== "/admin") {
           router.push("/admin");
@@ -102,15 +102,14 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 2. Logged in (Login Page) -> Go to dashboard or redirect
+      // 2. Already at Login with valid session -> Go to dashboard
       if (pathname === "/admin") {
         const redirectPath = searchParams.get("redirect");
         router.push(redirectPath || "/admin/dashboard");
-        // Don't set loading false here, wait for redirect
-        // But we need to check store ownership anyway for the sidebar context
+        return;
       }
 
-      // 3. Gatekeeper: Check Store Ownership (Realtime)
+      // 3. Verify Store Ownership (Realtime)
       unsubscribeSnapshot = onSnapshot(
         doc(db, "users", user.uid),
         (docSnap) => {
@@ -126,14 +125,12 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             }
           } else {
             console.error("User profile document missing");
-            // If user doc missing, maybe logout or send to onboarding
-            // For now, stop loading so they aren't stuck
             setLoading(false);
           }
         },
         (error) => {
           console.error("Profile check failed", error);
-          setLoading(false); // Ensure we stop loading on error!
+          setLoading(false);
         }
       );
     });
@@ -143,7 +140,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run ONCE on mount, not on pathname change
+  }, []);
 
   // Close mobile menu on route change
   useEffect(() => {

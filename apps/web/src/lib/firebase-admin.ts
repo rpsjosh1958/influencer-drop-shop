@@ -1,12 +1,5 @@
 import * as admin from "firebase-admin";
 
-console.log("Firebase Admin: Checking Env Vars...", {
-  hasServiceAccount: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
-  hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-  hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-  hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-});
-
 if (!admin.apps.length) {
   try {
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
@@ -17,29 +10,19 @@ if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
-        console.log("Firebase Admin Initialized with JSON Key");
       } catch (jsonError) {
         console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY");
-        // Attempt to fix common newline escaping issues
-        try {
-          const fixedKey = serviceAccountKey.replace(/\\n/g, "\\n"); // Ensure literals are preserved? No, JSON.parse expects \n
-          // Actually, usually the issue is missing quotes or bad escapes.
-          // Let's just log the error and try fallback.
-          console.error("JSON Error:", jsonError);
-        } catch (e) {}
       }
     } else {
       let rawKey = process.env.FIREBASE_PRIVATE_KEY || "";
 
-      // NUCLEAR OPTION: Reconstruct the key from scratch
-      // 1. Strip everything that looks like a header/footer or whitespace
+      // Reconstruct the key from scratch
       const pureKey = rawKey
         .replace(/-----BEGIN PRIVATE KEY-----/g, "")
         .replace(/-----END PRIVATE KEY-----/g, "")
-        .replace(/\\n/g, "") // remove literal \n
-        .replace(/\s+/g, ""); // remove actual spaces/newlines
+        .replace(/\\n/g, "") 
+        .replace(/\s+/g, ""); 
 
-      // 2. Re-wrap correctly
       const finalKey = `-----BEGIN PRIVATE KEY-----\n${pureKey}\n-----END PRIVATE KEY-----\n`;
 
       const minimalCreds = {
@@ -56,10 +39,6 @@ if (!admin.apps.length) {
         admin.initializeApp({
           credential: admin.credential.cert(minimalCreds),
         });
-        console.log(
-          "Firebase Admin Initialized with Individual Vars. Key preview:",
-          minimalCreds.privateKey.substring(0, 10) + "..."
-        );
       } else {
         console.warn("Firebase Admin credentials missing. Skipping init.");
       }

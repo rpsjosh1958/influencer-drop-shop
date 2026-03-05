@@ -51,8 +51,8 @@ function PlatformLandingContent() {
           </h1>
 
           <p className="text-xl md:text-2xl text-zinc-300 font-medium max-w-2xl mx-auto leading-relaxed mb-6">
-            Launch your professional online store in seconds. Manage products,
-            accept payments, and sell directly to your audience.
+            Launch your professional store in seconds. Sell physical products, 
+            bookable services, or both—all in one seamless ecosystem.
           </p>
 
           {/* Trust Badges */}

@@ -30,8 +30,6 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
     Product | ServiceItem | null
   >(null);
 
-  if (productToView !== null) console.log(productToView);
-
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 

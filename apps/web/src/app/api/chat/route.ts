@@ -22,8 +22,6 @@ export async function POST(req: Request) {
       return new Response("Missing storeId", { status: 400 });
     }
 
-    console.log(`AI Request for store: ${storeId}`);
-
     // 3. Define Tools (Native JSON Schema)
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
@@ -452,8 +450,6 @@ export async function POST(req: Request) {
     // 5. OpenAI Stream with Tool Execution
     const stream = OpenAIStream(response as any, {
       experimental_onToolCall: async (callPayload: any, context: any) => {
-        console.log("Device Tool Payload:", JSON.stringify(callPayload));
-
         const msgHistory = context?.messages || [];
 
         const toolCalls = callPayload.tools || [callPayload]; // Fallback
@@ -476,8 +472,6 @@ export async function POST(req: Request) {
           fnArgs = rawArgs;
         }
 
-        console.log(`[Tool Call] ${fnName}:`, fnArgs);
-
         // Execute Tool
         let result = "";
         try {
@@ -490,10 +484,6 @@ export async function POST(req: Request) {
               .collection("products")
               .limit(50)
               .get();
-
-            console.log(
-              `[listProducts] Path: stores/${storeId}/products, Found: ${snap.size} docs`
-            );
 
             let products = snap.docs.map((d: any) => ({
               id: d.id,
@@ -602,9 +592,6 @@ export async function POST(req: Request) {
 
             const docSnap = await productsRef.doc(targetId).get();
             if (!docSnap.exists) {
-              console.log(
-                `Product ID ${targetId} not found, searching by name (fuzzy)...`
-              );
               const listSnap = await productsRef.limit(100).get();
               const normalize = (s: string) =>
                 s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -645,9 +632,6 @@ export async function POST(req: Request) {
 
             const docSnap = await productsRef.doc(targetId).get();
             if (!docSnap.exists) {
-              console.log(
-                `Product ID ${targetId} not found, searching by name (fuzzy)...`
-              );
               const listSnap = await productsRef.limit(100).get();
               const normalize = (s: string) =>
                 s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -680,9 +664,6 @@ export async function POST(req: Request) {
             if (docSnap.exists) {
               productData = { id: docSnap.id, ...docSnap.data() };
             } else {
-              console.log(
-                `Product ID ${targetId} not found, searching by name (fuzzy)...`
-              );
               const listSnap = await productsRef.limit(100).get();
               const normalize = (s: string) =>
                 s.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -774,10 +755,6 @@ export async function POST(req: Request) {
               .get();
             const store = storeSnap.exists ? storeSnap.data() : {};
 
-            console.log(
-              `[getStoreInsights] Path: stores/${storeId}, Exists: ${storeSnap.exists}`
-            );
-
             // 3. Recent Tx
             const txSnap = await adminDb
               .collection("stores")
@@ -828,15 +805,11 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             let q = adminDb
               .collection("stores")
               .doc(storeId)
-              .collection("tickets") // Assuming tickets/complaints logic. Using 'tickets' as default from Support Page.
+              .collection("tickets") 
               .orderBy("createdAt", "desc")
               .limit(limit);
 
             if (status !== "all") {
-              // Note: firestore-admin doesn't support complex client-side query building easily in one line without type issues sometimes,
-              // but we can just filter in memory or chain.
-              // Let's rely on client simple filter.
-              // Actually, simplified:
               q = adminDb
                 .collection("stores")
                 .doc(storeId)
@@ -844,12 +817,6 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
                 .where("status", "==", status)
                 .limit(limit);
             }
-
-            // Also check 'complaints' collection if 'tickets' is empty?
-            // The system seems to use 'tickets' for Vendor Support and 'complaints' for Customer Complaints.
-            // Let's fetch both or clarify.
-            // User context: "Admin Portal" -> usually Vendor Support Tickets.
-            // But earlier we worked on "Complaints". Let's search 'complaints' collection too if tickets is empty.
 
             let snap = await q.get();
             let collectionName = "tickets";
@@ -1015,7 +982,6 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
           } else if (fnName === "getTopSellingProducts") {
             const limit = (fnArgs as any).limit || 5;
 
-            // Fetch recent orders to aggregate sales - Use direct path
             const ordersSnap = await adminDb
               .collection("stores")
               .doc(storeId)
@@ -1061,7 +1027,6 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             }
 
             if (!availSnap.exists) {
-              // Create default availability if it doesn't exist
               const defaultSched = {
                 monday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
                 tuesday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
@@ -1167,7 +1132,7 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
         return openai.chat.completions.create({
           model: "gpt-4o-mini",
           stream: true,
-          messages: [systemMessage, ...newMessages] as any, // Ensure System Prompt is preserved
+          messages: [systemMessage, ...newMessages] as any, 
           tools,
         }) as any;
       },

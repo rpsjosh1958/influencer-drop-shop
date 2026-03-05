@@ -18,13 +18,13 @@ const FEATURES = [
     ],
   },
   {
-    title: "Your Brand, Your Rules.",
+    title: "One Store. All Your Hustles.",
     description:
-      "Don't just sell, express. Customize fonts, colors, layouts, and banners. Create a storefront that screams your identity while keeping the buying process fast and easy.",
+      "Why choose? Sell physical drops and bookable services on the same storefront. Whether you're selling merch, booking hair appointments, or both—The Drop handles it all.",
     icon: Layout,
     color: "text-pink-500",
     mockup: "store",
-    bullets: ["✨ Visual Editor", "✨ Custom Branding", "✨ Instant Checkout"],
+    bullets: ["✨ Hybrid Shop Engine", "✨ Custom Branding", "✨ Instant Checkout"],
   },
   {
     title: "Your Custom Mobile App.",
