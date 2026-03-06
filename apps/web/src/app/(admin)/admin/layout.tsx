@@ -35,6 +35,7 @@ import {
 import { AiAssistant } from "@/components/admin/ai-assistant";
 import { AdminNavBadge } from "@/components/admin/nav-badge";
 import { useMemo } from "react";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function AdminLayout({
   children,
@@ -191,7 +192,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
           />
 
           {/* Main Content Area */}
-          <main className="flex-1 overflow-auto h-screen w-full relative pt-16 md:pt-0">
+          <main className="flex-1 overflow-auto h-screen w-full relative z-0 pt-16 md:pt-0">
             <div className="h-full w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8">
               {children}
             </div>
@@ -352,7 +353,7 @@ function DynamicSidebar({
       {/* DESKTOP Sidebar - Hidden on Mobile */}
       <aside
         className={cn(
-          "bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 hidden md:flex flex-col transition-all duration-300 ease-in-out relative sticky top-0 h-screen",
+          "bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 hidden md:flex flex-col transition-all duration-300 ease-in-out relative sticky top-0 h-screen z-40",
           collapsed ? "w-20" : "w-64"
         )}
       >
@@ -362,18 +363,24 @@ function DynamicSidebar({
               {storeName || "DROP."}
             </h1>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
+          <Tooltip content={collapsed ? "Expand" : "Collapse"} side="right">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            >
+              {collapsed ? (
+                <ChevronRight size={18} />
+              ) : (
+                <ChevronLeft size={18} />
+              )}
+            </button>
+          </Tooltip>
         </div>
 
         <nav className="flex-1 px-3 space-y-2 overflow-y-auto custom-scrollbar">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
-            return (
+            const linkContent = (
               <Link
                 key={item.href}
                 href={item.href}
@@ -400,20 +407,38 @@ function DynamicSidebar({
                 )}
               </Link>
             );
+
+            if (collapsed) {
+              return (
+                <Tooltip key={item.href} content={item.name} side="right">
+                  {linkContent}
+                </Tooltip>
+              );
+            }
+
+            return linkContent;
           })}
         </nav>
 
         <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
-          <button
-            onClick={() => setShowBroadcast(true)}
-            className={cn(
-              "flex items-center gap-2 px-2 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full",
-              collapsed && "justify-center"
-            )}
-          >
-            <Megaphone size={20} className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Broadcast</span>}
-          </button>
+          {collapsed ? (
+            <Tooltip content="Broadcast" side="right">
+              <button
+                onClick={() => setShowBroadcast(true)}
+                className="flex items-center justify-center p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full"
+              >
+                <Megaphone size={20} className="w-5 h-5 flex-shrink-0" />
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => setShowBroadcast(true)}
+              className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full"
+            >
+              <Megaphone size={20} className="w-5 h-5 flex-shrink-0" />
+              <span>Broadcast</span>
+            </button>
+          )}
 
           <div
             className={cn(
@@ -421,16 +446,24 @@ function DynamicSidebar({
               collapsed && "flex-col gap-2"
             )}
           >
-            <button
-              onClick={handleLogout}
-              className={cn(
-                "flex items-center gap-2 px-2 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full",
-                collapsed && "justify-center"
-              )}
-            >
-              <LogOut size={20} className="flex-shrink-0" />
-              {!collapsed && <span>Logout</span>}
-            </button>
+            {collapsed ? (
+              <Tooltip content="Logout" side="right">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center justify-center p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full"
+                >
+                  <LogOut size={20} className="flex-shrink-0" />
+                </button>
+              </Tooltip>
+            ) : (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full"
+              >
+                <LogOut size={20} className="flex-shrink-0" />
+                <span>Logout</span>
+              </button>
+            )}
           </div>
         </div>
 

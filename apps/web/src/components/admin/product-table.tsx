@@ -2,6 +2,7 @@
 
 import { Product } from "@/types";
 import { Trash2, Share2 } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface AdminProductTableProps {
   products: Product[];
@@ -89,31 +90,40 @@ export function AdminProductTable({
                 </span>
               </td>
               <td className="px-6 py-4 text-right flex items-center justify-end gap-2">
-                <button
-                  onClick={() => handleShare(product)}
-                  className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                  title="Share Product"
+                <Tooltip content="Share Product" side="top">
+                  <button
+                    onClick={() => handleShare(product)}
+                    className="p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                  >
+                    <Share2 size={18} />
+                  </button>
+                </Tooltip>
+
+                <Tooltip
+                  content={isLive ? "Cannot edit while LIVE" : "Edit Item"}
+                  side="top"
                 >
-                  <Share2 size={18} />
-                </button>
-                <button
-                  onClick={() => handleEdit(product)}
-                  disabled={isLive}
-                  title={isLive ? "Cannot edit while LIVE" : "Edit Item"}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    isLive
-                      ? "text-zinc-300 cursor-not-allowed"
-                      : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                  }`}
-                >
-                  {isLive ? "Locked" : "Edit"}
-                </button>
-                <button
-                  onClick={() => handleDelete(product.id)}
-                  className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                >
-                  <Trash2 size={18} />
-                </button>
+                  <button
+                    onClick={() => handleEdit(product)}
+                    disabled={isLive}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isLive
+                        ? "text-zinc-300 dark:text-zinc-600 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed border border-zinc-100 dark:border-zinc-800"
+                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 shadow-sm"
+                    }`}
+                  >
+                    {isLive ? "Locked" : "Edit"}
+                  </button>
+                </Tooltip>
+
+                <Tooltip content="Delete Product" side="top">
+                  <button
+                    onClick={() => handleDelete(product.id)}
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </Tooltip>
               </td>
             </tr>
           ))}

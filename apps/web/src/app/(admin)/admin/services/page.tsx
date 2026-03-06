@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
+import { Tooltip } from "@/components/ui/tooltip";
 
 export default function ServicesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -299,33 +300,41 @@ export default function ServicesPage() {
                   >
                     {service.isActive ? "Active" : "Inactive"}
                   </button>
-                  <button
-                    onClick={() => openModal(service)}
-                    disabled={isLive}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isLive
-                        ? "text-zinc-300 hover:bg-transparent cursor-not-allowed"
-                        : "hover:bg-zinc-100 text-black"
-                    }`}
-                    title={isLive ? "Cannot edit while LIVE" : "Edit Service"}
+
+                  <Tooltip
+                    content={isLive ? "Cannot edit while LIVE" : "Edit Service"}
+                    side="top"
                   >
-                    {isLive ? (
-                      <Pencil size={16} className="opacity-50" />
-                    ) : (
-                      <Pencil size={16} />
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(service.id)}
-                    disabled={deleting === service.id}
-                    className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    {deleting === service.id ? (
-                      <Loader2 className="animate-spin" size={16} />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
+                    <button
+                      onClick={() => openModal(service)}
+                      disabled={isLive}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isLive
+                          ? "text-zinc-300 hover:bg-transparent cursor-not-allowed"
+                          : "hover:bg-zinc-100 text-black"
+                      }`}
+                    >
+                      {isLive ? (
+                        <Pencil size={16} className="opacity-50" />
+                      ) : (
+                        <Pencil size={16} />
+                      )}
+                    </button>
+                  </Tooltip>
+
+                  <Tooltip content="Delete Service" side="top">
+                    <button
+                      onClick={() => handleDelete(service.id)}
+                      disabled={deleting === service.id}
+                      className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {deleting === service.id ? (
+                        <Loader2 className="animate-spin" size={16} />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  </Tooltip>
                 </div>
               </div>
             </motion.div>

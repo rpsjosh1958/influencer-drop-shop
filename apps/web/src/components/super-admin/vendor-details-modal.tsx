@@ -1,23 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   X,
   Package,
   ShoppingBag,
   DollarSign,
   Store,
-  Info,
   Ban,
   CheckCircle,
+  Briefcase,
+  Calendar,
 } from "lucide-react";
 import { StoreConfig } from "@/components/shop/store-provider";
 import {
   collection,
   getDocs,
   getCountFromServer,
-  query,
-  where,
   updateDoc,
   doc,
 } from "firebase/firestore";
@@ -39,18 +38,15 @@ export function VendorDetailsModal({
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     products: 0,
+    services: 0,
     orders: 0,
+    bookings: 0,
     revenue: 0,
   });
   const [suspending, setSuspending] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && store) {
-      fetchDetails();
-    }
-  }, [isOpen, store]);
-
-  const fetchDetails = async () => {
+  const fetchDetails = useCallback(async () => {
+    if (!store?.id) return;
     setLoading(true);
     try {
       // 1. Get Product Count
@@ -58,19 +54,35 @@ export function VendorDetailsModal({
         collection(db, "stores", store.id, "products")
       );
 
-      // 2. Get Orders (for Count & Revenue)
-      // Note: For large datasets, aggregation queries are better, but client-side sum is okay for MVP
+      // 2. Get Service Count
+      const servicesSnap = await getCountFromServer(
+        collection(db, "stores", store.id, "services")
+      );
+
+      // 3. Get Booking Count
+      const bookingsSnap = await getCountFromServer(
+        collection(db, "stores", store.id, "bookings")
+      );
+
+      // 4. Get Orders (for Count & Revenue)
       const ordersSnap = await getDocs(
         collection(db, "stores", store.id, "orders")
       );
-      const totalRevenue = ordersSnap.docs.reduce(
+      
+      const paidOrders = ordersSnap.docs.filter(d => 
+        ["paid", "open", "packaged", "sent-out", "delivered"].includes(d.data().status)
+      );
+      
+      const totalRevenue = paidOrders.reduce(
         (acc, doc) => acc + (doc.data().total || 0),
         0
       );
 
       setStats({
         products: productsSnap.data().count,
+        services: servicesSnap.data().count,
         orders: ordersSnap.size,
+        bookings: bookingsSnap.data().count,
         revenue: totalRevenue,
       });
     } catch (error) {
@@ -78,7 +90,13 @@ export function VendorDetailsModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [store?.id]);
+
+  useEffect(() => {
+    if (isOpen && store) {
+      fetchDetails();
+    }
+  }, [isOpen, store, fetchDetails]);
 
   const toggleSuspension = async () => {
     const isSuspended = !!store.isSuspended;
@@ -86,7 +104,9 @@ export function VendorDetailsModal({
 
     if (
       !confirm(
-        `Are you sure you want to ${action} for ${store.name}? This will overrides their store status.`
+        `Are you sure you want to ${action} for ${
+          store.name || "this store"
+        }? This will override their store status.`
       )
     )
       return;
@@ -115,8 +135,10 @@ export function VendorDetailsModal({
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-zinc-800 flex items-center justify-center border border-zinc-700">
               {store.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={store.logo}
+                  alt={`${store.name} logo`}
                   className="w-full h-full object-cover rounded-xl"
                 />
               ) : (
@@ -125,7 +147,7 @@ export function VendorDetailsModal({
             </div>
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                {store.name}
+                {store.name || "Untitled Store"}
                 {store.isVerified && (
                   <CheckCircle className="w-4 h-4 text-blue-500" />
                 )}
@@ -135,7 +157,7 @@ export function VendorDetailsModal({
                   </span>
                 )}
               </h2>
-              <p className="text-sm text-zinc-400">/{store.slug}</p>
+              <p className="text-sm text-zinc-400">/{store.slug || "no-slug"}</p>
             </div>
           </div>
           <button
@@ -148,52 +170,97 @@ export function VendorDetailsModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-8">
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 bg-blue-500/10 rounded-lg text-blue-500">
-                  <Package size={20} />
+          {/* Main Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Revenue - Primary Focus */}
+            <div className="p-6 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-between shadow-inner">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-500">
+                  <DollarSign size={28} />
                 </div>
-              </div>
-              <div className="text-2xl font-bold text-white">
-                {loading ? "-" : stats.products}
-              </div>
-              <div className="text-xs text-zinc-500 uppercase font-bold tracking-wider">
-                Products
+                <div>
+                  <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">
+                    Est. Total Revenue
+                  </p>
+                  <p className="text-2xl font-black text-white">
+                    {loading
+                      ? "GHS --"
+                      : `GHS ${stats.revenue.toLocaleString()}`}
+                  </p>
+                </div>
               </div>
             </div>
-            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500">
-                  <ShoppingBag size={20} />
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Orders */}
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-center">
+                <div className="flex justify-center mb-2">
+                  <div className="p-1.5 bg-purple-500/10 rounded-lg text-purple-500">
+                    <ShoppingBag size={16} />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-white">
+                  {loading ? "-" : stats.orders}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-black uppercase tracking-wider">
+                  Orders
                 </div>
               </div>
-              <div className="text-2xl font-bold text-white">
-                {loading ? "-" : stats.orders}
-              </div>
-              <div className="text-xs text-zinc-500 uppercase font-bold tracking-wider">
-                Orders
+              {/* Bookings */}
+              <div className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 text-center">
+                <div className="flex justify-center mb-2">
+                  <div className="p-1.5 bg-blue-500/10 rounded-lg text-blue-500">
+                    <Calendar size={16} />
+                  </div>
+                </div>
+                <div className="text-xl font-black text-white">
+                  {loading ? "-" : stats.bookings}
+                </div>
+                <div className="text-[10px] text-zinc-500 font-black uppercase tracking-wider">
+                  Bookings
+                </div>
               </div>
             </div>
-            <div className="p-4 rounded-xl bg-zinc-950 border border-zinc-800 text-center">
-              <div className="flex justify-center mb-2">
-                <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
-                  <DollarSign size={20} />
+          </div>
+
+          {/* Secondary Stats: Inventory */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+              Inventory & Offerings
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-zinc-950/50 border border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-zinc-800 rounded-lg text-zinc-400">
+                    <Package size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-zinc-300">
+                    Products
+                  </span>
                 </div>
+                <span className="text-xl font-black text-white pr-2">
+                  {loading ? "-" : stats.products}
+                </span>
               </div>
-              <div className="text-2xl font-bold text-white">
-                {loading ? "-" : `GHS ${stats.revenue.toLocaleString()}`}
-              </div>
-              <div className="text-xs text-zinc-500 uppercase font-bold tracking-wider">
-                Revenue
+              <div className="p-4 rounded-xl bg-zinc-950/50 border border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-zinc-800 rounded-lg text-zinc-400">
+                    <Briefcase size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-zinc-300">
+                    Services
+                  </span>
+                </div>
+                <span className="text-xl font-black text-white pr-2">
+                  {loading ? "-" : stats.services}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Info Section */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
               Store Information
             </h3>
             <div className="bg-zinc-950 rounded-xl border border-zinc-800 divide-y divide-zinc-800">
@@ -215,12 +282,47 @@ export function VendorDetailsModal({
                   {store.status}
                 </span>
               </div>
+              {store.payoutConfig && (
+                <div className="p-4 space-y-3">
+                  <span className="text-zinc-500 text-xs font-black uppercase tracking-widest block">
+                    Payout Destination
+                  </span>
+                  <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Method</span>
+                      <span className="text-white font-bold capitalize">
+                        {store.payoutConfig.provider}{" "}
+                        {store.payoutConfig.network &&
+                          `(${store.payoutConfig.network})`}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Bank</span>
+                      <span className="text-white font-bold">
+                        {store.payoutConfig.bankName || "Mobile Money"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Account Name</span>
+                      <span className="text-white font-bold">
+                        {store.payoutConfig.accountName}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Account Number</span>
+                      <span className="text-white font-mono">
+                        {store.payoutConfig.accountNumber}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Actions Danger Zone */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
               Administrative Actions
             </h3>
             <div className="bg-red-950/10 border border-red-900/20 rounded-xl p-4 flex items-center justify-between">
@@ -231,7 +333,7 @@ export function VendorDetailsModal({
                 <div>
                   <h4 className="font-bold text-white">Suspend Store</h4>
                   <p className="text-xs text-red-400/80 max-w-xs">
-                    Suspension overrides the vendor's settings. The store will
+                    Suspension overrides the vendor&apos;s settings. The store will
                     be inaccessible to customers until lifted.
                   </p>
                 </div>

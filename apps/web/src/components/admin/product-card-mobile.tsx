@@ -2,6 +2,7 @@
 
 import { Product } from "@/types";
 import { Share2, Trash2 } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 
 interface AdminProductCardMobileProps {
   product: Product;
@@ -74,30 +75,42 @@ export function AdminProductCardMobile({
       </div>
 
       <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2">
-        <button
-          onClick={() => handleShare(product)}
-          className="flex-1 py-2 flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
+        <Tooltip content="Share Product" side="top" className="flex-1">
+          <button
+            onClick={() => handleShare(product)}
+            className="w-full py-2 flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
+          >
+            <Share2 size={16} />
+            Share
+          </button>
+        </Tooltip>
+
+        <Tooltip
+          content={isLive ? "Cannot edit while LIVE" : "Edit Item"}
+          side="top"
+          className="flex-1"
         >
-          <Share2 size={16} />
-          Share
-        </button>
-        <button
-          onClick={() => handleEdit(product)}
-          disabled={isLive}
-          className={`flex-1 py-2 flex items-center justify-center gap-2 text-sm font-medium rounded-lg ${
-            isLive
-              ? "text-zinc-300 bg-zinc-50 cursor-not-allowed"
-              : "text-blue-600 bg-blue-50 dark:bg-blue-900/20"
-          }`}
-        >
-          {isLive ? "Locked" : "Edit"}
-        </button>
-        <button
-          onClick={() => handleDelete(product.id)}
-          className="flex-none p-2 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg"
-        >
-          <Trash2 size={18} />
-        </button>
+          <button
+            onClick={() => handleEdit(product)}
+            disabled={isLive}
+            className={`w-full py-2 flex items-center justify-center gap-2 text-sm font-medium rounded-lg ${
+              isLive
+                ? "text-zinc-300 dark:text-zinc-600 bg-zinc-50 dark:bg-zinc-900 cursor-not-allowed border border-zinc-100 dark:border-zinc-800"
+                : "text-blue-600 bg-blue-50 dark:bg-blue-900/20"
+            }`}
+          >
+            {isLive ? "Locked" : "Edit"}
+          </button>
+        </Tooltip>
+
+        <Tooltip content="Delete Product" side="top">
+          <button
+            onClick={() => handleDelete(product.id)}
+            className="flex-none p-2 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg"
+          >
+            <Trash2 size={18} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );

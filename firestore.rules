@@ -73,11 +73,13 @@ service cloud.firestore {
         // Anyone can place an order (Public Checkout)
         allow create: if true;
         
-        // Store Owner OR The Customer who placed it can read
-        allow read: if isParentStoreOwner() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+        // Store Owner OR The Customer who placed it can read OR Super Admin
+        allow read: if isParentStoreOwner() || 
+                     (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+                     isSuperAdmin();
         
         // Only the store owner can update (e.g. status)
-        allow update: if isParentStoreOwner();
+        allow update: if isParentStoreOwner() || isSuperAdmin();
       }
 
       // -- Reviews --
@@ -86,8 +88,8 @@ service cloud.firestore {
         allow read: if true;
         // Only authenticated users can create reviews
         allow create: if isAuthenticated();
-        // Only Store Owner can update (moderation)
-        allow update, delete: if isParentStoreOwner();
+        // Only Store Owner or Admin can update (moderation)
+        allow update, delete: if isParentStoreOwner() || isSuperAdmin();
       }
 
       // -- Complaints --
@@ -95,16 +97,16 @@ service cloud.firestore {
         // Anyone can file a complaint
         allow create: if true;
         
-        // Only the Store Owner can read or update (resolve) complaints
-        allow read, update: if isParentStoreOwner();
+        // Only the Store Owner or Super Admin can read or update (resolve) complaints
+        allow read, update: if isParentStoreOwner() || isSuperAdmin();
       }
 
-      // -- Wallet & Transactions -- (Sensitive, Owner Only)
+      // -- Wallet & Transactions -- (Sensitive, Owner or Super Admin Only)
       match /wallet/{document=**} {
-        allow read: if isParentStoreOwner();
+        allow read: if isParentStoreOwner() || isSuperAdmin();
       }
       match /wallet_transactions/{transactionId} {
-        allow read: if isParentStoreOwner();
+        allow read: if isParentStoreOwner() || isSuperAdmin();
       }
 
       // -- Vendor Tickets (To Platform) --
@@ -166,7 +168,7 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
     match /{path=**}/orders/{orderId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow read: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isSuperAdmin();
     }
     match /{path=**}/notifications/{notificationId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
@@ -178,7 +180,7 @@ service cloud.firestore {
       allow read: if true;
     }
     match /{path=**}/bookings/{bookingId} {
-      allow read: if isAuthenticated() && resource.data.customerId == request.auth.uid;
+      allow read: if (isAuthenticated() && resource.data.customerId == request.auth.uid) || isSuperAdmin();
     }
   }
 }

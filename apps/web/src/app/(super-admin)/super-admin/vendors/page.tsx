@@ -82,9 +82,11 @@ export default function VendorsPage() {
   };
 
   const filteredVendors = vendors.filter((v) => {
+    const name = v.name || "";
+    const slug = v.slug || "";
     const matchesSearch =
-      v.name.toLowerCase().includes(search.toLowerCase()) ||
-      v.slug.includes(search.toLowerCase());
+      name.toLowerCase().includes(search.toLowerCase()) ||
+      slug.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
 
     if (filter === "basic") return v.plan !== "growth";
@@ -121,7 +123,7 @@ export default function VendorsPage() {
             {["all", "basic", "growth"].map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f as any)}
+                onClick={() => setFilter(f as "all" | "basic" | "growth")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
                   filter === f
                     ? "bg-zinc-800 text-white shadow-sm"
@@ -156,8 +158,10 @@ export default function VendorsPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center">
                       {vendor.logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={vendor.logo}
+                          alt={`${vendor.name} logo`}
                           className="w-full h-full object-cover rounded-lg"
                         />
                       ) : (
