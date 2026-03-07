@@ -330,7 +330,7 @@ export function AiAssistant() {
           onClose={() => setPromoOpen(false)}
           product={promoProduct}
           storeSlug={storeId || ""}
-          storeName="Store"
+           storeName="Store"
           storeLogo=""
         />
       )}

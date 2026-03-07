@@ -33,6 +33,7 @@
     "react-dom": "^19.2.3",
     "react-paystack": "^6.0.0",
     "react-snowfall": "^2.4.0",
+    "recharts": "^3.8.0",
     "resend": "^6.6.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^3.25.76"
