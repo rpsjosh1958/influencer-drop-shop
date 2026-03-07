@@ -13,11 +13,8 @@ import {
   X,
   Package,
   MapPin,
-  Calendar,
-  CreditCard,
   User,
   Phone,
-  Mail,
   MoreVertical,
 } from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";

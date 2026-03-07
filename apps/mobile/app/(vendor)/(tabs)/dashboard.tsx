@@ -18,12 +18,17 @@ import {
   BadgeCheck,
   Calendar,
   Briefcase,
+  AlertTriangle,
+  ChevronRight,
+  BarChart3,
+  Award,
 } from "lucide-react-native";
-import { MotiView } from "moti";
-import { useState, useMemo } from "react";
+import { MotiView, AnimatePresence } from "moti";
+import { useState, useMemo, useEffect } from "react";
 import * as Haptics from "expo-haptics";
 import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";
 import { VendorBookingDetails } from "@/components/vendor/vendor-booking-details";
+import { AnalyticsModal } from "@/components/vendor/analytics-modal";
 
 export default function VendorDashboard() {
   const { store, metrics, loading, toggleStoreStatus, orders, bookings } =
@@ -31,6 +36,8 @@ export default function VendorDashboard() {
   const [toggling, setToggling] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const navigation = useNavigation();
 
   const formatMoney = (amount: number) =>
@@ -47,6 +54,70 @@ export default function VendorDashboard() {
       setToggling(false);
     }
   };
+
+  // Rotating Insights Logic
+  const insights = useMemo(() => {
+    // Top Product logic for all time
+    const prodMap: Record<string, number> = {};
+    orders.forEach(o => {
+        o.items?.forEach((item: any) => {
+            prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
+        });
+    });
+    const topProduct = Object.entries(prodMap).sort((a,b) => b[1] - a[1])[0];
+
+    const list = [
+      {
+        label: "Total Sales",
+        value: metrics.totalOrders.toString(),
+        icon: <TrendingUp size={12} color="#3b82f6" />,
+        color: "text-blue-600",
+      },
+      {
+        label: "Active Orders",
+        value: metrics.activeOrders.toString(),
+        icon: <ShoppingBag size={12} color="#3b82f6" />,
+        color: "text-blue-600",
+      },
+    ];
+
+    if (topProduct) {
+        list.push({
+            label: "Popular Item",
+            value: topProduct[0],
+            icon: <Award size={12} color="#16a34a" />,
+            color: "text-green-600",
+        });
+    }
+
+    if (metrics.lowStockCount > 0) {
+      list.push({
+        label: "Low Stock",
+        value: `${metrics.lowStockCount} Items`,
+        icon: <AlertTriangle size={12} color="#f59e0b" />,
+        color: "text-orange-600",
+      });
+    }
+
+    const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+    if (pendingBookings > 0) {
+      list.push({
+        label: "New Bookings",
+        value: pendingBookings.toString(),
+        icon: <Calendar size={12} color="#8b5cf6" />,
+        color: "text-purple-600",
+      });
+    }
+
+    return list;
+  }, [metrics, bookings, orders]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveInsightIndex((prev) => (prev + 1) % insights.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [insights.length]);
 
   // Merge & Sort Activity
   const liveActivity = useMemo(() => {
@@ -98,9 +169,12 @@ export default function VendorDashboard() {
                 <BadgeCheck size={18} color="#2563eb" fill="white" />
               )}
             </View>
-            <P className="text-xs text-zinc-500 font-bold uppercase tracking-wider">
-              {store?.category || "General Store"}
-            </P>
+            <View className="flex-row items-center gap-2">
+              <View className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-green-500' : 'bg-zinc-300'}`} />
+              <P className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                {isLive ? 'Accepting Orders' : 'Store Closed'}
+              </P>
+            </View>
           </View>
         </View>
 
@@ -147,7 +221,55 @@ export default function VendorDashboard() {
 
           {/* Row 2 */}
           <View className="flex-row gap-4 w-full h-40">
-            {/* Status Card (Toggle) */}
+            {/* Dynamic Insights Card */}
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setShowAnalytics(true);
+              }}
+              className="flex-1 p-5 rounded-3xl border border-zinc-100 bg-white shadow-sm justify-between overflow-hidden"
+            >
+              <View className="flex-row justify-between items-center">
+                <View className="w-10 h-10 bg-zinc-50 rounded-full items-center justify-center">
+                  <BarChart3 color="black" size={20} />
+                </View>
+                <ChevronRight size={16} color="#d4d4d8" />
+              </View>
+
+              <View>
+                <AnimatePresence mode="wait">
+                  <MotiView
+                    key={activeInsightIndex}
+                    from={{ opacity: 0, translateY: 10 }}
+                    animate={{ opacity: 1, translateY: 0 }}
+                    exit={{ opacity: 0, translateY: -10 }}
+                    transition={{ type: 'timing', duration: 400 }}
+                  >
+                    <H1 className="text-2xl font-black" numberOfLines={1} ellipsizeMode="tail">
+                      {insights[activeInsightIndex].value}
+                    </H1>
+                    <View className="flex-row items-center gap-1.5 mt-1">
+                      {insights[activeInsightIndex].icon}
+                      <P className={`text-[10px] font-black uppercase ${insights[activeInsightIndex].color}`}>
+                        {insights[activeInsightIndex].label}
+                      </P>
+                    </View>
+                  </MotiView>
+                </AnimatePresence>
+              </View>
+              
+              {/* Progress dots */}
+              <View className="flex-row gap-1 absolute bottom-4 right-5">
+                {insights.map((_, i) => (
+                  <View 
+                    key={i} 
+                    className={`h-1 rounded-full ${activeInsightIndex === i ? 'w-3 bg-black' : 'w-1 bg-zinc-200'}`} 
+                  />
+                ))}
+              </View>
+            </Pressable>
+
+            {/* Store Toggle Card (Replacing Total Sales) */}
             <Pressable
               onPress={handleToggleStatus}
               disabled={toggling}
@@ -187,19 +309,6 @@ export default function VendorDashboard() {
                 </P>
               </View>
             </Pressable>
-
-            {/* Metrics */}
-            <View className="flex-1 bg-white p-5 rounded-3xl border border-zinc-100 shadow-sm justify-between">
-              <View className="w-10 h-10 bg-blue-50 rounded-full items-center justify-center">
-                <TrendingUp color="#3b82f6" size={20} />
-              </View>
-              <View>
-                <H1 className="text-2xl font-black">{metrics.totalOrders}</H1>
-                <P className="text-zinc-500 text-xs font-bold uppercase mt-1">
-                  Total Sales
-                </P>
-              </View>
-            </View>
           </View>
         </View>
 
@@ -318,6 +427,10 @@ export default function VendorDashboard() {
       </ScrollView>
 
       {/* Modals */}
+      <AnalyticsModal 
+        visible={showAnalytics}
+        onClose={() => setShowAnalytics(false)}
+      />
       <VendorOrderDetails
         order={selectedOrder}
         visible={!!selectedOrder}

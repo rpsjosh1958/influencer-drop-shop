@@ -231,13 +231,6 @@ function VendorLayout() {
             title: "Profile",
           }}
         />
-        <Drawer.Screen
-          name="security-settings"
-          options={{
-            drawerItemStyle: { display: "none" },
-            title: "Security",
-          }}
-        />
       </Drawer>
     </GestureHandlerRootView>
   );
