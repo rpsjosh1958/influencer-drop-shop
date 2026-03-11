@@ -12,6 +12,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function VendorSupportPage() {
   const { storeId, storePlan } = useAdminStore();
@@ -29,7 +30,7 @@ export default function VendorSupportPage() {
     if (!storeId) return;
     const q = query(
       collection(db, "stores", storeId, "tickets"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setTickets(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
@@ -76,12 +77,16 @@ export default function VendorSupportPage() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Support & Help</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Support & Help
+            <HelpTrigger category="support" />
+          </h1>
           <p className="text-zinc-500">
             Contact the platform team for assistance.
           </p>
         </div>
         <button
+          data-tour="support-new-ticket"
           onClick={() => setShowForm(!showForm)}
           className="bg-black text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:opacity-80 transition-opacity"
         >
@@ -159,7 +164,7 @@ export default function VendorSupportPage() {
         </form>
       )}
 
-      <div className="space-y-4">
+      <div data-tour="support-tickets" className="space-y-4">
         {tickets.length === 0 ? (
           <div className="text-center py-20 bg-zinc-50 rounded-3xl border-2 border-dashed border-zinc-200">
             <MessageSquare className="mx-auto text-zinc-300 mb-4" size={48} />
@@ -184,8 +189,8 @@ export default function VendorSupportPage() {
                       ticket.status === "open"
                         ? "bg-blue-100 text-blue-700"
                         : ticket.status === "resolved"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-orange-100 text-orange-700"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-orange-100 text-orange-700"
                     }`}
                   >
                     {ticket.status}

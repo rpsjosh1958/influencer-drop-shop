@@ -36,6 +36,7 @@ import { AiAssistant } from "@/components/admin/ai-assistant";
 import { AdminNavBadge } from "@/components/admin/nav-badge";
 import { useMemo } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
+import { OnboardingProvider } from "@/context/onboarding-context";
 
 export default function AdminLayout({
   children,
@@ -180,24 +181,26 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         <AdminStoreProvider>
-          <DynamicSidebar
-            pathname={pathname}
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-            mobileMenuOpen={mobileMenuOpen}
-            setMobileMenuOpen={setMobileMenuOpen}
-            showBroadcast={showBroadcast}
-            setShowBroadcast={setShowBroadcast}
-            handleLogout={handleLogout}
-          />
+          <OnboardingProvider>
+            <DynamicSidebar
+              pathname={pathname}
+              collapsed={collapsed}
+              setCollapsed={setCollapsed}
+              mobileMenuOpen={mobileMenuOpen}
+              setMobileMenuOpen={setMobileMenuOpen}
+              showBroadcast={showBroadcast}
+              setShowBroadcast={setShowBroadcast}
+              handleLogout={handleLogout}
+            />
 
-          {/* Main Content Area */}
-          <main className="flex-1 overflow-auto h-screen w-full relative z-0 pt-16 md:pt-0">
-            <div className="h-full w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8">
-              {children}
-            </div>
-          </main>
-          <AiAssistant />
+            {/* Main Content Area */}
+            <main className="flex-1 overflow-auto h-screen w-full relative z-0 pt-16 md:pt-0">
+              <div className="h-full w-full max-w-7xl mx-auto p-4 md:p-8 space-y-8">
+                {children}
+              </div>
+            </main>
+            <AiAssistant />
+          </OnboardingProvider>
         </AdminStoreProvider>
       </ThemeProvider>
     </div>
@@ -359,12 +362,16 @@ function DynamicSidebar({
       >
         <div className="p-6 flex items-center justify-between h-20">
           {!collapsed && (
-            <h1 className="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[160px]">
+            <h1 
+              data-tour="sidebar-brand"
+              className="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[160px]"
+            >
               {storeName || "DROP."}
             </h1>
           )}
           <Tooltip content={collapsed ? "Expand" : "Collapse"} side="right">
             <button
+              data-tour="sidebar-collapse"
               onClick={() => setCollapsed(!collapsed)}
               className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
@@ -377,7 +384,10 @@ function DynamicSidebar({
           </Tooltip>
         </div>
 
-        <nav className="flex-1 px-3 space-y-2 overflow-y-auto custom-scrollbar">
+        <nav 
+          data-tour="sidebar-menu"
+          className="flex-1 px-3 space-y-2 overflow-y-auto custom-scrollbar"
+        >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             const linkContent = (
@@ -424,6 +434,7 @@ function DynamicSidebar({
           {collapsed ? (
             <Tooltip content="Broadcast" side="right">
               <button
+                data-tour="sidebar-broadcast"
                 onClick={() => setShowBroadcast(true)}
                 className="flex items-center justify-center p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full"
               >
@@ -432,6 +443,7 @@ function DynamicSidebar({
             </Tooltip>
           ) : (
             <button
+              data-tour="sidebar-broadcast"
               onClick={() => setShowBroadcast(true)}
               className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full"
             >

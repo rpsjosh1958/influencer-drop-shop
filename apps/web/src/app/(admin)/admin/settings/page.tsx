@@ -28,7 +28,9 @@ import {
   Zap,
   Wallet,
   BadgeCheck,
-  UserCog, // Added UserCog
+  UserCog,
+  Lock,
+  AlertCircle,
 } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
@@ -36,6 +38,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
 import { PasswordInput } from "@/components/ui/password-input";
+import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
 
 const TABS = [
   { id: "general", label: "General", icon: Store },
@@ -47,12 +50,52 @@ const TABS = [
   { id: "payouts", label: "Payout Settings", icon: Wallet },
 ];
 
+function SetupRequired({ 
+  title, 
+  description, 
+  onAction 
+}: { 
+  title: string; 
+  description: string; 
+  onAction: () => void 
+}) {
+  return (
+    <div className="bg-white p-12 rounded-[2.5rem] border border-zinc-200 text-center space-y-6">
+      <div className="h-20 w-20 bg-zinc-100 rounded-3xl flex items-center justify-center mx-auto">
+        <AlertCircle size={32} className="text-zinc-400" />
+      </div>
+      <div className="space-y-2">
+        <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900">{title}</h2>
+        <p className="text-zinc-500 max-w-sm mx-auto">{description}</p>
+      </div>
+      <button 
+        onClick={onAction}
+        className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:scale-105 transition-transform"
+      >
+        Select Store Type
+      </button>
+    </div>
+  );
+}
+
 export default function StoreSettingsPage() {
   const { storeId, storeName, planExpiresAt, loading: storeLoading } = useAdminStore();
+  const { currentStepTarget, isActive: isTourActive } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [success, setSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("general");
+
+  // Sync tab with tutorial progress
+  useEffect(() => {
+    if (!isTourActive) return;
+    if (currentStepTarget === "settings-billing") {
+      setActiveTab("billing");
+    } else if (currentStepTarget === "settings-payouts") {
+      setActiveTab("payouts");
+    }
+  }, [currentStepTarget, isTourActive]);
+
   const [billingCycle, setBillingCycle] = useState<
     "monthly" | "quarterly" | "annual"
   >("monthly");
@@ -66,6 +109,7 @@ export default function StoreSettingsPage() {
   // State
   const [config, setConfig] = useState<any>({
     name: "",
+    type: "", // Added to track selection
     status: "maintenance",
     logo: "",
     plan: "starter", // starter, growth
@@ -110,6 +154,7 @@ export default function StoreSettingsPage() {
   });
 
   const isFreePlan = config.plan === "starter";
+  const isTypeSelected = !!config.type;
 
   const getDaysLeft = () => {
     let expiryDate: Date | null = null;
@@ -379,27 +424,42 @@ export default function StoreSettingsPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Store Settings</h1>
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          Store Settings
+          <HelpTrigger 
+            category={activeTab === "billing" || activeTab === "payouts" ? "settings-pro" : "settings"} 
+            target={activeTab === "billing" ? "settings-billing" : activeTab === "payouts" ? "settings-payouts" : undefined}
+          />
+        </h1>
         <p className="text-zinc-500">Manage your store's brand and layout.</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar Tabs */}
-        <div className="w-full lg:w-64 flex-shrink-0 space-y-2">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                activeTab === tab.id
-                  ? "bg-black text-white shadow-lg"
-                  : "bg-white text-zinc-500 hover:bg-zinc-100"
-              }`}
-            >
-              <tab.icon size={18} />
-              {tab.label}
-            </button>
-          ))}
+        <div 
+          data-tour="settings-tabs"
+          className="w-full lg:w-64 flex-shrink-0 space-y-2"
+        >
+          {TABS.map((tab) => {
+            const isLocked = (tab.id === "billing" || tab.id === "payouts") && !isTypeSelected;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => !isLocked && setActiveTab(tab.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+                  activeTab === tab.id
+                    ? "bg-black text-white shadow-lg"
+                    : isLocked 
+                      ? "bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                      : "bg-white text-zinc-500 hover:bg-zinc-100"
+                }`}
+              >
+                <tab.icon size={18} />
+                {tab.label}
+                {isLocked && <Lock size={14} className="ml-auto" />}
+              </button>
+            );
+          })}
         </div>
 
         {/* Content Area */}
@@ -454,7 +514,10 @@ export default function StoreSettingsPage() {
                   </div>
 
                   {/* Store Type Section */}
-                  <div className="space-y-2 pt-6 border-t border-zinc-100">
+                  <div 
+                    data-tour="settings-type"
+                    className="space-y-2 pt-6 border-t border-zinc-100"
+                  >
                     <label className="text-sm font-bold text-zinc-900">
                       Store Type
                     </label>
@@ -463,12 +526,13 @@ export default function StoreSettingsPage() {
                       portal.
                     </p>
                     <select
-                      value={config.type || "product"}
+                      value={config.type || ""}
                       onChange={(e) => {
                         const newType = e.target.value as
                           | "product"
                           | "service"
                           | "hybrid";
+                        if (!newType) return;
                         const newFeatures = {
                           hasProducts:
                             newType === "product" || newType === "hybrid",
@@ -481,6 +545,9 @@ export default function StoreSettingsPage() {
                       }}
                       className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
                     >
+                      <option value="" disabled>
+                        Select Store Type
+                      </option>
                       <option value="product">
                         Products Only (Physical goods)
                       </option>
@@ -1118,8 +1185,20 @@ export default function StoreSettingsPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-6"
                 >
-                  {/* Current Plan Card */}
-                  <div className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-4 text-zinc-900 flex justify-between items-center">
+                  {!isTypeSelected ? (
+                    <SetupRequired 
+                      title="Billing Locked"
+                      description="Please select your store type in the General tab to unlock billing and growth plans."
+                      onAction={() => setActiveTab("general")}
+                    />
+                  ) : (
+                    <>
+                      {/* Current Plan Card */}
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-white">Billing & Plan</h2>
+                        
+                      </div>
+                      <div className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-4 text-zinc-900 flex justify-between items-center">
                     <div>
                       <h2 className="text-xl font-bold text-zinc-900">
                         Current Plan
@@ -1159,6 +1238,7 @@ export default function StoreSettingsPage() {
 
                   {/* GROWTH UPGRADE CARD */}
                   <div
+                    data-tour="settings-billing"
                     className={`p-8 rounded-3xl border ${
                       config.plan === "growth"
                         ? "bg-gradient-to-br from-zinc-900 to-black text-white border-black"
@@ -1285,28 +1365,40 @@ export default function StoreSettingsPage() {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </>
               )}
-              {activeTab === "payouts" && (
-                <motion.div
-                  key="payouts"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
-                >
-                  <div>
-                    <h2 className="text-xl font-bold text-zinc-900">
-                      Payout Settings
-                    </h2>
-                    <p className="text-zinc-500 text-sm">
-                      Where should we send your earnings?
-                      <br />
-                      <span className="text-xs text-zinc-400">
-                        * Supported: MTN MoMo, Vodafone Cash, AirtelTigo.
-                      </span>
-                    </p>
+            </motion.div>
+          )}
+          {activeTab === "payouts" && (
+            <motion.div
+              data-tour="settings-payouts"
+              key="payouts"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={!isTypeSelected ? "space-y-6" : "bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"}
+            >
+              {!isTypeSelected ? (
+                <SetupRequired 
+                  title="Payouts Locked"
+                  description="We need to know what you're selling before we can set up your payout method."
+                  onAction={() => setActiveTab("general")}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-xl font-bold text-zinc-900">
+                        Payout Settings
+                      </h2>
+                      <p className="text-zinc-500 text-sm">
+                        Where should we send your earnings?
+                      </p>
+                    </div>
                   </div>
+                  <p className="text-xs text-zinc-400 mb-6">
+                    * Supported: MTN MoMo, Vodafone Cash, AirtelTigo.
+                  </p>
 
                   {config.payoutConfig?.recipientCode ? (
                     <div className="bg-green-50 border border-green-200 p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -1464,8 +1556,10 @@ export default function StoreSettingsPage() {
                       )}
                     </div>
                   )}
-                </motion.div>
+                </>
               )}
+            </motion.div>
+          )}
             </AnimatePresence>
 
             <div className="sticky bottom-6 flex justify-end">

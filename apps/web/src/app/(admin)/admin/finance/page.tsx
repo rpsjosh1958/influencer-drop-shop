@@ -26,6 +26,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { generateFinancePDF } from "@/lib/pdf-generator";
 import { generateFinanceExcel } from "@/lib/excel-generator";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function FinancePage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -72,7 +73,7 @@ export default function FinancePage() {
         collection(db, "stores", storeId!, "wallet_transactions"),
         orderBy("createdAt", "desc"),
         where("createdAt", ">=", start),
-        where("createdAt", "<=", end)
+        where("createdAt", "<=", end),
       );
 
       const snapshot = await getDocs(q);
@@ -87,7 +88,7 @@ export default function FinancePage() {
 
       const monthName = new Date(selectedYear, selectedMonth).toLocaleString(
         "default",
-        { month: "long" }
+        { month: "long" },
       );
 
       generateFinancePDF(periodTransactions, {
@@ -122,7 +123,7 @@ export default function FinancePage() {
         collection(db, "stores", storeId!, "wallet_transactions"),
         orderBy("createdAt", "desc"),
         where("createdAt", ">=", start),
-        where("createdAt", "<=", end)
+        where("createdAt", "<=", end),
       );
 
       const snapshot = await getDocs(q);
@@ -133,7 +134,7 @@ export default function FinancePage() {
 
       const monthName = new Date(selectedYear, selectedMonth).toLocaleString(
         "default",
-        { month: "long" }
+        { month: "long" },
       );
 
       generateFinanceExcel(periodTransactions, {
@@ -173,14 +174,14 @@ export default function FinancePage() {
           setWallet({ currentBalance: 0, pendingBalance: 0, totalEarned: 0 });
         }
         setLoading(false);
-      }
+      },
     );
 
     // 2. Recent Transactions
     const q = query(
       collection(db, "stores", storeId, "wallet_transactions"),
       orderBy("createdAt", "desc"),
-      limit(10)
+      limit(10),
     );
     const unsubTx = onSnapshot(q, (snapshot) => {
       setTransactions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
@@ -257,12 +258,14 @@ export default function FinancePage() {
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             Finance & Payouts
+            <HelpTrigger category="finance" />
           </h1>
           <p className="text-zinc-500">Track your earnings and cash out.</p>
         </div>
         <button
+          data-tour="finance-withdraw"
           onClick={() => setShowWithdraw(true)}
           disabled={!wallet || wallet.currentBalance < 10}
           className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
@@ -273,7 +276,10 @@ export default function FinancePage() {
       </div>
 
       {/* Reports Section */}
-      <div className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div
+        data-tour="finance-statements"
+        className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4"
+      >
         <div>
           <h3 className="font-bold text-lg text-black">Monthly Statements</h3>
           <p className="text-sm text-zinc-500">
@@ -344,7 +350,10 @@ export default function FinancePage() {
       )}
 
       {/* Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div
+        data-tour="finance-balance"
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      >
         <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-zinc-400 font-medium mb-1 flex items-center gap-2">
@@ -378,7 +387,10 @@ export default function FinancePage() {
       </div>
 
       {/* Transactions */}
-      <div className="bg-white border border-zinc-200 rounded-3xl p-8">
+      <div
+        data-tour="finance-transactions"
+        className="bg-white border border-zinc-200 rounded-3xl p-8"
+      >
         <h3 className="text-xl font-bold mb-6 text-black flex items-center gap-2">
           <History size={20} /> Recent Transactions
         </h3>
@@ -400,8 +412,8 @@ export default function FinancePage() {
                       tx.type === "credit"
                         ? "bg-green-100 text-green-600"
                         : tx.type === "debit" || tx.type === "payout"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-gray-100"
+                          ? "bg-red-100 text-red-600"
+                          : "bg-gray-100"
                     }`}
                   >
                     {tx.type === "credit" ? (

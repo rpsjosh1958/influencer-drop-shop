@@ -30,6 +30,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { HelpTrigger } from "@/context/onboarding-context";
 import {
   format,
   startOfMonth,
@@ -77,11 +78,11 @@ export default function BookingsPage() {
     if (!storeId) return;
     const q = query(
       collection(db, "stores", storeId, "bookings"),
-      orderBy("date", "desc")
+      orderBy("date", "desc"),
     );
     const unsub = onSnapshot(q, (snap) => {
       const items = snap.docs.map(
-        (d) => ({ id: d.id, ...d.data() } as Booking)
+        (d) => ({ id: d.id, ...d.data() }) as Booking,
       );
       setBookings(items);
       setLoading(false);
@@ -112,13 +113,13 @@ export default function BookingsPage() {
     if (!selectedDate) return [];
     const key = format(selectedDate, "yyyy-MM-dd");
     return (bookingsByDate[key] || []).sort((a, b) =>
-      a.startTime.localeCompare(b.startTime)
+      a.startTime.localeCompare(b.startTime),
     );
   }, [selectedDate, bookingsByDate]);
 
   const updateBookingStatus = async (
     booking: Booking,
-    status: BookingStatus
+    status: BookingStatus,
   ) => {
     if (!storeId) return;
     setUpdating(true);
@@ -137,7 +138,7 @@ export default function BookingsPage() {
           title: "Booking Confirmed! 🎉",
           message: `Your appointment for ${booking.serviceName} on ${format(
             parseISO(booking.date),
-            "MMM d"
+            "MMM d",
           )} at ${booking.startTime} has been confirmed.`,
           isRead: false,
           createdAt: Timestamp.now(),
@@ -159,7 +160,7 @@ export default function BookingsPage() {
             booking.serviceName
           } on ${format(
             parseISO(booking.date),
-            "MMM d"
+            "MMM d",
           )} is unavailable. Please reschedule at your convenience.`,
           isRead: false,
           createdAt: Timestamp.now(),
@@ -189,12 +190,18 @@ export default function BookingsPage() {
     <div className="max-w-6xl mx-auto space-y-6 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bookings</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Bookings
+            <HelpTrigger category="bookings" />
+          </h1>
           <p className="text-zinc-500">Manage customer appointments.</p>
         </div>
 
         {/* View Toggle */}
-        <div className="flex bg-zinc-100 p-1 rounded-xl">
+        <div
+          data-tour="bookings-view-toggle"
+          className="flex bg-zinc-100 p-1 rounded-xl"
+        >
           <button
             onClick={() => setViewMode("calendar")}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -221,7 +228,10 @@ export default function BookingsPage() {
       {viewMode === "calendar" ? (
         <div className="relative flex flex-col lg:block">
           {/* Calendar */}
-          <div className="bg-white rounded-3xl border border-zinc-200 p-6 lg:w-[calc(100%-374px)] mb-6 lg:mb-0">
+          <div
+            data-tour="bookings-calendar"
+            className="bg-white rounded-3xl border border-zinc-200 p-6 lg:w-[calc(100%-374px)] mb-6 lg:mb-0"
+          >
             {/* Month Navigation */}
             <div className="flex items-center justify-between mb-6">
               <button
@@ -269,10 +279,10 @@ export default function BookingsPage() {
                       !isCurrentMonth
                         ? "text-zinc-300"
                         : isSelected
-                        ? "bg-black text-white"
-                        : isToday(day)
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-black hover:bg-zinc-100"
+                          ? "bg-black text-white"
+                          : isToday(day)
+                            ? "bg-blue-50 text-blue-600"
+                            : "text-black hover:bg-zinc-100"
                     }`}
                   >
                     <span className="text-sm font-medium">
@@ -297,7 +307,10 @@ export default function BookingsPage() {
           </div>
 
           {/* Selected Date Bookings */}
-          <div className="bg-white rounded-3xl border border-zinc-200 p-6 lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:w-[350px] flex flex-col">
+          <div
+            data-tour="bookings-date-panel"
+            className="bg-white rounded-3xl border border-zinc-200 p-6 lg:absolute lg:top-0 lg:right-0 lg:bottom-0 lg:w-[350px] flex flex-col"
+          >
             <h3 className="font-bold text-black mb-4 shrink-0">
               {selectedDate
                 ? format(selectedDate, "EEEE, MMMM d")

@@ -22,6 +22,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { Complaint } from "@/types";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function AdminComplaintsPage() {
   const { storeId } = useAdminStore();
@@ -29,7 +30,7 @@ export default function AdminComplaintsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "resolved">("all");
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(
-    null
+    null,
   );
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function AdminComplaintsPage() {
 
     const q = query(
       collection(db, "stores", storeId, "complaints"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -60,7 +61,7 @@ export default function AdminComplaintsPage() {
       });
       if (selectedComplaint?.id === id) {
         setSelectedComplaint((prev) =>
-          prev ? { ...prev, status: newStatus as any } : null
+          prev ? { ...prev, status: newStatus as any } : null,
         );
       }
     } catch (error) {
@@ -77,8 +78,9 @@ export default function AdminComplaintsPage() {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-black tracking-tight mb-2">
+          <h1 className="text-3xl font-black tracking-tight mb-2 flex items-center gap-2">
             Complaints & Support
+            <HelpTrigger category="complaints" />
           </h1>
           <p className="text-zinc-500">
             Manage customer inquiries and resolve issues.
@@ -88,9 +90,15 @@ export default function AdminComplaintsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-auto lg:h-[calc(100vh-200px)]">
         {/* List Column */}
-        <div className="lg:col-span-1 bg-white rounded-2xl border border-zinc-200 flex flex-col overflow-hidden shadow-sm h-[500px] lg:h-auto">
+        <div
+          data-tour="complaints-list"
+          className="lg:col-span-1 bg-white rounded-2xl border border-zinc-200 flex flex-col overflow-hidden shadow-sm h-[500px] lg:h-auto"
+        >
           {/* Filters */}
-          <div className="p-4 border-b border-zinc-100 flex gap-2">
+          <div
+            data-tour="complaints-filters"
+            className="p-4 border-b border-zinc-100 flex gap-2"
+          >
             {(["all", "unread", "resolved"] as const).map((f) => (
               <button
                 key={f}
@@ -136,8 +144,8 @@ export default function AdminComplaintsPage() {
                         complaint.status === "unread"
                           ? "bg-red-100 text-red-600"
                           : complaint.status === "resolved"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-zinc-100 text-zinc-500"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-zinc-100 text-zinc-500"
                       }`}
                     >
                       {complaint.status}
@@ -146,7 +154,7 @@ export default function AdminComplaintsPage() {
                       {complaint.createdAt?.seconds
                         ? format(
                             new Date(complaint.createdAt.seconds * 1000),
-                            "MMM d"
+                            "MMM d",
                           )
                         : "Now"}
                     </span>
@@ -164,7 +172,10 @@ export default function AdminComplaintsPage() {
         </div>
 
         {/* Detail Column */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm flex flex-col h-[600px] lg:h-auto">
+        <div
+          data-tour="complaints-detail"
+          className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm flex flex-col h-[600px] lg:h-auto"
+        >
           {selectedComplaint ? (
             <>
               {/* Detail Header */}
@@ -176,8 +187,8 @@ export default function AdminComplaintsPage() {
                         selectedComplaint.status === "unread"
                           ? "bg-red-100 text-red-600"
                           : selectedComplaint.status === "resolved"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-zinc-100 text-zinc-500"
+                            ? "bg-green-100 text-green-600"
+                            : "bg-zinc-100 text-zinc-500"
                       }`}
                     >
                       {selectedComplaint.status}

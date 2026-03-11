@@ -14,14 +14,18 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
   AreaChart,
   Area,
   BarChart,
   Bar,
   LabelList,
 } from "recharts";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   format,
@@ -43,6 +47,13 @@ interface AnalyticsModalProps {
 
 type TimeRange = "week" | "month" | "year" | "all";
 type DataType = "revenue" | "orders";
+
+const chartConfig = {
+  value: {
+    label: "Value",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
 
 export function AnalyticsModal({
   isOpen,
@@ -175,80 +186,80 @@ export function AnalyticsModal({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white dark:bg-zinc-950 w-full max-w-6xl max-h-[95vh] rounded-[3rem] overflow-hidden shadow-2xl flex flex-col border border-zinc-200 dark:border-zinc-800"
+          className="bg-white dark:bg-zinc-950 w-full max-w-5xl max-h-[90vh] rounded-[2.5rem] overflow-hidden shadow-2xl flex flex-col border border-zinc-200 dark:border-zinc-800"
         >
           {/* Header */}
-          <div className="px-10 py-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+          <div className="px-8 py-5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-black uppercase tracking-tighter text-zinc-900 dark:text-zinc-50">
-                Store Intelligence
+              <h2 className="text-2xl font-black uppercase tracking-tighter text-zinc-900 dark:text-zinc-50">
+                Store Performance
               </h2>
-              <p className="text-sm text-zinc-500 font-bold uppercase tracking-widest mt-1">
+              <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mt-0.5">
                 Real-time business performance
               </p>
             </div>
             <button
               onClick={onClose}
-              className="w-12 h-12 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all"
+              className="w-10 h-10 flex items-center justify-center bg-zinc-100 dark:bg-zinc-800 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black rounded-full transition-all"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-10 space-y-10 scrollbar-hide">
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-8 justify-between items-start sm:items-center border-b border-zinc-100 dark:border-zinc-800 pb-6">
-              <div className="flex gap-8">
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center border-b border-zinc-100 dark:border-zinc-800 pb-4">
+              <div className="flex gap-6">
                 {(["week", "month", "year", "all"] as TimeRange[]).map((r) => (
                   <button
                     key={r}
                     onClick={() => setRange(r)}
-                    className="relative group pb-2"
+                    className="relative group pb-1"
                   >
-                    <span className={`text-sm font-black uppercase tracking-widest transition-all ${
+                    <span className={`text-[11px] font-black uppercase tracking-widest transition-all ${
                       range === r ? "text-black dark:text-white" : "text-zinc-300 hover:text-zinc-500"
                     }`}>
                       {r}
                     </span>
                     {range === r && (
-                      <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-1 bg-black dark:bg-white rounded-full" />
+                      <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-full" />
                     )}
                   </button>
                 ))}
               </div>
 
-              <div className="flex gap-8">
+              <div className="flex gap-6">
                 <button
                   onClick={() => setDataType("revenue")}
-                  className="relative group pb-2"
+                  className="relative group pb-1"
                 >
-                  <span className={`text-sm font-black uppercase tracking-widest transition-all ${
+                  <span className={`text-[11px] font-black uppercase tracking-widest transition-all ${
                     dataType === "revenue" ? "text-black dark:text-white" : "text-zinc-300 hover:text-zinc-500"
                   }`}>
                     Revenue
                   </span>
                   {dataType === "revenue" && (
-                    <motion.div layoutId="activeData" className="absolute bottom-0 left-0 right-0 h-1 bg-black dark:bg-white rounded-full" />
+                    <motion.div layoutId="activeData" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-full" />
                   )}
                 </button>
                 <button
                   onClick={() => setDataType("orders")}
-                  className="relative group pb-2"
+                  className="relative group pb-1"
                 >
-                  <span className={`text-sm font-black uppercase tracking-widest transition-all ${
+                  <span className={`text-[11px] font-black uppercase tracking-widest transition-all ${
                     dataType === "orders" ? "text-black dark:text-white" : "text-zinc-300 hover:text-zinc-500"
                   }`}>
                     Orders
                   </span>
                   {dataType === "orders" && (
-                    <motion.div layoutId="activeData" className="absolute bottom-0 left-0 right-0 h-1 bg-black dark:bg-white rounded-full" />
+                    <motion.div layoutId="activeData" className="absolute bottom-0 left-0 right-0 h-0.5 bg-black dark:bg-white rounded-full" />
                   )}
                 </button>
               </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 {
                   label: "Revenue",
@@ -281,144 +292,130 @@ export function AnalyticsModal({
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="p-8 bg-zinc-50 dark:bg-zinc-900/50 rounded-[2.5rem] border border-zinc-100 dark:border-zinc-800 transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
+                  className="p-5 bg-zinc-50 dark:bg-zinc-900/50 rounded-[1.5rem] border border-zinc-100 dark:border-zinc-800 transition-all hover:border-zinc-300 dark:hover:border-zinc-700"
                 >
-                  <div className={`w-12 h-12 rounded-2xl ${stat.bg} flex items-center justify-center mb-6`}>
-                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                  <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center mb-4`}>
+                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
                   </div>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">
+                  <p className="text-[9px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1">
                     {stat.label}
                   </p>
-                  <h4 className="text-2xl font-black text-zinc-900 dark:text-zinc-50">
+                  <h4 className="text-xl font-black text-zinc-900 dark:text-zinc-50">
                     {stat.value}
                   </h4>
                 </div>
               ))}
             </div>
 
-            {/* Chart Area - High Contrast Dark Mode for White Graphs */}
-            <div className="bg-zinc-900 p-10 rounded-[3rem] border border-zinc-800 overflow-hidden shadow-inner relative">
-              <div className="h-[400px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
+            {/* Chart Area */}
+            <div className="bg-zinc-950 p-6 rounded-[2rem] border border-zinc-800 overflow-hidden shadow-inner relative">
+              <div className="h-[280px] w-full">
+                <ChartContainer config={chartConfig} className="h-full w-full">
                   {dataType === "revenue" ? (
-                    <AreaChart data={chartData}>
+                    <AreaChart data={chartData} margin={{ left: -20, right: 10, top: 10, bottom: 0 }}>
                       <defs>
-                        <linearGradient id="colorWhite" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#fff" stopOpacity={0.25} />
+                        <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#fff" stopOpacity={0.3} />
                           <stop offset="95%" stopColor="#fff" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#3f3f46" opacity={0.3} />
+                      <CartesianGrid vertical={false} stroke="#3f3f46" strokeDasharray="4 4" opacity={0.5} />
                       <XAxis
                         dataKey="name"
-                        axisLine={{ stroke: '#3f3f46' }}
+                        axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 800, fill: '#71717a' }}
-                        dy={15}
+                        tick={{ fontSize: 9, fontWeight: 800, fill: '#71717a' }}
+                        tickMargin={10}
                       />
                       <YAxis
-                        axisLine={{ stroke: '#3f3f46' }}
+                        axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 800, fill: '#71717a' }}
+                        tick={{ fontSize: 9, fontWeight: 800, fill: '#71717a' }}
                       />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "1.5rem",
-                          border: "none",
-                          backgroundColor: "#000",
-                          boxShadow: "0 25px 50px -12px rgb(0 0 0 / 0.5)",
-                          padding: "1rem",
-                          color: "#fff"
-                        }}
-                        itemStyle={{ color: "#fff" }}
+                      <ChartTooltip 
+                        content={<ChartTooltipContent indicator="line" className="bg-black border-zinc-800 text-white" />} 
                       />
                       <Area
                         type="monotone"
                         dataKey="value"
                         stroke="#fff"
-                        strokeWidth={5}
+                        strokeWidth={3}
                         fillOpacity={1}
-                        fill="url(#colorWhite)"
-                        animationDuration={1000}
+                        fill="url(#colorValue)"
+                        animationDuration={1500}
                       />
                     </AreaChart>
                   ) : (
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#3f3f46" opacity={0.3} />
+                    <BarChart data={chartData} margin={{ left: -20, right: 10, top: 20, bottom: 0 }}>
+                      <CartesianGrid vertical={false} stroke="#3f3f46" strokeDasharray="4 4" opacity={0.5} />
                       <XAxis
                         dataKey="name"
-                        axisLine={{ stroke: '#3f3f46' }}
+                        axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 800, fill: '#71717a' }}
-                        dy={15}
+                        tick={{ fontSize: 9, fontWeight: 800, fill: '#71717a' }}
+                        tickMargin={10}
                       />
                       <YAxis
-                        axisLine={{ stroke: '#3f3f46' }}
+                        axisLine={false}
                         tickLine={false}
-                        tick={{ fontSize: 10, fontWeight: 800, fill: '#71717a' }}
+                        tick={{ fontSize: 9, fontWeight: 800, fill: '#71717a' }}
                       />
-                      <Tooltip
-                        contentStyle={{
-                          borderRadius: "1.5rem",
-                          border: "none",
-                          backgroundColor: "#000",
-                          color: "#fff"
-                        }}
-                        itemStyle={{ color: "#fff" }}
+                      <ChartTooltip 
+                        content={<ChartTooltipContent indicator="dashed" className="bg-black border-zinc-800 text-white" />} 
                       />
                       <Bar
                         dataKey="value"
                         fill="#fff"
-                        radius={[10, 10, 0, 0]}
-                        barSize={range === "week" ? 60 : 20}
-                        animationDuration={1000}
+                        radius={[6, 6, 0, 0]}
+                        barSize={range === "week" ? 40 : 15}
+                        animationDuration={1500}
                       >
                         <LabelList 
                           dataKey="value" 
                           position="top" 
-                          style={{ fill: '#fff', fontSize: 10, fontWeight: 900 }} 
-                          offset={10}
+                          style={{ fill: '#fff', fontSize: 9, fontWeight: 900 }} 
+                          offset={8}
                         />
                       </Bar>
                     </BarChart>
                   )}
-                </ResponsiveContainer>
+                </ChartContainer>
               </div>
             </div>
 
             {/* Popular Items */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <Award className="w-6 h-6 text-black dark:text-white" />
-                <h3 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-zinc-50">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Award className="w-5 h-5 text-black dark:text-white" />
+                <h3 className="text-lg font-black uppercase tracking-tight text-zinc-900 dark:text-zinc-50">
                   Top Performing Products
                 </h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {stats.topProducts.map(([name, count], i) => (
                   <div
                     key={name}
-                    className="flex items-center justify-between p-6 bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all group"
+                    className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 rounded-[1.5rem] border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all group"
                   >
-                    <div className="flex items-center gap-5">
-                      <div className="w-12 h-12 text-white rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-sm font-black group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 text-white rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-black group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black transition-colors">
                         {i + 1}
                       </div>
-                      <span className="font-black text-sm text-zinc-900 dark:text-zinc-50 uppercase tracking-tighter">
+                      <span className="font-black text-xs text-zinc-900 dark:text-zinc-50 uppercase tracking-tighter">
                         {name}
                       </span>
                     </div>
                     <div className="flex flex-col items-end">
-                      <span className="text-xl font-white text-white">{count}</span>
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                      <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">{count}</span>
+                      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">
                         Sold
                       </span>
                     </div>
                   </div>
                 ))}
                 {stats.topProducts.length === 0 && (
-                  <div className="col-span-full py-20 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-[3rem] border border-dashed border-zinc-200 dark:border-zinc-800">
-                    <p className="text-zinc-400 font-black uppercase tracking-[0.2em]">No sales data discovered</p>
+                  <div className="col-span-full py-12 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-[2rem] border border-dashed border-zinc-200 dark:border-zinc-800">
+                    <p className="text-zinc-400 font-black uppercase tracking-[0.2em] text-[10px]">No sales data discovered</p>
                   </div>
                 )}
               </div>

@@ -31,6 +31,7 @@ import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { AdminOrderModal } from "@/components/admin/admin-order-modal";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { HelpTrigger } from "@/context/onboarding-context";
 import { startOfDay, endOfDay, isBefore, isAfter } from "date-fns";
 
 const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
@@ -61,7 +62,7 @@ export default function OrdersPage() {
     // Listen to store-specific orders
     const q = query(
       collection(db, "stores", storeId, "orders"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({
@@ -133,7 +134,7 @@ export default function OrdersPage() {
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
   const handleExportPDF = (scope: "current" | "filtered" | "all") => {
@@ -207,10 +208,16 @@ export default function OrdersPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-100px)] lg:h-[calc(100vh-120px)] space-y-4">
       {/* Header & Filters */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm shrink-0">
+      <div
+        data-tour="orders-header"
+        className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm shrink-0"
+      >
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              Orders
+              <HelpTrigger category="orders" />
+            </h1>
             <p className="text-zinc-500 text-sm">Manage customer orders</p>
           </div>
           {/* Mobile Export Actions could go here or hide */}
@@ -233,6 +240,7 @@ export default function OrdersPage() {
 
           {/* Status Filter */}
           <select
+            data-tour="orders-status-filter"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-9 px-2 text-black rounded-lg border border-zinc-200 bg-zinc-50 text-sm outline-none focus:ring-2 focus:ring-black"
@@ -271,7 +279,7 @@ export default function OrdersPage() {
           </div>
 
           {/* Export Actions */}
-          <div className="relative ml-2 z-20">
+          <div data-tour="orders-export" className="relative ml-2 z-20">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               className="h-9 px-4 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-2"
@@ -336,7 +344,11 @@ export default function OrdersPage() {
       ) : (
         <>
           {/* Scrollable List Container */}
-          <div className="flex-1 overflow-y-auto min-h-0 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900 scrollbar-thin scrollbar-thumb-zinc-200">
+          {/* data-tour placed on the outer wrapper so the spotlight covers the list */}
+          <div
+            data-tour="orders-list"
+            className="flex-1 overflow-y-auto min-h-0 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900 scrollbar-thin scrollbar-thumb-zinc-200"
+          >
             {/* Table Header (Sticky) */}
             <div className="sticky top-0 z-10 px-6 py-3 flex items-center justify-between text-xs font-bold uppercase text-zinc-400 tracking-wider">
               <span>Customer</span>
@@ -369,12 +381,12 @@ export default function OrdersPage() {
                     <div className="hidden md:flex flex-col items-end gap-1 min-w-[100px]">
                       <span className="text-xs text-zinc-400">
                         {new Date(
-                          order.createdAt?.seconds * 1000
+                          order.createdAt?.seconds * 1000,
                         ).toLocaleDateString()}
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
-                          order.status
+                          order.status,
                         )}`}
                       >
                         {order.status === "paid" ? "OPEN" : order.status}
@@ -384,12 +396,12 @@ export default function OrdersPage() {
                     <div className="md:hidden flex flex-col items-end gap-1">
                       <span className="text-[10px] text-zinc-400 font-medium">
                         {new Date(
-                          order.createdAt?.seconds * 1000
+                          order.createdAt?.seconds * 1000,
                         ).toLocaleDateString()}
                       </span>
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${getStatusColor(
-                          order.status
+                          order.status,
                         )}`}
                       >
                         {order.status === "paid" ? "OPEN" : order.status}

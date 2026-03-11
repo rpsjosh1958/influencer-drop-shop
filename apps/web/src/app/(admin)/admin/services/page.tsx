@@ -29,6 +29,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Tooltip } from "@/components/ui/tooltip";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function ServicesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -40,7 +41,7 @@ export default function ServicesPage() {
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(
-    null
+    null,
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -61,11 +62,11 @@ export default function ServicesPage() {
     if (!storeId) return;
     const q = query(
       collection(db, "stores", storeId, "services"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
     const unsub = onSnapshot(q, (snap) => {
       const items = snap.docs.map(
-        (d) => ({ id: d.id, ...d.data() } as ServiceItem)
+        (d) => ({ id: d.id, ...d.data() }) as ServiceItem,
       );
       setServices(items);
       setLoading(false);
@@ -136,7 +137,7 @@ export default function ServicesPage() {
           {
             ...payload,
             updatedAt: serverTimestamp(),
-          }
+          },
         );
       } else {
         await addDoc(collection(db, "stores", storeId, "services"), {
@@ -178,7 +179,7 @@ export default function ServicesPage() {
   const filteredServices = services.filter(
     (s) =>
       s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.description?.toLowerCase().includes(search.toLowerCase())
+      s.description?.toLowerCase().includes(search.toLowerCase()),
   );
 
   if (storeLoading || loading) {
@@ -193,10 +194,14 @@ export default function ServicesPage() {
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Services</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Services
+            <HelpTrigger category="services" />
+          </h1>
           <p className="text-zinc-500">Manage your bookable services.</p>
         </div>
         <button
+          data-tour="services-add"
           onClick={() => openModal()}
           className="flex items-center gap-2 px-5 py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors"
         >
@@ -236,7 +241,10 @@ export default function ServicesPage() {
           </button>
         </div>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div
+          data-tour="services-grid"
+          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+        >
           {filteredServices.map((service) => (
             <motion.div
               key={service.id}

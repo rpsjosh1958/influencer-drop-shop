@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 interface OrderData {
   id: string;
@@ -259,11 +260,12 @@ export default function AdminDashboard() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
             {storeName || "Store"} Dashboard
             {isVerified && (
-              <BadgeCheck className="inline-block ml-2 w-6 h-6 text-blue-500 fill-blue-500/10" />
+              <BadgeCheck className="w-6 h-6 text-blue-500 fill-blue-500/10" />
             )}
+            <HelpTrigger category="dashboard" />
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Real-time command center
@@ -272,6 +274,7 @@ export default function AdminDashboard() {
         {/* Actions */}
         <div className="flex flex-row items-center gap-3">
           <select
+            data-tour="dashboard-filter"
             value={selectedMonth || ""}
             onChange={(e) => setSelectedMonth(e.target.value || null)}
             className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black h-12"
@@ -295,7 +298,10 @@ export default function AdminDashboard() {
           </select>
 
           {/* The Big Switch */}
-          <div className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2 pr-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 h-12">
+          <div 
+            data-tour="dashboard-status"
+            className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2 pr-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 h-12"
+          >
             <div
               className={`h-3 w-3 rounded-full animate-pulse ${
                 isLive ? "bg-green-500" : "bg-red-500"
@@ -322,7 +328,10 @@ export default function AdminDashboard() {
       </div>
 
       {/* Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div 
+        data-tour="dashboard-metrics"
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      >
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -367,6 +376,7 @@ export default function AdminDashboard() {
 
         {/* Dynamic Insights Card (Still Card 3) */}
         <motion.div
+          data-tour="dashboard-analytics"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -422,7 +432,10 @@ export default function AdminDashboard() {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto md:h-96">
-        <div className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group h-[500px] md:h-full">
+        <div 
+          data-tour="dashboard-orders"
+          className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group h-[500px] md:h-full"
+        >
           <div className="relative z-10 h-full flex flex-col">
             <h3 className="text-2xl font-bold mb-2 uppercase tracking-tight">Live Orders</h3>
             <p className="text-zinc-400 mb-6 font-medium">
@@ -464,7 +477,10 @@ export default function AdminDashboard() {
           <Zap className="absolute -bottom-10 -right-10 w-64 h-64 text-zinc-800/50 group-hover:text-zinc-800/80 transition-colors pointer-events-none" />
         </div>
 
-        <div className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 flex flex-col relative overflow-hidden h-[400px] md:h-full">
+        <div 
+          data-tour="dashboard-inventory"
+          className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 flex flex-col relative overflow-hidden h-[400px] md:h-full"
+        >
           <h3 className="font-black text-lg text-zinc-900 dark:text-zinc-50 mb-4 flex items-center gap-2 uppercase tracking-tight">
             <Package className="w-5 h-5 text-blue-500" />
             Inventory Status

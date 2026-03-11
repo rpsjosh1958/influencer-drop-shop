@@ -15,6 +15,7 @@ import { db } from "@/lib/firebase";
 import { Category } from "@/types";
 import { Plus, Trash2, Tag, AlertCircle } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function CategoriesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -32,7 +33,7 @@ export default function CategoriesPage() {
     // Scoped to Store
     const q = query(
       collection(db, "stores", storeId, "categories"),
-      orderBy("createdAt", "desc")
+      orderBy("createdAt", "desc"),
     );
     const unsub = onSnapshot(q, (snapshot) => {
       const items = snapshot.docs.map((doc) => ({
@@ -100,7 +101,10 @@ export default function CategoriesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Categories</h1>
+        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+          Categories
+          <HelpTrigger category="categories" />
+        </h1>
         <p className="text-zinc-500">
           Manage product categories for this store
         </p>
@@ -108,7 +112,7 @@ export default function CategoriesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Create Form */}
-        <div className="lg:col-span-1">
+        <div data-tour="categories-add" className="lg:col-span-1">
           <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 sticky top-8">
             <h2 className="font-bold mb-4">Add Category</h2>
             <div className="space-y-4">
@@ -142,7 +146,7 @@ export default function CategoriesPage() {
         </div>
 
         {/* List */}
-        <div className="lg:col-span-2">
+        <div data-tour="categories-list" className="lg:col-span-2">
           {loading ? (
             <div className="text-center py-12 text-zinc-500">Loading...</div>
           ) : categories.length === 0 ? (

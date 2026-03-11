@@ -18,6 +18,8 @@ import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { ShareModal } from "@/components/admin/share-modal";
 import { toPng } from "html-to-image";
 import { PromoCard } from "@/components/admin/promo-card";
+import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
+import { cn } from "@/lib/utils";
 
 // New Refactored Components
 import { AdminProductTable } from "@/components/admin/product-table";
@@ -25,6 +27,7 @@ import { AdminProductCardMobile } from "@/components/admin/product-card-mobile";
 
 export default function ProductsPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
+  const { currentStepTarget } = useOnboarding();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -202,12 +205,21 @@ export default function ProductsPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Inventory</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Inventory
+            <HelpTrigger category="products" />
+          </h1>
           <p className="text-zinc-500">Manage your drop items</p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedIds.length > 0 && (
-            <>
+          {(selectedIds.length > 0 || currentStepTarget === "products-bulk") && (
+            <div 
+              data-tour="products-bulk"
+              className={cn(
+                "flex items-center gap-2 transition-all",
+                selectedIds.length === 0 && "opacity-50 pointer-events-none"
+              )}
+            >
               <button
                 onClick={handleBulkDownload}
                 disabled={generatingBulk}
@@ -229,9 +241,10 @@ export default function ProductsPage() {
                 <Trash2 size={18} />
                 Delete ({selectedIds.length})
               </button>
-            </>
+            </div>
           )}
           <button
+            data-tour="products-add"
             onClick={handleAdd}
             className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
@@ -258,7 +271,7 @@ export default function ProductsPage() {
           </button>
         </div>
       ) : (
-        <>
+        <div data-tour="products-table">
           <AdminProductTable 
             products={products}
             selectedIds={selectedIds}
@@ -298,7 +311,7 @@ export default function ProductsPage() {
               />
             ))}
           </div>
-        </>
+        </div>
       )}
 
       {isFormOpen && (

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { DaySchedule, TimeSlot, AvailabilitySettings } from "@/types";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 const DAYS = [
   "monday",
@@ -114,14 +115,14 @@ export default function SchedulePage() {
     day: string,
     index: number,
     field: "start" | "end",
-    value: string
+    value: string,
   ) => {
     setSchedule((prev) => ({
       ...prev,
       [day]: {
         ...prev[day as keyof typeof prev],
         slots: prev[day as keyof typeof prev].slots.map((slot, i) =>
-          i === index ? { ...slot, [field]: value } : slot
+          i === index ? { ...slot, [field]: value } : slot,
         ),
       },
     }));
@@ -146,7 +147,7 @@ export default function SchedulePage() {
       [day]: {
         ...prev[day as keyof typeof prev],
         slots: prev[day as keyof typeof prev].slots.filter(
-          (_, i) => i !== index
+          (_, i) => i !== index,
         ),
       },
     }));
@@ -168,7 +169,10 @@ export default function SchedulePage() {
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Schedule</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Schedule
+            <HelpTrigger category="schedule" />
+          </h1>
           <p className="text-zinc-500">
             Set your working hours and blocked dates.
           </p>
@@ -201,7 +205,10 @@ export default function SchedulePage() {
       </AnimatePresence>
 
       {/* Working Hours */}
-      <div className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4">
+      <div
+        data-tour="schedule-hours"
+        className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4"
+      >
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-blue-100 rounded-xl">
             <Clock className="text-blue-600" size={20} />
@@ -299,7 +306,10 @@ export default function SchedulePage() {
       </div>
 
       {/* Blocked Dates */}
-      <div className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4">
+      <div
+        data-tour="schedule-blocked"
+        className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4"
+      >
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-red-100 rounded-xl">
             <Calendar className="text-red-600" size={20} />
@@ -376,7 +386,7 @@ export default function SchedulePage() {
               highlightDates={[
                 {
                   "react-datepicker__day--selected": blockedDates.map(
-                    (d) => new Date(d)
+                    (d) => new Date(d),
                   ),
                 },
               ]}
@@ -422,7 +432,10 @@ export default function SchedulePage() {
       </div>
 
       {/* Cancellation Policy */}
-      <div className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4">
+      <div
+        data-tour="schedule-cancellation"
+        className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4"
+      >
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2 bg-amber-100 rounded-xl">
             <Clock className="text-amber-600" size={20} />
