@@ -27,7 +27,7 @@ type DataType = "revenue" | "orders";
 
 export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
   const { orders, bookings } = useVendor();
-  const [range, setRange] = useState<TimeRange>("month");
+  const [range, setRange] = useState<TimeRange>("all");
   const [dataType, setDataType] = useState<DataType>("revenue");
 
   const formatMoney = (amount: number) =>
@@ -133,7 +133,7 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
         {/* Header */}
         <View className="px-8 pt-8 pb-6 flex-row items-center justify-between">
           <View>
-            <H1 className="text-3xl font-black uppercase tracking-tighter">Intelligence</H1>
+            <H1 className="text-3xl font-black uppercase tracking-tighter">Store Performance</H1>
             <P className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">Real-time Performance</P>
           </View>
           <TouchableOpacity 
@@ -154,7 +154,14 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
                   <P className={`text-xs font-black uppercase tracking-widest ${range === r ? "text-black" : "text-zinc-300"}`}>
                     {r}
                   </P>
-                  {range === r && <MotiView layout={true} className="h-1 bg-black w-4 mt-1 rounded-full" />}
+                  {range === r && (
+                    <MotiView
+                      from={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ type: "spring" }}
+                      className="h-1 bg-black w-4 mt-1 rounded-full"
+                    />
+                  )}
                 </TouchableOpacity>
               ))}
             </View>
@@ -164,76 +171,33 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
                 <P className={`text-xs font-black uppercase tracking-widest ${dataType === "revenue" ? "text-black" : "text-zinc-300"}`}>
                   Revenue
                 </P>
-                {dataType === "revenue" && <MotiView layout={true} className="h-1 bg-black w-4 mt-1 rounded-full" />}
+                {dataType === "revenue" && (
+                  <MotiView
+                    from={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: "spring" }}
+                    className="h-1 bg-black w-4 mt-1 rounded-full"
+                  />
+                )}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setDataType("orders")}>
                 <P className={`text-xs font-black uppercase tracking-widest ${dataType === "orders" ? "text-black" : "text-zinc-300"}`}>
                   Orders
                 </P>
-                {dataType === "orders" && <MotiView layout={true} className="h-1 bg-black w-4 mt-1 rounded-full" />}
+                {dataType === "orders" && (
+                  <MotiView
+                    from={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ type: "spring" }}
+                    className="h-1 bg-black w-4 mt-1 rounded-full"
+                  />
+                )}
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* Chart Section - Premium Look */}
-          <View className="px-6 my-8">
-            <View className="bg-zinc-950 p-6 pt-10 rounded-[3rem] shadow-2xl overflow-hidden min-h-[300px] justify-center">
-                {isDataEmpty ? (
-                    <View className="items-center justify-center py-20">
-                        <BarChart3 size={48} color="#27272a" strokeWidth={1} />
-                        <P className="text-zinc-600 font-bold mt-4 uppercase text-[10px] tracking-widest">No signals detected</P>
-                    </View>
-                ) : dataType === "revenue" ? (
-                    <LineChart
-                        data={chartData}
-                        width={range === "month" ? width * 1.5 : width - 100}
-                        height={200}
-                        color="white"
-                        thickness={5}
-                        hideRules
-                        hideDataPoints={false}
-                        dataPointsColor="white"
-                        dataPointsRadius={4}
-                        areaChart
-                        startFillColor="rgba(255,255,255,0.2)"
-                        endFillColor="transparent"
-                        initialSpacing={20}
-                        noOfSections={4}
-                        xAxisThickness={0}
-                        yAxisThickness={0}
-                        yAxisTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
-                        xAxisLabelTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
-                        maxValue={Math.max(...chartData.map(d => d.value)) * 1.2 || 100}
-                        scrollToEnd={range === "month"}
-                        scrollAnimation={true}
-                    />
-                ) : (
-                    <BarChart
-                        data={chartData}
-                        width={range === "month" ? width * 1.5 : width - 100}
-                        height={200}
-                        barWidth={range === "week" ? 28 : 12}
-                        hideRules
-                        noOfSections={4}
-                        xAxisThickness={0}
-                        yAxisThickness={0}
-                        yAxisTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
-                        xAxisLabelTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
-                        frontColor="white"
-                        roundedTop
-                        initialSpacing={20}
-                        maxValue={Math.max(...chartData.map(d => d.value)) + 2 || 10}
-                        scrollToEnd={range === "month"}
-                        scrollAnimation={true}
-                        showValuesAsTopLabel
-                        topLabelTextStyle={{ color: "white", fontSize: 9, fontWeight: "900" }}
-                    />
-                )}
-            </View>
-          </View>
-
-          {/* Quick Stats Grid */}
-          <View className="flex-row flex-wrap px-8 gap-4 mb-10">
+          {/* Quick Stats Grid - MOVED UP */}
+          <View className="flex-row flex-wrap px-8 gap-4 my-6">
             <View className="w-[47%] bg-zinc-50 p-6 rounded-[2rem] border border-zinc-100">
                 <View className="w-10 h-10 bg-green-50 rounded-2xl items-center justify-center mb-4">
                     <TrendingUp size={20} color="#16a34a" />
@@ -264,12 +228,73 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
             </View>
           </View>
 
+          {/* Chart Section - Premium Look */}
+          <View className="px-6 mb-8">
+            <View className="bg-zinc-950 p-6 pt-10 rounded-[3rem] shadow-2xl overflow-hidden min-h-[300px] justify-center">
+                {isDataEmpty ? (
+                    <View className="items-center justify-center py-20">
+                        <BarChart3 size={48} color="#27272a" strokeWidth={1} />
+                        <P className="text-zinc-600 font-bold mt-4 uppercase text-[10px] tracking-widest">No signals detected</P>
+                    </View>
+                ) : dataType === "revenue" ? (
+                    <LineChart
+                        data={chartData}
+                        width={width - 110}
+                        height={200}
+                        color="white"
+                        thickness={5}
+                        curved
+                        curveType={1}
+                        hideRules
+                        hideDataPoints={false}
+                        dataPointsColor="white"
+                        dataPointsRadius={4}
+                        areaChart
+                        startFillColor="rgba(255,255,255,0.2)"
+                        endFillColor="transparent"
+                        initialSpacing={20}
+                        noOfSections={4}
+                        xAxisThickness={0}
+                        yAxisThickness={0}
+                        yAxisTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
+                        xAxisLabelTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
+                        maxValue={Math.max(...chartData.map(d => d.value)) * 1.2 || 100}
+                        scrollToEnd={(range === "month" || range === "year" || range === "all")}
+                        scrollAnimation={true}
+                    />
+                ) : (
+                    <BarChart
+                        data={chartData}
+                        width={width - 110}
+                        height={200}
+                        barWidth={range === "week" ? 28 : 12}
+                        hideRules
+                        noOfSections={4}
+                        xAxisThickness={0}
+                        yAxisThickness={0}
+                        yAxisTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
+                        xAxisLabelTextStyle={{ color: "#52525b", fontSize: 9, fontWeight: "900" }}
+                        frontColor="white"
+                        roundedTop
+                        initialSpacing={20}
+                        maxValue={Math.max(...chartData.map(d => d.value)) + 2 || 10}
+                        scrollToEnd={(range === "month" || range === "year" || range === "all")}
+                        scrollAnimation={true}
+                        showValuesAsTopLabel
+                        topLabelTextStyle={{ color: "white", fontSize: 9, fontWeight: "900" }}
+                    />
+                )}
+            </View>
+          </View>
+
+          
+
           {/* Top Performers Section */}
           <View className="px-8">
             <View className="flex-row items-center justify-between mb-6">
               <View className="flex-row items-center gap-3">
                 <Award size={22} color="black" strokeWidth={2.5} />
-                <H2 className="text-xl font-black uppercase tracking-tighter">Elite Products</H2>
+                <H2 className="text-xl font-black uppercase tracking-tighter">Top Perfoming Products</H2>
               </View>
             </View>
 
@@ -283,7 +308,7 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
                         <TouchableOpacity 
                           key={name}
                           activeOpacity={0.7}
-                          className="flex-row items-center justify-between bg-white p-5 rounded-[2rem] border border-zinc-100 shadow-sm"
+                          className="flex-row items-center justify-between mb-5 bg-white p-5 rounded-[2rem] border border-zinc-100 shadow-sm"
                         >
                             <View className="flex-row items-center gap-4 flex-1">
                                 <View className="w-12 h-12 bg-zinc-100 rounded-2xl items-center justify-center">

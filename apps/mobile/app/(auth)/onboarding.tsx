@@ -118,10 +118,7 @@ export default function Onboarding() {
       <SafeAreaView className="flex-1 justify-between p-6">
         {/* Top Header */}
         <View className="flex-row items-center gap-2 self-center bg-white/10 px-4 py-2 rounded-full border border-white/10 backdrop-blur-md">
-          <Zap size={14} color="#fbbf24" fill="#fbbf24" />
-          <P className="text-white text-xs font-bold uppercase tracking-widest">
-            The Drop Platform
-          </P>
+          
         </View>
 
         {/* Main Content */}
@@ -136,7 +133,7 @@ export default function Onboarding() {
                 THE DROP.
               </H1>
             </H1>
-            <P className="text-zinc-400 text-center text-lg max-w-xs mb-4 mx-auto">
+            <P className="text-white text-center text-lg max-w-xs mb-4 mx-auto">
               HAVE A FUN SHOPPING EXPERIENCE!
             </P>
           </View>

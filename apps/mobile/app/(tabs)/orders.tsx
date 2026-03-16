@@ -201,7 +201,7 @@ export default function OrdersScreen() {
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <SafeAreaView className="flex-1 mb-15" edges={["top"]}>
+      <SafeAreaView className="flex-1 pb-20 mb-10" edges={["top"]}>
         {/* Header */}
         <View className="px-6 py-4 border-b border-zinc-100 bg-white">
           <H1 className="text-2xl font-black uppercase mb-1">My Activity</H1>

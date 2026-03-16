@@ -526,7 +526,7 @@ export default function ProfileScreen() {
   return (
     <View className="flex-1 bg-white">
       <StatusBar style="dark" />
-      <SafeAreaView className="flex-1">
+      <SafeAreaView className="flex-1  ">
         {/* Header */}
         <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center gap-4 bg-white z-10">
           {activeSection !== "menu" && (
@@ -610,19 +610,19 @@ export default function ProfileScreen() {
                     onPress={handleServicesSwitch}
                   />
                   {/* DEV: Test Onboarding */}
-                  <MenuItem
+                  {/* <MenuItem
                     icon={Zap}
                     label="[DEV] View Onboarding"
                     onPress={async () => {
                       await AsyncStorage.removeItem("hasSeenOnboarding");
                       router.replace("/(auth)/onboarding");
                     }}
-                  />
+                  /> */}
                 </View>
 
                 <Pressable
                   onPress={handleSignOut}
-                  className="flex-row items-center gap-4 p-5 mt-10 bg-zinc-50 rounded-2xl border border-zinc-100 active:scale-95 transition-transform"
+                  className="flex-row items-center gap-4 p-5  bg-zinc-50 rounded-2xl border border-zinc-100 active:scale-95 transition-transform"
                 >
                   <View className="h-10 w-10 bg-red-100 rounded-full items-center justify-center">
                     <LogOut size={20} color="#ef4444" />
