@@ -24,24 +24,12 @@ export function ComplaintModal({
   const [target, setTarget] = useState<"store" | "platform">("store");
 
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
+    name: user?.displayName || "",
+    email: user?.email || "",
+    phone: user?.phoneNumber || "",
     subject: "",
     message: "",
   });
-
-  // Pre-fill user data
-  useEffect(() => {
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        name: user.displayName || "",
-        email: user.email || "",
-        phone: user.phoneNumber || prev.phone,
-      }));
-    }
-  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

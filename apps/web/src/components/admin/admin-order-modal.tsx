@@ -20,6 +20,7 @@ interface AdminOrderModalProps {
   onClose: () => void;
   order: Order | null;
   storeId?: string;
+  onUpdate?: () => void;
 }
 
 const STATUSES = [
@@ -54,23 +55,18 @@ export function AdminOrderModal({
   onClose,
   order,
   storeId,
+  onUpdate,
 }: AdminOrderModalProps) {
   const [updating, setUpdating] = useState(false);
-  // Optimistic status state
-  const [currentStatus, setCurrentStatus] = useState<string>("");
-
-  useEffect(() => {
-    if (order) {
-      setCurrentStatus(order.status);
-    }
-  }, [order]);
+  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
 
   if (!order) return null;
 
+  const currentStatus = optimisticStatus || order.status;
+
   const handleStatusChange = async (newStatus: string) => {
     // 1. Optimistic Update
-    const oldStatus = currentStatus;
-    setCurrentStatus(newStatus);
+    setOptimisticStatus(newStatus);
     setUpdating(true);
 
     try {
@@ -93,13 +89,19 @@ export function AdminOrderModal({
           createdAt: serverTimestamp(),
         });
       }
+
+      // 2. Trigger Query Invalidation in Parent
+      onUpdate?.();
     } catch (error) {
       console.error("Failed to update status", error);
       // Revert if failed
-      setCurrentStatus(oldStatus);
+      setOptimisticStatus(null);
       alert("Failed to update status");
     } finally {
       setUpdating(false);
+      // We don't clear optimisticStatus immediately here to prevent flickering 
+      // if the parent hasn't re-rendered with new data yet.
+      // It will naturally clear when a new 'order' prop arrives or modal closes.
     }
   };
 

@@ -5,6 +5,8 @@ import { useNotifications } from "@/context/notification-context";
 
 export default function VendorTabsLayout() {
   const { unreadCount } = useNotifications();
+  const badgeValue = unreadCount > 0 ? unreadCount : undefined;
+
   return (
     <Tabs
       screenOptions={{
@@ -42,7 +44,7 @@ export default function VendorTabsLayout() {
           tabBarIcon: ({ color }: { color: string }) => (
             <Bell size={24} color={color} />
           ),
-          tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
+          tabBarBadge: badgeValue,
         }}
       />
       <Tabs.Screen

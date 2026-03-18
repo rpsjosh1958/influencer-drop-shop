@@ -562,7 +562,7 @@ export function BookingModal({
                   <View>
                     <H1 className="text-2xl font-bold mb-2">Your Details</H1>
                     <P className="text-zinc-500 mb-6">
-                      Let us know who's coming.
+                      Let us know who&apos;s coming.
                     </P>
 
                     <View className="space-y-4">

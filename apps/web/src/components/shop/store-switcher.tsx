@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 
 interface Store {
   id: string;
@@ -26,34 +27,22 @@ export function StoreSwitcher() {
   const params = useParams();
   const currentStoreId = params?.storeId as string;
 
-  const [stores, setStores] = useState<Store[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    const fetchStores = async () => {
-      try {
-        const q = query(
-          collection(db, "stores"),
-          where("status", "==", "live")
-        );
-        const snapshot = await getDocs(q);
-        const storeData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Store[];
-        setStores(storeData);
-      } catch (error) {
-        console.error("StoreSwitcher: Failed to fetch stores", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStores();
-  }, []);
+  const { data: stores = [], isLoading: loading } = useQuery({
+    queryKey: ["stores", "live"],
+    queryFn: async () => {
+      const q = query(collection(db, "stores"), where("status", "==", "live"));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Store[];
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const currentStore = stores.find((s) => s.id === currentStoreId);
 

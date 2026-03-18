@@ -41,6 +41,8 @@ import { onAuthStateChanged } from "firebase/auth";
 
 import { useStore } from "@/context/store-context";
 
+import { useMountEffect } from "@/hooks/use-mount-effect";
+
 // ... inside component
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -60,7 +62,7 @@ export default function CheckoutScreen() {
   const [customerNote, setCustomerNote] = useState("");
   const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -93,7 +95,7 @@ export default function CheckoutScreen() {
       setInitializing(false);
     });
     return unsub;
-  }, []);
+  });
 
   // ... existing code
 

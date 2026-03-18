@@ -204,3 +204,5 @@ export const SlideToPay = forwardRef<SlideToPayRef, SlideToPayProps>(
     );
   }
 );
+
+SlideToPay.displayName = "SlideToPay";

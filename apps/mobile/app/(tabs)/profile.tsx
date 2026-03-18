@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -7,7 +7,6 @@ import {
   TextInput,
   Alert,
   ActivityIndicator,
-  RefreshControl,
   ActionSheetIOS,
   Platform,
   TouchableOpacity,
@@ -21,7 +20,6 @@ import {
   signOut,
   updateProfile,
   updatePassword,
-  updateEmail,
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth";
@@ -29,7 +27,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  arrayUnion,
   arrayRemove,
   collection,
   query,
@@ -46,34 +43,29 @@ import {
   LogOut,
   ChevronRight,
   Plus,
-  Trash2,
-  Check,
-  Mail,
-  Smartphone,
   CreditCard,
   MoreVertical,
   Eye,
   EyeOff,
   Store,
-  Zap,
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
 import { Country, City } from "country-state-city";
 import { SelectionModal } from "@/components/ui/selection-modal";
-import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
-import { AlertCircle } from "lucide-react-native"; // Added
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ComplaintModal } from "@/components/shop/complaint-modal";
+import { AlertCircle } from "lucide-react-native";
+import { useQuery } from "@tanstack/react-query";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 export default function ProfileScreen() {
-  const [user, setUser] = useState<any>(null);
-  const [userData, setUserData] = useState<any>({});
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(auth.currentUser);
   const [activeSection, setActiveSection] = useState<
     "menu" | "personal" | "addresses" | "security"
   >("menu");
   const [saving, setSaving] = useState(false);
-  const [isComplaintOpen, setIsComplaintOpen] = useState(false); // Added
+  const [switching, setSwitching] = useState(false);
+  const [isComplaintOpen, setIsComplaintOpen] = useState(false);
 
   // Form States
   const [name, setName] = useState("");
@@ -88,7 +80,7 @@ export default function ProfileScreen() {
   const [addingAddress, setAddingAddress] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [newAddr, setNewAddr] = useState({
-    country: "GH", // Default to Ghana ISO Code
+    country: "GH",
     city: "",
     street: "",
     zip: "",
@@ -117,32 +109,32 @@ export default function ProfileScreen() {
     );
   }, [newAddr.country]);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        setName(u.displayName || "");
-        await fetchProfile(u.uid);
-      }
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
-
-  const fetchProfile = async (uid: string) => {
-    try {
-      const docRef = doc(db, "users", uid);
+  // Data Fetching via TanStack Query
+  const { data: userData, isLoading: profileLoading } = useQuery({
+    queryKey: ["profile", user?.uid],
+    queryFn: async () => {
+      if (!user) return null;
+      const docRef = doc(db, "users", user.uid);
       const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        setUserData(data);
-        setPhone(data.phone || "");
-        setAddresses(data.addresses || []);
-      }
-    } catch (e) {
-      console.log("Error fetching profile", e);
+      return snap.exists() ? snap.data() : null;
+    },
+    enabled: !!user,
+  });
+
+  useMountEffect(() => {
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+  });
+
+  // Sync logic: When userData arrives and local state is empty, fill it
+  useMemo(() => {
+    if (userData && !name && !phone && addresses.length === 0) {
+      setName(userData.displayName || user?.displayName || "");
+      setPhone(userData.phone || "");
+      setAddresses(userData.addresses || []);
     }
-  };
+  }, [userData]);
 
   const { showAlert } = useAlert();
 
@@ -418,7 +410,7 @@ export default function ProfileScreen() {
 
   const handleServicesSwitch = async () => {
     if (!user) return;
-    setLoading(true);
+    setSwitching(true);
     try {
       // 1. Check if user has a store
       const storeQuery = query(
@@ -456,7 +448,7 @@ export default function ProfileScreen() {
         type: "error",
       });
     } finally {
-      setLoading(false);
+      setSwitching(false);
     }
   };
 
@@ -466,7 +458,7 @@ export default function ProfileScreen() {
     setNewAddr({ country: "Ghana", city: "Accra", street: "", zip: "" });
   };
 
-  if (loading) {
+  if (profileLoading || switching) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator color="black" />

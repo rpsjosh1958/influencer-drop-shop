@@ -24,6 +24,9 @@ import { CartProvider } from "@/context/cart-context";
 import { AlertProvider } from "@/context/alert-context";
 import { StoreProvider } from "@/context/store-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -47,69 +50,71 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <PaystackProvider
-        publicKey={process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY || ""}
-        currency="GHS"
-        defaultChannels={["card", "mobile_money"]}
-      >
-        <NotificationProvider>
-          <AlertProvider>
-            <StoreProvider>
-              <FontLoader>
-                <CartProvider>
-                  <InAppNotificationBanner />
-                  <ThemeProvider
-                    value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Stack screenOptions={{ headerShown: false }}>
-                        <Stack.Screen name="index" />
-                        <Stack.Screen name="(tabs)" />
-                        <Stack.Screen name="(auth)" />
-                        <Stack.Screen name="+not-found" />
-                        <Stack.Screen
-                          name="modal"
-                          options={{ presentation: "modal", title: "Modal" }}
-                        />
-                        <Stack.Screen name="checkout" />
-                        <Stack.Screen
-                          name="(vendor)"
-                          options={{
-                            gestureEnabled: false,
-                            headerShown: false,
-                          }}
-                        />
-                      </Stack>
-
-                      {/* Splash Overlay */}
-                      {(!splashFinished || !authInitialized) && (
-                        <View
-                          style={{
-                            ...StyleSheet.absoluteFillObject,
-                            zIndex: 99999,
-                            backgroundColor: "#ffffff",
-                          }}
-                        >
-                          <AnimatedSplash
-                            onFinish={() => {
-                              // Only finish if auth is also ready?
-                              // Actually AnimatedSplash handles the wait usually.
-                              // Let's just set the flag.
-                              // If auth isn't ready, the view stays because of !authInitialized check above.
-                              setSplashFinished(true);
+      <QueryClientProvider client={queryClient}>
+        <PaystackProvider
+          publicKey={process.env.EXPO_PUBLIC_PAYSTACK_PUBLIC_KEY || ""}
+          currency="GHS"
+          defaultChannels={["card", "mobile_money"]}
+        >
+          <NotificationProvider>
+            <AlertProvider>
+              <StoreProvider>
+                <FontLoader>
+                  <CartProvider>
+                    <InAppNotificationBanner />
+                    <ThemeProvider
+                      value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Stack screenOptions={{ headerShown: false }}>
+                          <Stack.Screen name="index" />
+                          <Stack.Screen name="(tabs)" />
+                          <Stack.Screen name="(auth)" />
+                          <Stack.Screen name="+not-found" />
+                          <Stack.Screen
+                            name="modal"
+                            options={{ presentation: "modal", title: "Modal" }}
+                          />
+                          <Stack.Screen name="checkout" />
+                          <Stack.Screen
+                            name="(vendor)"
+                            options={{
+                              gestureEnabled: false,
+                              headerShown: false,
                             }}
                           />
-                        </View>
-                      )}
-                    </View>
-                    <StatusBar style="auto" />
-                  </ThemeProvider>
-                </CartProvider>
-              </FontLoader>
-            </StoreProvider>
-          </AlertProvider>
-        </NotificationProvider>
-      </PaystackProvider>
+                        </Stack>
+
+                        {/* Splash Overlay */}
+                        {(!splashFinished || !authInitialized) && (
+                          <View
+                            style={{
+                              ...StyleSheet.absoluteFillObject,
+                              zIndex: 99999,
+                              backgroundColor: "#ffffff",
+                            }}
+                          >
+                            <AnimatedSplash
+                              onFinish={() => {
+                                // Only finish if auth is also ready?
+                                // Actually AnimatedSplash handles the wait usually.
+                                // Let's just set the flag.
+                                // If auth isn't ready, the view stays because of !authInitialized check above.
+                                setSplashFinished(true);
+                              }}
+                            />
+                          </View>
+                        )}
+                      </View>
+                      <StatusBar style="auto" />
+                    </ThemeProvider>
+                  </CartProvider>
+                </FontLoader>
+              </StoreProvider>
+            </AlertProvider>
+          </NotificationProvider>
+        </PaystackProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

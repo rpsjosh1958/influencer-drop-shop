@@ -261,7 +261,7 @@ export function VendorOrderDetails({
                         Customer Note
                       </P>
                       <P className="font-medium text-black italic">
-                        "{order.customerNote}"
+                        {`"${order.customerNote}"`}
                       </P>
                     </View>
                   </View>

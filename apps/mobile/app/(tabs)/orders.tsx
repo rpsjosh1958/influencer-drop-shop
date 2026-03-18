@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   FlatList,
@@ -30,19 +30,15 @@ import { StatusBar } from "expo-status-bar";
 import { OrderDetailsModal } from "@/components/shop/order-details-modal";
 import { BookingDetailsModal } from "@/components/shop/booking-details-modal";
 import { useRouter, useLocalSearchParams } from "expo-router";
-
 import { useStore } from "@/context/store-context";
+import { useQuery } from "@tanstack/react-query";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 
 export default function OrdersScreen() {
   const router = useRouter();
   const { storeId } = useStore();
   const params = useLocalSearchParams();
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Unified List State
-  const [activities, setActivities] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(auth.currentUser);
 
   const [detailsVisible, setDetailsVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
@@ -50,12 +46,21 @@ export default function OrdersScreen() {
   const [bookingDetailsVisible, setBookingDetailsVisible] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
-  const fetchData = async (userId: string) => {
-    try {
+  useMountEffect(() => {
+    return onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+  });
+
+  const { data: activities = [] as any[], isLoading: activitiesLoading, refetch, isRefetching } = useQuery({
+    queryKey: ["activities", user?.uid],
+    queryFn: async () => {
+      if (!user) return [];
+      
       // 1. Fetch Orders
       const orderQ = query(
         collectionGroup(db, "orders"),
-        where("userId", "==", userId),
+        where("userId", "==", user.uid),
         orderBy("createdAt", "desc")
       );
       const orderSnap = await getDocs(orderQ);
@@ -69,7 +74,7 @@ export default function OrdersScreen() {
       // 2. Fetch Bookings
       const bookingQ = query(
         collectionGroup(db, "bookings"),
-        where("customerId", "==", userId),
+        where("customerId", "==", user.uid),
         orderBy("createdAt", "desc")
       );
       const bookingSnap = await getDocs(bookingQ);
@@ -81,47 +86,33 @@ export default function OrdersScreen() {
       }));
 
       // 3. Combine and Sort
-      const combined = [...orderData, ...bookingData].sort((a: any, b: any) => {
+      return [...orderData, ...bookingData].sort((a: any, b: any) => {
         const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
         const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
         return dateB - dateA;
       });
+    },
+    enabled: !!user,
+  });
 
-      setActivities(combined);
-    } catch (e) {
-      console.error("Error fetching data:", e);
-    }
-  };
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        await fetchData(u.uid);
-      }
-      setLoading(false);
-    });
-    return unsub;
-  }, []);
-
-  // Deep Link Handling
-  useEffect(() => {
-    if (params.orderId && activities.length > 0 && !detailsVisible) {
+  // Deep Link Handling (Declarative)
+  useMemo(() => {
+    if (params.orderId && activities.length > 0 && !detailsVisible && !selectedOrder) {
       const target = activities.find(
         (o) => o.id === params.orderId && o.type === "order"
       );
       if (target) {
-        openOrderDetails(target);
-        router.setParams({ orderId: "" });
+        setSelectedOrder(target);
+        setDetailsVisible(true);
+        // We don't clear params here to avoid re-triggering useMemo if it re-renders
+        // router.setParams({ orderId: "" }); // Moved to modal onClose or handled via selectedOrder state
       }
     }
-  }, [params.orderId, activities]);
+  }, [params.orderId, activities, detailsVisible, selectedOrder]);
 
   const onRefresh = async () => {
     if (!user) return;
-    setRefreshing(true);
-    await fetchData(user.uid);
-    setRefreshing(false);
+    await refetch();
   };
 
   const openOrderDetails = (order: any) => {
@@ -156,7 +147,7 @@ export default function OrdersScreen() {
       case "completed":
         return "text-green-600 bg-green-50 border-green-100";
       case "cancelled":
-        return "text-red-600 bg-red-50 border-red-100";
+        return "text-red-600 bg-red-100 border-red-100";
       case "pending":
         return "text-amber-600 bg-amber-50 border-amber-100";
       default:
@@ -164,7 +155,7 @@ export default function OrdersScreen() {
     }
   };
 
-  if (loading) {
+  if (activitiesLoading && !activities.length) {
     return (
       <View className="flex-1 bg-white items-center justify-center">
         <ActivityIndicator color="black" />
@@ -173,6 +164,7 @@ export default function OrdersScreen() {
   }
 
   // Not Logged In State
+
   if (!user) {
     return (
       <View className="flex-1 bg-white">
@@ -225,7 +217,7 @@ export default function OrdersScreen() {
             data={activities}
             keyExtractor={(item) => item.id}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              <RefreshControl refreshing={isRefetching} onRefresh={onRefresh} />
             }
             contentContainerStyle={{ padding: 24, gap: 16 }}
             renderItem={({ item }) => {

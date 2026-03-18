@@ -35,34 +35,17 @@ export function ComplaintModal({
 }: ComplaintModalProps) {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
-  const [target, setTarget] = useState<"store" | "platform">("store");
+  const [target, setTarget] = useState<"store" | "platform">(
+    forcedTarget || "store"
+  );
 
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
+    name: user?.displayName || "",
+    email: user?.email || "",
+    phone: user?.phoneNumber || "",
     subject: "",
     message: "",
   });
-
-  // Pre-fill user data
-  useEffect(() => {
-    if (user) {
-      setFormData((prev) => ({
-        ...prev,
-        name: user.displayName || "",
-        email: user.email || "",
-        phone: user.phoneNumber || prev.phone,
-      }));
-    }
-  }, [user]);
-
-  // Handle Forced Target
-  useEffect(() => {
-    if (forcedTarget) {
-      setTarget(forcedTarget);
-    }
-  }, [forcedTarget, visible]);
 
   const handleSubmit = async () => {
     if (
@@ -78,6 +61,8 @@ export function ComplaintModal({
 
     setLoading(true);
 
+    const finalTarget = forcedTarget || target;
+
     try {
       await addDoc(collection(db, "stores", storeId, "complaints"), {
         storeId,
@@ -86,7 +71,7 @@ export function ComplaintModal({
         customerPhone: formData.phone,
         subject: formData.subject,
         message: formData.message,
-        target,
+        target: finalTarget,
         status: "unread",
         createdAt: serverTimestamp(),
         userId: user?.uid || null,
@@ -146,7 +131,7 @@ export function ComplaintModal({
                       ? "Report an Issue"
                       : "Submit Complaint"}
                   </Text>
-                  <Text style={styles.headerSubtitle}>We're here to help.</Text>
+                  <Text style={styles.headerSubtitle}>We&apos;re here to help.</Text>
                 </View>
               </View>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>

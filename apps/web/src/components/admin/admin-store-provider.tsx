@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import {
   doc,
   getDoc,
@@ -8,21 +8,34 @@ import {
   query,
   where,
   onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { StoreType, StoreFeatures } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
+
+interface StoreListItem {
+  id: string;
+  name: string;
+  plan: "starter" | "growth";
+  status: string;
+  isLocked?: boolean;
+}
 
 interface AdminStoreContextType {
   storeId: string | null;
   storeName: string | null;
-  storePlan: "starter" | "growth" | null;
+  userPlan: "starter" | "growth" | null;
   planExpiresAt: any | null;
   storeType: StoreType | null;
   storeFeatures: StoreFeatures | null;
   pendingBookingsCount: number;
   loading: boolean;
+  ownedStores: StoreListItem[];
+  switchStore: (id: string) => void;
+  refreshStore: () => Promise<void>;
 }
 
 const AdminStoreContext = createContext<AdminStoreContextType | undefined>(
@@ -34,114 +47,183 @@ export function AdminStoreProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [storeId, setStoreId] = useState<string | null>(null);
+  const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string | null>(null);
-  const [storePlan, setStorePlan] = useState<"starter" | "growth" | null>(null);
+  const [userPlan, setUserPlan] = useState<"starter" | "growth" | null>(null);
   const [planExpiresAt, setPlanExpiresAt] = useState<any | null>(null);
   const [storeType, setStoreType] = useState<StoreType | null>(null);
-  const [storeFeatures, setStoreFeatures] = useState<StoreFeatures | null>(
-    null
-  );
+  const [storeFeatures, setStoreFeatures] = useState<StoreFeatures | null>(null);
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
+  const [ownedStores, setOwnedStores] = useState<StoreListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  
   const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // 1. Persistance & Selection Logic
+  const switchStore = useCallback((id: string) => {
+    setActiveStoreId(id);
+    localStorage.setItem("activeStoreId", id);
+    // Invalidate all admin queries to force refetch for new store
+    queryClient.invalidateQueries();
+  }, [queryClient]);
+
+  const refreshStore = async () => {
+    if (activeStoreId) {
+      queryClient.invalidateQueries();
+    }
+  };
 
   useEffect(() => {
-    let storeUnsub: () => void;
-    let bookingsUnsub: () => void;
+    let userUnsub: () => void;
 
     const authUnsub = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", user.uid));
-          const userData = userDoc.data();
-          const stores = userData?.ownedStores || [];
+        // Listen to User Document for account-wide plan and ownedStores
+        userUnsub = onSnapshot(doc(db, "users", user.uid), async (userSnap) => {
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const storeIds = userData?.ownedStores || [];
+            
+            // Sync Account Plan
+            const rawPlan = userData?.plan || "starter";
+            const expiry = userData?.planExpiresAt;
+            
+            // Check if expired locally
+            let isExpired = false;
+            if (expiry) {
+              const expiryDate = expiry.toDate ? expiry.toDate() : new Date(expiry.seconds * 1000);
+              if (new Date() > expiryDate) {
+                isExpired = true;
+              }
+            }
 
-          if (stores.length > 0) {
-            const currentStoreId = stores[0];
-            setStoreId(currentStoreId);
+            const activePlan = (rawPlan === "growth" && !isExpired) ? "growth" : "starter";
+            setUserPlan(activePlan);
+            setPlanExpiresAt(expiry || null);
 
-            // Listen to real-time store updates
-            storeUnsub = onSnapshot(
-              doc(db, "stores", currentStoreId),
-              (doc) => {
-                if (doc.exists()) {
-                  const data = doc.data();
-                  const rawPlan = data?.plan || "starter";
-                  const expiry = data?.planExpiresAt;
-                  
-                  // Check if expired locally
-                  let isExpired = false;
-                  if (expiry) {
-                    const expiryDate = expiry.toDate ? expiry.toDate() : new Date(expiry.seconds * 1000);
-                    if (new Date() > expiryDate) {
-                      isExpired = true;
-                    }
-                  }
-
-                  const activePlan = (rawPlan === "growth" && !isExpired) ? "growth" : "starter";
-
-                  setStoreName(data?.name || "Store");
-                  setStorePlan(activePlan);
-                  setPlanExpiresAt(expiry || null);
-                  setStoreType(data?.type || "product");
-
-                  // Force features based on ACTIVE plan (ignoring database if expired)
-                  if (activePlan === "starter") {
-                    setStoreFeatures({
-                      hasProducts: true,
-                      hasServices: false,
-                      hasPreorders: false,
-                    });
-                  } else if (data?.features) {
-                    setStoreFeatures(data.features);
-                  } else {
-                    const type = data?.type || "product";
-                    setStoreFeatures({
-                      hasProducts: type === "product" || type === "hybrid",
-                      hasServices: type === "service" || type === "hybrid",
-                      hasPreorders: type === "hybrid",
-                    });
-                  }
+            if (storeIds.length > 0) {
+              // Fetch basic info for all owned stores for the switcher
+              const storeList: StoreListItem[] = [];
+              const storesData: any[] = [];
+              
+              for (const id of storeIds) {
+                const sSnap = await getDoc(doc(db, "stores", id));
+                if (sSnap.exists()) {
+                  const sData = sSnap.data();
+                  storesData.push({ id: sSnap.id, ...sData });
                 }
               }
-            );
 
-            // Listen for pending bookings
-            const bookingsQuery = query(
-              collection(db, "stores", currentStoreId, "bookings"),
-              where("status", "==", "pending")
-            );
+              // Sort by createdAt to determine primary store
+              storesData.sort((a, b) => {
+                const tA = a.createdAt?.seconds || 0;
+                const tB = b.createdAt?.seconds || 0;
+                return tA - tB;
+              });
 
-            bookingsUnsub = onSnapshot(bookingsQuery, (snapshot) => {
-              setPendingBookingsCount(snapshot.docs.length);
-            });
+              storesData.forEach((sData, index) => {
+                // LOCK RULE: If starter plan and not the oldest store, it is locked.
+                const isLocked = activePlan === "starter" && index > 0;
+                
+                storeList.push({
+                  id: sData.id,
+                  name: sData.name || "Unnamed Store",
+                  plan: sData.plan || "starter",
+                  status: sData.status || "live",
+                  isLocked,
+                });
+              });
+
+              setOwnedStores(storeList);
+
+              // Determine which store to load
+              const savedId = localStorage.getItem("activeStoreId");
+              // If savedId is locked or doesn't exist, fallback to primary store
+              const isSavedLocked = storeList.find(s => s.id === savedId)?.isLocked;
+              const initialId = (savedId && storeIds.includes(savedId) && !isSavedLocked) ? savedId : storeList[0].id;
+              
+              setActiveStoreId(initialId);
+            } else {
+              setOwnedStores([]);
+              setLoading(false);
+            }
           }
-        } catch (e) {
-          console.error("Failed to load admin store", e);
-        }
+        });
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => {
       authUnsub();
-      if (storeUnsub) storeUnsub();
-      if (bookingsUnsub) bookingsUnsub();
+      if (userUnsub) userUnsub();
     };
   }, []);
+
+  // 2. Real-time Store Data Listener (Reacts to activeStoreId)
+  useEffect(() => {
+    if (!activeStoreId) return;
+
+    const storeUnsub = onSnapshot(
+      doc(db, "stores", activeStoreId),
+      (doc) => {
+        if (doc.exists()) {
+          const data = doc.data();
+          
+          setStoreName(data?.name || "Store");
+          setStoreType(data?.type || "product");
+
+          if (userPlan === "starter") {
+            setStoreFeatures({
+              hasProducts: true,
+              hasServices: false,
+              hasPreorders: false,
+            });
+          } else if (data?.features) {
+            setStoreFeatures(data.features);
+          } else {
+            const type = data?.type || "product";
+            setStoreFeatures({
+              hasProducts: type === "product" || type === "hybrid",
+              hasServices: type === "service" || type === "hybrid",
+              hasPreorders: type === "hybrid",
+            });
+          }
+          setLoading(false);
+        }
+      }
+    );
+
+    const bookingsQuery = query(
+      collection(db, "stores", activeStoreId, "bookings"),
+      where("status", "==", "pending")
+    );
+
+    const bookingsUnsub = onSnapshot(bookingsQuery, (snapshot) => {
+      setPendingBookingsCount(snapshot.docs.length);
+    });
+
+    return () => {
+      storeUnsub();
+      bookingsUnsub();
+    };
+  }, [activeStoreId]);
 
   return (
     <AdminStoreContext.Provider
       value={{
-        storeId,
+        storeId: activeStoreId,
         storeName,
-        storePlan,
+        userPlan,
         planExpiresAt,
         storeType,
         storeFeatures,
         pendingBookingsCount,
         loading,
+        ownedStores,
+        switchStore,
+        refreshStore,
       }}
     >
       {children}

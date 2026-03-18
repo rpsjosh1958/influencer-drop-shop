@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
-import { Stack, useRouter, Link, useLocalSearchParams } from "expo-router";
+import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable, Linking } from "react-native";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { H1, P } from "@/components/ui/text";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ArrowLeft, ExternalLink } from "lucide-react-native";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -18,6 +19,7 @@ const loginSchema = z.object({
 export default function Login() {
   const router = useRouter();
   const { intent } = useLocalSearchParams();
+  const isVendor = intent === "vendor";
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -35,7 +37,7 @@ export default function Login() {
       const data = loginSchema.parse(form);
 
       // Set App Mode if intent is vendor
-      if (intent === "vendor") {
+      if (isVendor) {
         await AsyncStorage.setItem("appMode", "vendor");
       }
 
@@ -43,7 +45,7 @@ export default function Login() {
       await signInWithEmailAndPassword(auth, data.email, data.password);
 
       // Force navigation if intended (safety fallback if listener is unmounted)
-      if (intent === "vendor") {
+      if (isVendor) {
         router.replace("/(vendor)/(tabs)/dashboard");
       } else {
         // Allow root listener or default flow
@@ -84,12 +86,23 @@ export default function Login() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
-        <ScrollView contentContainerClassName="flex-grow p-8 justify-center">
-          <View className="space-y-8">
+        <ScrollView contentContainerClassName="flex-grow p-8">
+          <View className="mb-8">
+            <Pressable 
+              onPress={() => router.back()}
+              className="w-10 h-10 bg-zinc-100 rounded-full items-center justify-center active:bg-zinc-200"
+            >
+              <ArrowLeft size={20} color="black" />
+            </Pressable>
+          </View>
+
+          <View className="flex-1 justify-center space-y-8">
             <View>
-              <H1>WELCOME BACK.</H1>
-              <P className="mt-2 text-center mb-3 text-lg">
-                Sign in to access your drops.
+              <H1 className="uppercase text-center tracking-tighter">
+                {isVendor ? "ADMIN LOGIN" : "WELCOME BACK."}
+              </H1>
+              <P className="mt-2 text-zinc-500 text-center mb-3 text-lg">
+                {isVendor ? "Login to manage your store." : "Sign in to access your drops."}
               </P>
             </View>
 
@@ -123,22 +136,37 @@ export default function Login() {
               />
             </View>
 
-            <View className="items-center pt-1">
-              <Button
-                title="Don't have an account? Join."
-                variant="ghost"
-                onPress={() => router.push("/(auth)/signup")}
-              />
+            {isVendor ? (
+              <View className="items-center pt-4">
+                <Pressable
+                  onPress={() => Linking.openURL("https://copdrop.io/create-store")}
+                  className="flex-row items-center gap-2 bg-zinc-50 px-6 py-4 rounded-2xl border border-zinc-100 active:bg-zinc-100"
+                >
+                  <P className="font-bold text-zinc-600 uppercase tracking-widest text-xs">Create Vendor Profile</P>
+                  <ExternalLink size={14} color="#52525b" />
+                </Pressable>
+                <P className="text-[10px] text-zinc-400 mt-4 text-center px-8 font-medium">
+                  Vendor account creation is only available on our web platform.
+                </P>
+              </View>
+            ) : (
+              <View className="items-center pt-1">
+                <Button
+                  title="Don't have an account? Join."
+                  variant="ghost"
+                  onPress={() => router.push("/(auth)/signup")}
+                />
 
-              <Button
-                title="CONTINUE AS GUEST"
-                variant="ghost"
-                size="sm"
-                className="opacity-50"
-                textClassName="text-xs"
-                onPress={() => router.replace("/(tabs)")}
-              />
-            </View>
+                <Button
+                  title="CONTINUE AS GUEST"
+                  variant="ghost"
+                  size="sm"
+                  className="opacity-50"
+                  textClassName="text-xs"
+                  onPress={() => router.replace("/(tabs)")}
+                />
+              </View>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

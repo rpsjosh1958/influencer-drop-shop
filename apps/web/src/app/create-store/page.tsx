@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { auth, db, storage } from "@/lib/firebase"; // Assumes storage is exported from firebase.ts
+import { auth, db, storage } from "@/lib/firebase"; 
 import {
   doc,
   setDoc,
@@ -24,9 +24,56 @@ import {
   Building2,
   FileText,
   Upload,
+  Package, 
+  ShoppingBag, 
+  Tag, 
+  CreditCard, 
+  ShoppingBasket, 
+  Sparkles,
+  Zap,
+  Star,
+  Chrome,
+  Apple,
+  Truck,
+  Trophy,
+  Gift,
+  Coins,
+  Ticket,
+  Shirt,
+  Watch,
+  Gem,
+  BadgePercent,
+  Heart,
+  ChevronDown
 } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { StoreSuccessModal } from "@/components/onboarding/store-success-modal";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
+
+// --- Sub-components for the floating icons ---
+const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: any) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.5 }}
+    animate={{ 
+      opacity: [0.2, 0.4, 0.2],
+      y: [0, -20, 0],
+      x: [0, 10, 0],
+      rotate: [0, 10, -10, 0],
+      scale: [1, 1.1, 1]
+    }}
+    transition={{ 
+      duration: 10 + Math.random() * 5,
+      repeat: Infinity,
+      delay: delay,
+      ease: "easeInOut"
+    }}
+    className="absolute pointer-events-none text-zinc-300"
+    style={{ left: x, top: y }}
+  >
+    <Icon size={size} />
+  </motion.div>
+);
 
 export default function CreateStoreWizard() {
   const router = useRouter();
@@ -300,7 +347,6 @@ export default function CreateStoreWizard() {
       // Set Cookie & Redirect
       document.cookie = "isAdminLoggedIn=true; path=/";
       setShowSuccessModal(true);
-      // router.push("/admin/dashboard"); // Handled by modal now
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Failed to create store.");
@@ -309,450 +355,341 @@ export default function CreateStoreWizard() {
     }
   };
 
+  const inputClasses = "w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-black outline-none font-medium text-black placeholder-zinc-400 transition-all text-sm";
+  const labelClasses = "block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1";
+
+  const SocialOptions = () => (
+    <div className="space-y-6 mb-8">
+      <div className="grid grid-cols-2 gap-4">
+        <button type="button" className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-zinc-50 hover:bg-zinc-100 text-black border border-zinc-200 transition-all">
+          <Chrome size={16} /> <span>GOOGLE</span>
+        </button>
+        <button type="button" className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-zinc-50 hover:bg-zinc-100 text-black border border-zinc-200 transition-all">
+          <Apple size={16} /> <span>APPLE</span>
+        </button>
+      </div>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-zinc-100" />
+        </div>
+        <div className="relative flex justify-center text-[10px] uppercase">
+          <span className="px-2 bg-white text-zinc-400 font-black tracking-widest">
+            Or use email
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-zinc-50 text-zinc-900 font-sans">
-      <div className="w-full max-w-lg bg-white p-8 rounded-3xl shadow-xl border border-zinc-100">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <div className="h-12 w-12 bg-black rounded-full flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
-            <Store size={24} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black tracking-tight">
-              Build Your Store
-            </h1>
-            <p className="text-zinc-500 text-sm">
-              Step {step} of 2:{" "}
-              {step === 1
-                ? isLoginMode
-                  ? "Vendor Login"
-                  : "Vendor Details"
-                : "Store Setup"}
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen w-full bg-white text-zinc-900 relative overflow-hidden flex items-center justify-center p-6">
+      
+      {/* Floating E-commerce Icons */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <FloatingIcon icon={Package} x="10%" y="15%" delay={0} size={32} />
+        <FloatingIcon icon={ShoppingBag} x="85%" y="10%" delay={2} size={40} />
+        <FloatingIcon icon={Tag} x="75%" y="80%" delay={4} size={28} />
+        <FloatingIcon icon={CreditCard} x="15%" y="75%" delay={1} size={36} />
+        <FloatingIcon icon={ShoppingBasket} x="50%" y="5%" delay={3} size={30} />
+        <FloatingIcon icon={Sparkles} x="90%" y="60%" delay={5} size={24} />
+        <FloatingIcon icon={Zap} x="5%" y="50%" delay={2.5} size={32} />
+        <FloatingIcon icon={Star} x="40%" y="90%" delay={1.5} size={26} />
+        <FloatingIcon icon={Truck} x="25%" y="10%" delay={6} size={30} />
+        <FloatingIcon icon={Trophy} x="65%" y="15%" delay={7} size={28} />
+        <FloatingIcon icon={Gift} x="95%" y="40%" delay={8} size={34} />
+        <FloatingIcon icon={Coins} x="5%" y="30%" delay={9} size={22} />
+        <FloatingIcon icon={Ticket} x="80%" y="65%" delay={10} size={36} />
+        <FloatingIcon icon={Shirt} x="20%" y="85%" delay={11} size={38} />
+        <FloatingIcon icon={Watch} x="60%" y="5%" delay={12} size={24} />
+        <FloatingIcon icon={Gem} x="45%" y="75%" delay={13} size={32} />
+        <FloatingIcon icon={BadgePercent} x="35%" y="25%" delay={14} size={30} />
+        <FloatingIcon icon={Heart} x="88%" y="90%" delay={15} size={28} />
+      </div>
 
-        {/* Progress Bar */}
-        <div className="w-full h-1 bg-zinc-100 rounded-full mb-8 flex overflow-hidden">
-          <div
-            className={`h-full bg-black transition-all duration-500 ease-out ${
-              step === 1 ? "w-1/2" : "w-full"
-            }`}
-          />
-        </div>
-
-        {error && (
-          <div className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-xl mb-6 border border-red-100 flex items-start gap-2">
-            <div className="shrink-0 mt-0.5">⚠️</div>
-            <span>{error}</span>
-          </div>
-        )}
-
-        {step === 1 ? (
-          isLoginMode ? (
-            /* EXISTING USER LOGIN */
-            <form
-              onSubmit={handleLoginSubmit}
-              className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500"
-            >
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  <User size={12} className="inline mr-1 mb-0.5" /> Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                  required
-                />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="w-full max-w-lg relative z-10 flex flex-col max-h-[90vh]"
+      >
+        <div className="w-full bg-white rounded-[40px] shadow-2xl border border-zinc-100 flex flex-col overflow-hidden relative group">
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-10 scroll-smooth">
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-14 w-14 bg-black rounded-2xl flex items-center justify-center text-white shadow-xl shadow-black/10 rotate-3">
+                <Store size={28} />
               </div>
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  Password
-                </label>
-                <PasswordInput
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                  required
-                />
+                <h1 className="text-2xl font-black tracking-tighter uppercase">
+                  Build Your Store.
+                </h1>
+                <p className="text-zinc-500 text-sm font-medium">
+                  Step {step} of 2: {step === 1 ? (isLoginMode ? "Vendor Login" : "Vendor Details") : "Store Setup"}
+                </p>
               </div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  "Login & Continue"
-                )}
-              </button>
-              <p className="text-center text-sm text-zinc-500">
-                New here?{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLoginMode(false);
-                    setError("");
-                  }}
-                  className="font-bold underline"
-                >
-                  Create an account
-                </button>
-              </p>
-            </form>
-          ) : (
-            /* VENDOR SIGNUP */
-            <form
-              onSubmit={handleVendorSubmit}
-              className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500"
-            >
-              {/* Vendor Type Toggle */}
-              <div className="flex bg-zinc-100 p-1 rounded-xl mb-6">
-                <button
-                  type="button"
-                  onClick={() => setVendorType("individual")}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                    vendorType === "individual"
-                      ? "bg-white shadow text-black"
-                      : "text-zinc-500"
-                  }`}
-                >
-                  <User size={16} /> Individual
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setVendorType("company")}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                    vendorType === "company"
-                      ? "bg-white shadow text-black"
-                      : "text-zinc-500"
-                  }`}
-                >
-                  <Building2 size={16} /> Company
-                </button>
-              </div>
+            </div>
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    {vendorType === "company"
-                      ? "Company Legal Name"
-                      : "Legal Full Name"}
-                  </label>
-                  <input
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                    placeholder={
-                      vendorType === "company"
-                        ? "e.g. My Brand Ltd"
-                        : "e.g. Kwame Mensah"
-                    }
-                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    Phone Number
-                  </label>
-                  <input
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="054xxxxxxx"
-                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                    required
-                  />
-                </div>
-              </div>
-
-              {vendorType === "individual" ? (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                    Ghana Card (NIA)
-                  </label>
-                  <input
-                    name="ghanaCard"
-                    value={formData.ghanaCard}
-                    onChange={handleGhanaCardChange}
-                    onFocus={() => {
-                      if (!formData.ghanaCard) {
-                        setFormData((prev) => ({ ...prev, ghanaCard: "GHA-" }));
-                      }
-                    }}
-                    maxLength={15}
-                    placeholder="GHA-xxxxxxxxx-x"
-                    className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                    required
-                  />
-                  <p className="text-[10px] text-zinc-400 mt-1 flex items-center gap-1">
-                    <CheckCircle2 size={10} /> Securely encrypted.
-                  </p>
-                </div>
-              ) : (
-                /* Company Fields */
-                <div className="space-y-4 border-t border-zinc-100 pt-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                      Verification Document (Max 1MB)
-                    </label>
-                    <div className="border-2 border-dashed border-zinc-200 rounded-xl p-6 flex flex-col items-center justify-center bg-zinc-50 hover:bg-zinc-100 transition-colors cursor-pointer relative">
-                      <input
-                        type="file"
-                        accept=".pdf,image/*"
-                        onChange={handleFileChange}
-                        className="absolute inset-0 opacity-0 cursor-pointer"
-                        required={!companyFile}
-                      />
-                      {companyFile ? (
-                        <div className="flex items-center gap-2 text-green-600 font-bold">
-                          <FileText size={20} /> {companyFile.name}
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <Upload
-                            className="mx-auto mb-2 text-zinc-400"
-                            size={24}
-                          />
-                          <p className="text-xs text-zinc-500 font-medium">
-                            Click to upload Cert
-                          </p>
-                          <p className="text-[10px] text-zinc-400">
-                            PDF or Image
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="text-xs font-bold uppercase tracking-wider text-black pt-2">
-                    Contact Person
-                  </p>
-
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <input
-                        name="contactName"
-                        value={formData.contactName}
-                        onChange={handleChange}
-                        placeholder="Full Name"
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium text-sm"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <input
-                        name="contactPosition"
-                        value={formData.contactPosition}
-                        onChange={handleChange}
-                        placeholder="Position (e.g. Manager)"
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium text-sm"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <input
-                        name="contactPhone"
-                        value={formData.contactPhone}
-                        onChange={handleChange}
-                        placeholder="Phone Number"
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium text-sm"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <input
-                        name="contactEmail"
-                        value={formData.contactEmail}
-                        onChange={handleChange}
-                        type="email"
-                        placeholder="Work Email"
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium text-sm"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {!user && (
-                <div className="pt-2 border-t border-zinc-100">
-                  <div className="grid md:grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                        Login Email
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                        Login Password
-                      </label>
-                      <PasswordInput
-                        type="password"
-                        name="password"
-                        value={formData.password}
-                        onChange={handleChange}
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                        required
-                        minLength={6}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2 mt-4"
-              >
-                {loading ? <Loader2 className="animate-spin" /> : "Next Step"}
-              </button>
-
-              <p className="text-center text-sm text-zinc-500">
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsLoginMode(true);
-                    setError("");
-                  }}
-                  className="font-bold underline"
-                >
-                  Login
-                </button>
-              </p>
-            </form>
-          )
-        ) : (
-          /* STEP 2: STORE FORM */
-          <form
-            onSubmit={handleStoreSubmit}
-            className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500"
-          >
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                Store Name
-              </label>
-              <input
-                name="storeName"
-                value={formData.storeName}
-                onChange={handleChange}
-                placeholder="e.g. Vintage Vibes"
-                className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                required
+            {/* Progress Bar */}
+            <div className="w-full h-1.5 bg-zinc-100 rounded-full mb-8 flex overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: step === 1 ? "50%" : "100%" }}
+                className="h-full bg-black"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  Category
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                >
-                  <option value="Fashion">Fashion & Apparel</option>
-                  <option value="Beauty">Beauty & Cosmetics</option>
-                  <option value="Art">Art & Digital</option>
-                  <option value="Food">Food & Beverage</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  What are you selling?
-                </label>
-                <select
-                  name="storeType"
-                  value={formData.storeType}
-                  onChange={handleChange}
-                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none font-medium"
-                >
-                  <option value="product">Products (Physical)</option>
-                  <option value="service">
-                    Services (Appointments/Bookings)
-                  </option>
-                  <option value="hybrid">Both (Products + Services)</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                Store URL
-              </label>
-              <div className="flex items-center bg-zinc-50 border border-zinc-200 rounded-xl px-3 focus-within:ring-2 focus-within:ring-black transition-all">
-                <span className="text-zinc-400 font-medium text-sm select-none">
-                  copdrop.io/shop/
-                </span>
-                <input
-                  name="storeSlug"
-                  value={formData.storeSlug}
-                  onChange={handleChange}
-                  className="flex-1 p-3 bg-transparent focus:outline-none font-bold text-black"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
-              <h4 className="font-bold text-sm text-purple-900 mb-1">
-                Starter Plan (Active)
-              </h4>
-              <p className="text-xs text-purple-700">
-                You are starting on the free plan (8% fee). You can upgrade to
-                Growth later.
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-6 py-4 rounded-xl font-bold bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-4 bg-red-50 text-red-600 text-sm font-bold rounded-2xl border border-red-100 mb-6 flex items-start gap-2"
               >
-                Back
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <Loader2 className="animate-spin" />
+                <div className="shrink-0 mt-0.5">⚠️</div>
+                <span>{error}</span>
+              </motion.div>
+            )}
+
+            <AnimatePresence mode="wait">
+              {step === 1 ? (
+                isLoginMode ? (
+                  /* EXISTING USER LOGIN */
+                  <motion.form
+                    key="login-form"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleLoginSubmit}
+                    className="space-y-6"
+                  >
+                    <SocialOptions />
+
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className={labelClasses}>Email Address</label>
+                        <input
+                          type="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          className={inputClasses}
+                          placeholder="you@example.com"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className={labelClasses}>Password</label>
+                        <PasswordInput
+                          type="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
+                          className={inputClasses}
+                          placeholder="••••••••"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10 mt-4 uppercase tracking-widest"
+                    >
+                      {loading ? <Loader2 className="animate-spin" /> : "Login & Continue"}
+                    </button>
+
+                    <p className="text-center text-sm text-zinc-500">
+                      New here?{" "}
+                      <button
+                        type="button"
+                        onClick={() => { setIsLoginMode(false); setError(""); }}
+                        className="text-black font-bold hover:underline"
+                      >
+                        Create an account
+                      </button>
+                    </p>
+                  </motion.form>
                 ) : (
-                  "Launch Store"
-                )}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-      <StoreSuccessModal
-        isOpen={showSuccessModal}
-        onContinue={() => router.push("/admin/dashboard")}
-        userEmail={user?.email || formData.email}
-      />
+                  /* VENDOR SIGNUP */
+                  <motion.form
+                    key="signup-form"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleVendorSubmit}
+                    className="space-y-6"
+                  >
+                    
+
+                    <div className="flex bg-zinc-50 p-1.5 rounded-2xl border border-zinc-100">
+                      <button
+                        type="button"
+                        onClick={() => setVendorType("individual")}
+                        className={cn(
+                          "flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+                          vendorType === "individual" ? "bg-white shadow-md text-black" : "text-zinc-400 hover:text-zinc-600"
+                        )}
+                      >
+                        <User size={16} /> Individual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVendorType("company")}
+                        className={cn(
+                          "flex-1 py-3 rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all",
+                          vendorType === "company" ? "bg-white shadow-md text-black" : "text-zinc-400 hover:text-zinc-600"
+                        )}
+                      >
+                        <Building2 size={16} /> Company
+                      </button>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className={labelClasses}>{vendorType === "company" ? "Company Legal Name" : "Legal Full Name"}</label>
+                        <input name="fullName" value={formData.fullName} onChange={handleChange} placeholder={vendorType === "company" ? "e.g. My Brand Ltd" : "e.g. Kwame Mensah"} className={inputClasses} required />
+                      </div>
+                      <div className="space-y-1">
+                        <label className={labelClasses}>Phone Number</label>
+                        <input name="phone" value={formData.phone} onChange={handleChange} placeholder="054xxxxxxx" className={inputClasses} required />
+                      </div>
+                    </div>
+
+                    {vendorType === "individual" ? (
+                      <div className="space-y-1">
+                        <label className={labelClasses}>Ghana Card (NIA)</label>
+                        <input name="ghanaCard" value={formData.ghanaCard} onChange={handleGhanaCardChange} onFocus={() => { if (!formData.ghanaCard) setFormData(prev => ({ ...prev, ghanaCard: "GHA-" })); }} maxLength={15} placeholder="GHA-xxxxxxxxx-x" className={inputClasses} required />
+                        <p className="text-[10px] text-zinc-400 mt-2 flex items-center gap-1.5 ml-1">
+                          <CheckCircle2 size={12} className="text-green-500" /> Securely encrypted and stored.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-6 border-t border-zinc-100 pt-6">
+                        <div className="space-y-1">
+                          <label className={labelClasses}>Verification Document (Max 1MB)</label>
+                          <div className="border-2 border-dashed border-zinc-100 rounded-2xl p-8 flex flex-col items-center justify-center bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer relative group">
+                            <input type="file" accept=".pdf,image/*" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" required={!companyFile} />
+                            {companyFile ? (
+                              <div className="flex items-center gap-2 text-black font-black text-sm uppercase tracking-widest"><FileText size={20} /> {companyFile.name}</div>
+                            ) : (
+                              <div className="text-center">
+                                <Upload className="mx-auto mb-3 text-zinc-300 group-hover:text-black transition-colors" size={32} />
+                                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Click to upload Cert</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <input name="contactName" value={formData.contactName} onChange={handleChange} placeholder="Contact Person" className={inputClasses} required />
+                          <input name="contactPosition" value={formData.contactPosition} onChange={handleChange} placeholder="Position" className={inputClasses} required />
+                          <input name="contactPhone" value={formData.contactPhone} onChange={handleChange} placeholder="Contact Phone" className={inputClasses} required />
+                          <input name="contactEmail" value={formData.contactEmail} onChange={handleChange} type="email" placeholder="Contact Email" className={inputClasses} required />
+                        </div>
+                      </div>
+                    )}
+
+                    <SocialOptions />
+
+                    {!user && (
+                      <div className=" space-y-4">
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <label className={labelClasses}>Email</label>
+                            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" className={inputClasses} required />
+                          </div>
+                          <div className="space-y-1">
+                            <label className={labelClasses}>Secure Password</label>
+                            <PasswordInput type="password" name="password" value={formData.password} onChange={handleChange} placeholder="••••••••" className={inputClasses} required minLength={6} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <button type="submit" disabled={loading} className="w-full bg-black text-white py-4 rounded-2xl font-black text-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10 mt-4 uppercase tracking-widest">
+                      {loading ? <Loader2 className="animate-spin" /> : "NEXT STEP"}
+                    </button>
+
+                    <p className="text-center text-sm text-zinc-500">
+                      Already have an account?{" "}
+                      <button type="button" onClick={() => { setIsLoginMode(true); setError(""); }} className="text-black font-bold hover:underline">Login</button>
+                    </p>
+                  </motion.form>
+                )
+              ) : (
+                /* STEP 2: STORE FORM */
+                <motion.form
+                  key="store-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  onSubmit={handleStoreSubmit}
+                  className="space-y-6"
+                >
+                  <div className="space-y-1">
+                    <label className={labelClasses}>Store Name</label>
+                    <input name="storeName" value={formData.storeName} onChange={handleChange} placeholder="e.g. Vintage Vibes" className={inputClasses} required />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className={labelClasses}>Category</label>
+                      <select name="category" value={formData.category} onChange={handleChange} className={inputClasses}>
+                        <option value="Fashion">Fashion & Apparel</option>
+                        <option value="Beauty">Beauty & Cosmetics</option>
+                        <option value="Art">Art & Digital</option>
+                        <option value="Food">Food & Beverage</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className={labelClasses}>Store Type</label>
+                      <select name="storeType" value={formData.storeType} onChange={handleChange} className={inputClasses}>
+                        <option value="product">Products Only</option>
+                        <option value="service">Services Only</option>
+                        <option value="hybrid">Hybrid (Both)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className={labelClasses}>Store URL</label>
+                    <div className="flex items-center bg-zinc-50 border border-zinc-200 rounded-2xl px-4 focus-within:ring-2 focus-within:ring-black transition-all">
+                      <span className="text-zinc-400 font-bold text-xs select-none uppercase tracking-tighter">copdrop.io/shop/</span>
+                      <input name="storeSlug" value={formData.storeSlug} onChange={handleChange} className="flex-1 p-4 bg-transparent focus:outline-none font-black text-black text-sm" required />
+                    </div>
+                  </div>
+
+                  <div className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                      <Sparkles size={40} className="text-black" />
+                    </div>
+                    <h4 className="font-black text-xs text-black uppercase tracking-widest mb-1">Starter Plan (Active)</h4>
+                    <p className="text-xs text-zinc-500 leading-relaxed">You are starting on the free plan (8% fee). You can upgrade to Growth later for lower fees and a verified badge.</p>
+                  </div>
+
+                  <div className="flex gap-4 pt-4">
+                    <button type="button" onClick={() => setStep(1)} className="px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-black transition-all">Back</button>
+                    <button type="submit" disabled={loading} className="flex-1 bg-black text-white py-4 rounded-2xl font-black text-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10 uppercase tracking-widest">
+                      {loading ? <Loader2 className="animate-spin" /> : "LAUNCH STORE"}
+                    </button>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Scroll Indicator */}
+          <motion.div 
+            animate={{ y: [0, 5, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="absolute bottom-4 right-8 pointer-events-none text-zinc-400 flex flex-col items-center gap-0.5"
+          >
+            <span className="text-[8px] font-black uppercase tracking-[0.2em]">Scroll</span>
+            <ChevronDown size={12} />
+          </motion.div>
+        </div>
+      </motion.div>
     </div>
   );
 }

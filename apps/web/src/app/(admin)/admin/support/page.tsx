@@ -15,7 +15,7 @@ import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
 import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function VendorSupportPage() {
-  const { storeId, storePlan } = useAdminStore();
+  const { storeId, userPlan } = useAdminStore();
   const [tickets, setTickets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);

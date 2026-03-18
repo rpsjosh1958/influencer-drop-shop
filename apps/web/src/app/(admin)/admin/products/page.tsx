@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
   deleteDoc,
   doc,
-  onSnapshot,
+  getDocs,
+  getDoc,
   orderBy,
   query,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Product } from "@/types";
 import { ProductForm } from "@/components/admin/product-form";
-import { Plus, Trash2, Share2, Download } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 import { ShareModal } from "@/components/admin/share-modal";
@@ -25,19 +26,62 @@ import { cn } from "@/lib/utils";
 import { AdminProductTable } from "@/components/admin/product-table";
 import { AdminProductCardMobile } from "@/components/admin/product-card-mobile";
 
+// Lucide Icons Import Fix
+import { Plus as PlusIcon, Trash2 as TrashIcon, Download as DownloadIcon, Share2 as ShareIcon, Loader2 } from "lucide-react";
+
 export default function ProductsPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
   const { currentStepTarget } = useOnboarding();
+  const queryClient = useQueryClient();
 
-  const [products, setProducts] = useState<Product[]>([]);
+  // 1. Fetch Store Status (Query)
+  const { data: storeData } = useQuery({
+    queryKey: ["store", storeId],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const snap = await getDoc(doc(db, "stores", storeId));
+      return snap.exists() ? snap.data() : null;
+    },
+    enabled: !!storeId,
+  });
+
+  const isLive = storeData?.status === "live";
+  const storeSlug = storeData?.slug || "";
+  const storeName = storeData?.name || "Store";
+  const storeLogo = storeData?.logo || "";
+
+  // 2. Fetch Products (Query)
+  const { data: products = [], isLoading: productsLoading } = useQuery({
+    queryKey: ["products", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Product[];
+    },
+    enabled: !!storeId,
+  });
+
+  // 3. Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!storeId) return;
+      await deleteDoc(doc(db, "stores", storeId, "products", id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["products", storeId] });
+    },
+  });
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
-  const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
-  const [storeSlug, setStoreSlug] = useState("");
-  const [storeName, setStoreName] = useState("");
-  const [storeLogo, setStoreLogo] = useState("");
-
+  
   // Share Modal State
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [productToShare, setProductToShare] = useState<Product | null>(null);
@@ -45,45 +89,12 @@ export default function ProductsPage() {
   // Bulk Selection & Generation State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [generatingBulk, setGeneratingBulk] = useState(false);
-
-  // Check store status
-  useEffect(() => {
-    if (!storeId) return;
-
-    const unsub = onSnapshot(doc(db, "stores", storeId), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setIsLive(data.status === "live");
-        setStoreSlug(data.slug || "");
-        setStoreName(data.name || "Store");
-        setStoreLogo(data.logo || "");
-      }
-    });
-    return () => unsub();
-  }, [storeId]);
-
-  useEffect(() => {
-    if (!storeId) return;
-
-    const q = query(
-      collection(db, "stores", storeId, "products"),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Product[];
-      setProducts(items);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [storeId]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 
   const handleDelete = async (id: string) => {
     if (!storeId) return;
     if (confirm("Are you sure you want to delete this product?")) {
-      await deleteDoc(doc(db, "stores", storeId, "products", id));
+      deleteMutation.mutate(id);
       setSelectedIds((prev) => prev.filter((pid) => pid !== id));
     }
   };
@@ -91,10 +102,16 @@ export default function ProductsPage() {
   const handleBulkDelete = async () => {
     if (!storeId || selectedIds.length === 0) return;
     if (confirm(`Delete ${selectedIds.length} products permanently?`)) {
-      for (const id of selectedIds) {
-        await deleteDoc(doc(db, "stores", storeId, "products", id));
+      setIsBulkDeleting(true);
+      try {
+        for (const id of selectedIds) {
+          await deleteDoc(doc(db, "stores", storeId, "products", id));
+        }
+        queryClient.invalidateQueries({ queryKey: ["products", storeId] });
+        setSelectedIds([]);
+      } finally {
+        setIsBulkDeleting(false);
       }
-      setSelectedIds([]);
     }
   };
 
@@ -180,6 +197,8 @@ export default function ProductsPage() {
     );
   }
 
+  const loading = productsLoading || isBulkDeleting;
+
   return (
     <div className="space-y-8 relative">
       {/* HIDDEN RENDER CONTAINER FOR BULK GENERATION */}
@@ -225,7 +244,7 @@ export default function ProductsPage() {
                 disabled={generatingBulk}
                 className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-white px-4 py-2 rounded-xl font-bold hover:bg-black transition-colors animate-in fade-in zoom-in disabled:opacity-50"
               >
-                <Download
+                <DownloadIcon
                   size={18}
                   className={generatingBulk ? "animate-bounce" : ""}
                 />
@@ -236,9 +255,10 @@ export default function ProductsPage() {
 
               <button
                 onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
                 className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-colors animate-in fade-in zoom-in"
               >
-                <Trash2 size={18} />
+                {isBulkDeleting ? <Loader2 className="animate-spin" size={18} /> : <TrashIcon size={18} />}
                 Delete ({selectedIds.length})
               </button>
             </div>
@@ -248,7 +268,7 @@ export default function ProductsPage() {
             onClick={handleAdd}
             className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
-            <Plus size={20} />
+            <PlusIcon size={20} />
             Add Product
           </button>
         </div>
@@ -319,7 +339,10 @@ export default function ProductsPage() {
           storeId={storeId}
           initialData={editingProduct}
           onClose={() => setIsFormOpen(false)}
-          onSuccess={() => setIsFormOpen(false)}
+          onSuccess={() => {
+            setIsFormOpen(false);
+            queryClient.invalidateQueries({ queryKey: ["products", storeId] });
+          }}
         />
       )}
 

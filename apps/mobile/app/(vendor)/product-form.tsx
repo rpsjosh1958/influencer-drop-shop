@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { useState, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useVendor } from "@/context/vendor-context";
 import {
   collection,
@@ -37,10 +37,14 @@ import {
   X,
   ChevronDown,
   Trash2,
+  RefreshCcw,
 } from "lucide-react-native";
 import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { SelectionModal } from "@/components/ui/selection-modal";
+import { useMountEffect } from "@/hooks/use-mount-effect";
+import { useQuery } from "@tanstack/react-query";
+import { getDocs } from "firebase/firestore";
 
 const Pressable = NativePressable;
 
@@ -55,8 +59,8 @@ interface ProductVariant {
   id: string;
   name: string;
   options: Record<string, string>; // { Size: "S", Color: "Red" }
-  price: number;
-  stock: number;
+  price: number | string;
+  stock: number | string;
 }
 
 export default function ProductFormScreen() {
@@ -81,20 +85,21 @@ export default function ProductFormScreen() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(isEditing);
-  const [categories, setCategories] = useState<
-    { label: string; value: string }[]
-  >([]);
+
   // --- VARIANT LOGIC ---
-  const generateVariants = (currentOptions: ProductOption[]) => {
+  const handleSyncVariants = useCallback(() => {
     // Clean options for generation (trim spaces, remove empty)
-    const validOptions = currentOptions
+    const validOptions = options
       .map((o) => ({
         ...o,
         values: o.values.map((v) => v.trim()).filter(Boolean),
       }))
       .filter((o) => o.name && o.values.length > 0);
 
-    if (validOptions.length === 0) return [];
+    if (validOptions.length === 0) {
+      setVariants([]);
+      return;
+    }
 
     const cartesian = (sets: string[][]) =>
       sets.reduce<string[][]>(
@@ -111,7 +116,7 @@ export default function ProductFormScreen() {
         optionsMap[opt.name] = combo[idx];
       });
 
-      const name = combo.join(" / ");
+      const variantName = combo.join(" / ");
 
       // Check existing to preserve price/stock
       const existing = variants.find((v) => {
@@ -124,33 +129,15 @@ export default function ProductFormScreen() {
 
       return {
         id: Date.now().toString() + Math.random().toString().slice(2, 6),
-        name,
+        name: variantName,
         options: optionsMap,
         stock: 0,
-        price: parseFloat(priceOnly || "0"), // Use base price
+        price: parseFloat(price || "0"), // Use base price
       };
     });
 
-    return newVariants;
-  };
-
-  // Re-generate when options change
-  useEffect(() => {
-    if (hasVariants) {
-      // Only regenerate if not initial load or distinct change?
-      // Actually, we need to be careful not to overwrite initial data on load.
-      // The initial load sets variants directly. This effect might overwrite them if we aren't careful.
-      // We can check if options changed significantly?
-      // For now, simpler: Just generate. But wait! Initial load sets variants.
-      // We should only run this if we are NOT fetching?
-      if (!fetching) {
-        const generated = generateVariants(options);
-        setVariants(generated);
-      }
-    } else {
-      if (!fetching) setVariants([]);
-    }
-  }, [options, hasVariants]);
+    setVariants(newVariants);
+  }, [options, variants, price]);
 
   const addOption = () => {
     setOptions((prev) => [
@@ -180,8 +167,7 @@ export default function ProductFormScreen() {
     setVariants((prev) =>
       prev.map((v) => {
         if (v.id === id) {
-          const num = parseFloat(val);
-          return { ...v, [field]: isNaN(num) ? 0 : val }; // Keep string while typing to allow "0."
+          return { ...v, [field]: val };
         }
         return v;
       })
@@ -190,56 +176,42 @@ export default function ProductFormScreen() {
 
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
 
-  // Use a ref or separate state to prevent `price` dependency loop if needed,
-  // but `price` state is string.
-  const priceOnly = price;
-  useEffect(() => {
-    if (!store?.id) return;
-    const q = query(
-      collection(db, "stores", store.id, "categories"),
-      orderBy("name", "asc")
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((d) => ({
+  // 1. Fetch Categories (TanStack Query Migration Pilot)
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", store?.id],
+    queryFn: async () => {
+      if (!store?.id) return [];
+      const q = query(
+        collection(db, "stores", store.id, "categories"),
+        orderBy("name", "asc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({
         label: d.data().name,
         value: d.data().name,
       }));
-      setCategories(items);
-    });
-    return () => unsub();
-  }, [store?.id]);
+    },
+    enabled: !!store?.id,
+  });
 
-  // --- 2. Fetch Initial Data (If Edit) ---
-  // --- 2. Fetch Initial Data (If Edit) ---
-  useEffect(() => {
+  // 2. Fetch Initial Data (If Edit)
+  useMountEffect(() => {
     if (isEditing && store?.id) {
-      setFetching(true);
       const fetchProduct = async () => {
         try {
           const docRef = doc(db, "stores", store.id, "products", id as string);
           const snap = await getDoc(docRef);
           if (snap.exists()) {
             const data = snap.data();
-            setName(data.name);
-            setDescription(data.description);
+            setName(data.name || "");
+            setDescription(data.description || "");
             setPrice(data.price?.toString() || "");
             setStock(data.stock?.toString() || "");
             setImages(data.images || (data.imageUrl ? [data.imageUrl] : []));
             setCategory(data.category || "");
-            
-            // Check variants
-            const variantState = data.hasVariants || false;
-            setHasVariants(variantState);
+            setHasVariants(data.hasVariants || false);
             setOptions(data.options || []);
             setVariants(data.variants || []);
-            
-            // If has variants, ensure we don't accidentally wipe them with generator?
-            // Generator effect listens to 'options'. setting options triggers it.
-            // But we set `fetching` to true. Generator checks `!fetching`.
-            // So we are safe? verify. 
-            // Generator: `if (!fetching) { ... }`.
-            // We setFetching(true) right here.
-            // So when strict mode runs or state updates, generator is skipped. GOOD.
           } else {
             Alert.alert("Error", "Product not found");
             router.back();
@@ -252,20 +224,8 @@ export default function ProductFormScreen() {
       };
 
       fetchProduct();
-    } else {
-      // RESET FORM (Add Mode)
-      setName("");
-      setDescription("");
-      setPrice("");
-      setStock("");
-      setImages([]);
-      setCategory("");
-      setHasVariants(false);
-      setOptions([]);
-      setVariants([]);
-      setFetching(false);
     }
-  }, [id, store?.id]);
+  });
 
   // --- IMAGES ---
   const pickImage = async () => {
@@ -589,28 +549,43 @@ export default function ProductFormScreen() {
                     </View>
                   ))}
 
-                  <Pressable
-                    onPress={addOption}
-                    className="flex-row items-center justify-center p-3 border border-zinc-200 border-dashed rounded-xl bg-zinc-50 active:bg-zinc-100"
-                  >
-                    <Plus size={16} color="black" />
-                    <P className="font-bold text-sm ml-2">Add Option</P>
-                  </Pressable>
+                  <View className="flex-row gap-3">
+                    <Pressable
+                      onPress={addOption}
+                      className="flex-1 flex-row items-center justify-center p-3 border border-zinc-200 border-dashed rounded-xl bg-zinc-50 active:bg-zinc-100"
+                    >
+                      <Plus size={16} color="black" />
+                      <P className="font-bold text-sm ml-2">Add Option</P>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={handleSyncVariants}
+                      className="flex-1 flex-row items-center justify-center p-3 border border-zinc-200 border-dashed rounded-xl bg-zinc-50 active:bg-zinc-100"
+                    >
+                      <RefreshCcw size={16} color="black" />
+                      <P className="font-bold text-sm ml-2">Sync Inventory</P>
+                    </Pressable>
+                  </View>
                 </View>
 
                 {/* Generated Variants List */}
                 {variants.length > 0 && (
                   <View className="mt-4">
-                    <P className="font-bold text-lg mb-3">
-                      Preview & Inventory
-                    </P>
+                    <View className="flex-row items-center justify-between mb-3">
+                      <P className="font-bold text-lg">Preview & Inventory</P>
+                      <P className="text-[10px] text-zinc-400 font-bold uppercase">
+                        {variants.length} Variants
+                      </P>
+                    </View>
                     {variants.map((v) => (
                       <View
                         key={v.id}
                         className="flex-row items-center bg-zinc-50 border border-zinc-100 p-3 rounded-xl mb-2 gap-3"
                       >
                         <View className="flex-1">
-                          <P className="font-bold text-sm">{v.name}</P>
+                          <P className="font-bold text-sm" numberOfLines={1}>
+                            {v.name}
+                          </P>
                         </View>
 
                         <View className="w-20">
@@ -618,7 +593,7 @@ export default function ProductFormScreen() {
                             Price
                           </P>
                           <TextInput
-                            value={v.price === 0 ? "" : v.price.toString()}
+                            value={v.price?.toString()}
                             onChangeText={(txt) =>
                               updateVariant(v.id, "price", txt)
                             }
@@ -633,7 +608,7 @@ export default function ProductFormScreen() {
                             Stock
                           </P>
                           <TextInput
-                            value={v.stock === 0 ? "" : v.stock.toString()}
+                            value={v.stock?.toString()}
                             onChangeText={(txt) =>
                               updateVariant(v.id, "stock", txt)
                             }

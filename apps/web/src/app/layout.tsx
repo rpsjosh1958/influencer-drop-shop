@@ -8,6 +8,7 @@ import {
   Courier_Prime,
 } from "next/font/google";
 import DatadogInit from "../components/datadog-init";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -102,7 +103,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${roboto.variable} ${playfair.variable} ${courier.variable} antialiased`}
       >
         <DatadogInit />
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   ); // Added closing parenthesis

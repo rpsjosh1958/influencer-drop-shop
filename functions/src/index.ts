@@ -154,39 +154,72 @@ export const onStoreCreated = onDocumentCreated(
     }
 
     try {
-      // 0. Activate 30-Day Free Trial (Growth Plan)
-      // We override whatever the client sent (usually 'starter')
+      const db = admin.firestore();
       const now = admin.firestore.Timestamp.now();
-      const trialDays = 30;
-      const expiresAt = new admin.firestore.Timestamp(
-        now.seconds + trialDays * 24 * 60 * 60,
-        now.nanoseconds
-      );
-
-      await snapshot.ref.update({
-        plan: "growth",
-        isTrial: true,
-        planExpiresAt: expiresAt,
-        isVerified: true, // Enable Verification Badge for Growth Plan Trial
-      });
-      logger.info(
-        `Activated 30-Day Free Trial for Store ${event.params.storeId}`
-      );
-
-      // 1. Fetch Owner's Email
-      const userDoc = await admin
-        .firestore()
-        .collection("users")
-        .doc(ownerId)
-        .get();
+      
+      // 0. Fetch Owner's Data to check for existing subscription
+      const userRef = db.collection("users").doc(ownerId);
+      const userDoc = await userRef.get();
       const user = userDoc.data();
 
-      if (!user || !user.email) {
+      if (!user) {
+        logger.warn(`Owner ${ownerId} not found.`);
+        return;
+      }
+
+      let plan = "starter";
+      let expiresAt = null;
+      let isTrial = false;
+
+      // If user already has a plan/expiry on their profile, use it
+      if (user.plan === "growth" && user.planExpiresAt) {
+        plan = "growth";
+        expiresAt = user.planExpiresAt;
+        isTrial = user.isTrial || false;
+        logger.info(`New Store ${event.params.storeId} inheriting existing Growth plan from User ${ownerId}`);
+      } else if (!user.hasUsedTrial) {
+        // New User/Trial: Activate 30-Day Free Trial (Growth Plan)
+        plan = "growth";
+        isTrial = true;
+        const trialDays = 30;
+        expiresAt = new admin.firestore.Timestamp(
+          now.seconds + trialDays * 24 * 60 * 60,
+          now.nanoseconds
+        );
+        
+        // Update User Profile with the new plan (Centralized)
+        await userRef.update({
+          plan,
+          isTrial,
+          planExpiresAt: expiresAt,
+          hasUsedTrial: true, // Mark trial as used permanently
+        });
+        logger.info(`Activated 30-Day Free Trial for User ${ownerId} (Account-wide)`);
+      } else {
+        // User has already used trial and is currently on starter
+        plan = "starter";
+        expiresAt = null;
+        isTrial = false;
+        logger.info(`User ${ownerId} has already used trial. Defaulting to Starter for new store.`);
+      }
+
+      // Sync Store with the Account Plan
+      await snapshot.ref.update({
+        plan,
+        isTrial,
+        planExpiresAt: expiresAt,
+        isVerified: plan === "growth", // Enable Verification Badge for Growth Plan
+      });
+      logger.info(
+        `Synced Plan (${plan}) to Store ${event.params.storeId}`
+      );
+
+      if (!user.email) {
         logger.warn(`Owner ${ownerId} has no email address.`);
         return;
       }
 
-      // 2. Send Email via Resend
+      // 1. Send Email via Resend
       const resend = new Resend(process.env.RESEND_API_KEY); // Lazy Init
       const { data, error } = await resend.emails.send({
         from: "The Drop <welcome@copdrop.io>",
@@ -245,8 +278,57 @@ export const onStoreCreated = onDocumentCreated(
 );
 
 /*
+ * TRIGGER: When User document is updated (Account-wide Plan changes)
+ * ACTION: Sync the new Plan and Expiry to ALL stores owned by the user.
+ */
+export const onUserSubscriptionUpdated = onDocumentUpdated(
+  "users/{userId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const before = snapshot.before.data();
+    const after = snapshot.after.data();
+    const userId = event.params.userId;
+
+    // Check if Plan or Expiry changed
+    const planChanged = before.plan !== after.plan;
+    const expiryChanged = before.planExpiresAt?.seconds !== after.planExpiresAt?.seconds;
+
+    if (!planChanged && !expiryChanged) return;
+
+    logger.info(`User ${userId} plan/expiry updated. Syncing to all stores...`);
+
+    try {
+      const db = admin.firestore();
+      const storesSnapshot = await db
+        .collection("stores")
+        .where("ownerId", "==", userId)
+        .get();
+
+      if (storesSnapshot.empty) return;
+
+      const batch = db.batch();
+      storesSnapshot.forEach((doc) => {
+        batch.update(doc.ref, {
+          plan: after.plan || "starter",
+          planExpiresAt: after.planExpiresAt || null,
+          isVerified: after.plan === "growth",
+          isTrial: after.isTrial || false,
+        });
+      });
+
+      await batch.commit();
+      logger.info(`Synced new plan to ${storesSnapshot.size} stores for user ${userId}`);
+    } catch (err) {
+      logger.error(`Failed to sync user plan to stores for ${userId}`, err);
+    }
+  }
+);
+
+/*
  * TRIGGER: When Store is Updated (e.g. Plan Upgrade)
- * ACTION: If upgrading to Growth, release pending funds immediately.
+ * ACTION: If upgrading to Growth via Paystack or Admin, update USER and then let sync handle other stores.
  */
 export const onStoreUpdated = onDocumentUpdated(
   "stores/{storeId}",
@@ -257,11 +339,12 @@ export const onStoreUpdated = onDocumentUpdated(
     const before = snapshot.before.data();
     const after = snapshot.after.data();
     const storeId = event.params.storeId;
+    const ownerId = after.ownerId;
 
     // Check for Plan Upgrade: Starter -> Growth
     if (before.plan === "starter" && after.plan === "growth") {
       logger.info(
-        `Detected Plan Upgrade for Store ${storeId}. Setting expiry based on cycle...`
+        `Detected Plan Upgrade for Store ${storeId}. Updating User document ${ownerId}...`
       );
       
       const now = admin.firestore.Timestamp.now();
@@ -275,6 +358,17 @@ export const onStoreUpdated = onDocumentUpdated(
         now.seconds + days * 24 * 60 * 60,
         now.nanoseconds
       );
+
+      // CRITICAL: Update the USER document. 
+      // The onUserSubscriptionUpdated trigger will then sync this to all OTHER stores.
+      if (ownerId) {
+        await admin.firestore().collection("users").doc(ownerId).update({
+          plan: "growth",
+          planExpiresAt: expiresAt,
+          isTrial: false,
+          billingCycle: cycle,
+        });
+      }
 
       await snapshot.after.ref.update({
         planExpiresAt: expiresAt,

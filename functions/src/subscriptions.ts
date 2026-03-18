@@ -14,34 +14,36 @@ export const checkSubscriptionExpiry = onSchedule(
     const now = admin.firestore.Timestamp.now();
 
     try {
-      // Query for Active Growth Stores where planExpiresAt < now
-      const expiredStoresSnapshot = await db
-        .collection("stores")
+      // 1. Query for Users on Growth Plan where planExpiresAt < now
+      const expiredUsersSnapshot = await db
+        .collection("users")
         .where("plan", "==", "growth")
         .where("planExpiresAt", "<", now)
         .get();
 
-      if (expiredStoresSnapshot.empty) {
-        logger.info("No expired subscriptions found.");
+      if (expiredUsersSnapshot.empty) {
+        logger.info("No expired user subscriptions found.");
         return;
       }
 
       const batch = db.batch();
       let count = 0;
 
-      expiredStoresSnapshot.forEach((doc) => {
+      expiredUsersSnapshot.forEach((doc) => {
+        // Downgrade USER document. 
+        // Sync trigger in index.ts will downgrade all their stores.
         batch.update(doc.ref, {
           plan: "starter",
-          isVerified: false, // Remove verification on downgrade
-          planExpiredAt: now, // Record when we actually downgraded
+          planExpiredAt: now, 
+          isTrial: false,
         });
         count++;
       });
 
       await batch.commit();
-      logger.info(`Downgraded ${count} stores to starter plan.`);
+      logger.info(`Downgraded ${count} users (and their stores) to starter plan.`);
     } catch (error) {
-      logger.error("Error checking subscription expiry", error);
+      logger.error("Error checking user subscription expiry", error);
     }
   }
 );

@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
-  onSnapshot,
+  getDocs,
   orderBy,
   query,
   doc,
-  updateDoc,
   getDoc,
 } from "firebase/firestore";
 import { generateOrdersPDF } from "@/lib/pdf-generator";
@@ -15,17 +15,10 @@ import { db } from "@/lib/firebase";
 import { Order } from "@/types";
 import {
   Search,
-  CheckCircle2,
-  Clock,
-  Truck,
-  XCircle,
-  AlertCircle,
-  Eye,
   ShoppingBag,
   ChevronLeft,
   ChevronRight,
-  SlidersHorizontal,
-  ArrowUpDown,
+  Loader2,
 } from "lucide-react";
 import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -38,10 +31,38 @@ const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
 
 export default function OrdersPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
-  const [storeConfig, setStoreConfig] = useState<any>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showExportMenu, setShowExportMenu] = useState(false); // NEW
+  const queryClient = useQueryClient();
+
+  // 1. Fetch Store Config (Query)
+  const { data: storeConfig } = useQuery({
+    queryKey: ["store", storeId],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const snap = await getDoc(doc(db, "stores", storeId));
+      return snap.exists() ? snap.data() : null;
+    },
+    enabled: !!storeId,
+  });
+
+  // 2. Fetch Orders (Query)
+  const { data: orders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ["orders", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "orders"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Order[];
+    },
+    enabled: !!storeId,
+  });
+
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,31 +76,6 @@ export default function OrdersPage() {
 
   // Selected Order for Modal
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-
-  useEffect(() => {
-    if (!storeId) return;
-
-    // Listen to store-specific orders
-    const q = query(
-      collection(db, "stores", storeId, "orders"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Order[];
-      setOrders(items);
-      setLoading(false);
-    });
-
-    // Fetch Store Config for PDF
-    getDoc(doc(db, "stores", storeId)).then((snap) => {
-      if (snap.exists()) setStoreConfig(snap.data());
-    });
-
-    return () => unsub();
-  }, [storeId]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -220,7 +216,6 @@ export default function OrdersPage() {
             </h1>
             <p className="text-zinc-500 text-sm">Manage customer orders</p>
           </div>
-          {/* Mobile Export Actions could go here or hide */}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 gap-y-3">
@@ -331,8 +326,9 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {loading ? (
+      {ordersLoading ? (
         <div className="flex-1 flex items-center justify-center text-zinc-500">
+          <Loader2 className="animate-spin mr-2" size={20} />
           Loading orders...
         </div>
       ) : filteredOrders.length === 0 ? (
@@ -344,7 +340,6 @@ export default function OrdersPage() {
       ) : (
         <>
           {/* Scrollable List Container */}
-          {/* data-tour placed on the outer wrapper so the spotlight covers the list */}
           <div
             data-tour="orders-list"
             className="flex-1 overflow-y-auto min-h-0 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900 scrollbar-thin scrollbar-thumb-zinc-200"
@@ -468,10 +463,14 @@ export default function OrdersPage() {
       )}
 
       <AdminOrderModal
+        key={selectedOrder?.id || "none"}
         isOpen={!!selectedOrder}
         onClose={() => setSelectedOrder(null)}
         order={selectedOrder}
         storeId={storeId!}
+        onUpdate={() => {
+          queryClient.invalidateQueries({ queryKey: ["orders", storeId] });
+        }}
       />
     </div>
   );

@@ -25,7 +25,8 @@ import {
 import { BlurView } from "expo-blur";
 import { MotiView } from "moti";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
 interface Store {
   id: string;
@@ -36,37 +37,26 @@ interface Store {
 
 export function StoreSwitcher() {
   const { store, setStoreId, storeId } = useStore();
-  const [stores, setStores] = useState<Store[]>([]);
-  const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    if (isOpen && stores.length === 0) {
-      const fetchStores = async () => {
-        setLoading(true);
-        try {
-          const q = query(
-            collection(db, "stores"),
-            where("status", "==", "live"),
-            where("plan", "==", "growth")
-          );
-          const snapshot = await getDocs(q);
-          const storeData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Store[];
-          setStores(storeData);
-        } catch (error) {
-          console.error("StoreSwitcher: Failed to fetch stores", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchStores();
-    }
-  }, [isOpen]);
+  const { data: stores = [], isLoading: loading } = useQuery({
+    queryKey: ["stores", "live", "growth"],
+    queryFn: async () => {
+      const q = query(
+        collection(db, "stores"),
+        where("status", "==", "live"),
+        where("plan", "==", "growth")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Store[];
+    },
+    enabled: isOpen,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   const handleSelect = async (newId: string) => {
     setIsOpen(false);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   TextInput,
@@ -30,14 +30,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useStore } from "@/context/store-context";
 import { ProductDetailsModal } from "@/components/shop/product-details-modal";
 import { useCart } from "@/context/cart-context";
+import { useQuery } from "@tanstack/react-query";
 
 const { width } = Dimensions.get("window");
 
 export default function GlobalSearchScreen() {
   const router = useRouter();
   const [queryText, setQueryText] = useState("");
-  const [results, setResults] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   // Filter State
@@ -54,90 +53,85 @@ export default function GlobalSearchScreen() {
   const { setStoreId, storeId } = useStore();
   const { addToCart } = useCart();
 
-  // Fetch Global Products
-  useEffect(() => {
-    async function fetchGlobal() {
-      setLoading(true);
-      try {
-        const qProducts = query(
-          collectionGroup(db, "products"),
-          orderBy("createdAt", "desc"),
-          limit(50),
-        );
+  // Fetch Global Products & Services once
+  const { data: allItems = [], isLoading: loading } = useQuery({
+    queryKey: ["global", "trending"],
+    queryFn: async () => {
+      const qProducts = query(
+        collectionGroup(db, "products"),
+        orderBy("createdAt", "desc"),
+        limit(50)
+      );
 
-        const qServices = query(
-          collectionGroup(db, "services"),
-          orderBy("createdAt", "desc"),
-          limit(50),
-        );
+      const qServices = query(
+        collectionGroup(db, "services"),
+        orderBy("createdAt", "desc"),
+        limit(50)
+      );
 
-        const [snapProducts, snapServices] = await Promise.all([
-          getDocs(qProducts),
-          getDocs(qServices),
-        ]);
+      const [snapProducts, snapServices] = await Promise.all([
+        getDocs(qProducts),
+        getDocs(qServices),
+      ]);
 
-        const products = snapProducts.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            storeId: data.storeId || doc.ref.parent.parent?.id,
-            type: "product" as const,
-          };
-        }) as (Product & { type: "product" | "service" })[];
+      const products = snapProducts.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          storeId: data.storeId || doc.ref.parent.parent?.id,
+          type: "product" as const,
+        };
+      }) as (Product & { type: "product" | "service" })[];
 
-        const services = snapServices.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            storeId: data.storeId || doc.ref.parent.parent?.id,
-            type: "service" as const,
-          };
-        }) as (Product & { type: "product" | "service" })[];
+      const services = snapServices.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          storeId: data.storeId || doc.ref.parent.parent?.id,
+          type: "service" as const,
+        };
+      }) as (Product & { type: "product" | "service" })[];
 
-        const allItems = [...products, ...services];
+      return [...products, ...services];
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes cache
+  });
 
-        // Filter Logic
-        let filtered = allItems;
-        if (queryText) {
-          const lowerQ = queryText.toLowerCase();
-          filtered = filtered.filter((p) =>
-            p.name.toLowerCase().includes(lowerQ),
-          );
-        }
+  // Derived Results
+  const results = useMemo(() => {
+    let filtered = allItems;
 
-        // Apply Client-Side Filters
-        filtered = filtered
-          .filter((item) => {
-            if (filterType !== "all" && item.type !== filterType) return false;
-            if (priceRange.min && item.price < parseFloat(priceRange.min))
-              return false;
-            if (priceRange.max && item.price > parseFloat(priceRange.max))
-              return false;
-            return true;
-          })
-          .sort((a, b) => {
-            if (sortOrder === "asc") return a.price - b.price;
-            if (sortOrder === "desc") return b.price - a.price;
-            return 0;
-          });
-
-        setResults(filtered);
-      } catch (err) {
-        console.error("Global search failed:", err);
-      } finally {
-        setLoading(false);
-      }
+    // Search Query Filter
+    if (queryText) {
+      const lowerQ = queryText.toLowerCase();
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(lowerQ));
     }
 
-    // Debounce slightly or just run
-    const timer = setTimeout(() => {
-      fetchGlobal();
-    }, 300);
+    // Type Filter
+    if (filterType !== "all") {
+      filtered = filtered.filter((item) => item.type === filterType);
+    }
 
-    return () => clearTimeout(timer);
-  }, [queryText]);
+    // Price Filter
+    if (priceRange.min) {
+      filtered = filtered.filter((item) => item.price >= parseFloat(priceRange.min));
+    }
+    if (priceRange.max) {
+      filtered = filtered.filter((item) => item.price <= parseFloat(priceRange.max));
+    }
+
+    // Sort
+    if (sortOrder) {
+      filtered = [...filtered].sort((a, b) => {
+        if (sortOrder === "asc") return a.price - b.price;
+        return b.price - a.price;
+      });
+    }
+
+    return filtered;
+  }, [allItems, queryText, filterType, priceRange, sortOrder]);
 
   return (
     <SafeAreaView className="flex-1 bg-white">

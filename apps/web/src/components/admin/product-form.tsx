@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   addDoc,
   collection,
@@ -10,6 +11,7 @@ import {
   orderBy,
   query,
   onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
@@ -45,22 +47,22 @@ export function ProductForm({
     initialData?.images || (initialData?.imageUrl ? [initialData.imageUrl] : [])
   );
 
-  // Categories
-  const [categories, setCategories] = useState<Category[]>([]);
-  useEffect(() => {
-    const q = query(
-      collection(db, "stores", storeId, "categories"),
-      orderBy("name", "asc")
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
+  // Categories (TanStack Query Migration Pilot)
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories", storeId],
+    queryFn: async () => {
+      const q = query(
+        collection(db, "stores", storeId, "categories"),
+        orderBy("name", "asc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Category[];
-      setCategories(items);
-    });
-    return () => unsub();
-  }, []);
+    },
+    enabled: !!storeId,
+  });
   const categoryRef = useRef<HTMLSelectElement>(null);
 
   // Pre-fill

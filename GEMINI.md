@@ -122,6 +122,88 @@ Use these natural language prompts to test the new chatbot capabilities:
 - "Set my Saturday hours from 10:00 to 14:00."
 - "Open the store on Mondays from 08:00 to 20:00."
 
+## 🚀 Multi-Store Support (Analysis & Plan)
+
+Currently, a vendor (Admin) can own multiple stores, but the Web Admin interface only loads the first store found in the `ownedStores` array.
+
+### 🔍 Current State Analysis
+- **Firestore Schema**: Users have an `ownedStores` string array. Stores have an `ownerId`.
+- **Firebase Functions**: `onStoreCreated` automatically grants a 30-day Growth Plan trial to ANY new store.
+- **Web Admin**: `AdminStoreProvider` defaults to `userData?.ownedStores[0]`.
+
+### 🎯 Objective
+Enable multi-store management for Pro (Growth) users directly within the Admin Panel.
+
+### 🛠️ Implementation Plan
+
+#### 1. Data Layer (`AdminStoreProvider`)
+- Update state to include `ownedStores` (full objects or at least IDs + Names).
+- Add a `switchStore(id: string)` method to the context.
+- Use `localStorage` or a URL query param to persist the "active" store selection across sessions.
+- **Restriction**: Only allow adding a new store if the current active store is on the **Growth Plan**.
+
+#### 2. UI Components
+- **StoreSwitcher**: A dropdown in the Sidebar (replacing the static `storeName`) that lists all owned stores.
+- **AddStoreModal**: A button at the bottom of the StoreSwitcher dropdown to "Add New Store". This modal will contain the form currently in `/create-store`.
+
+#### 3. Routing & Logic
+- Ensure that switching stores triggers a clean refetch of all TanStack Queries (Invalidate all keys tied to `storeId`).
+- Update `AdminLayout` to show the switcher in both Desktop and Mobile views.
+
+#### 4. Security & Rules
+- Verify that a user cannot switch to a `storeId` they do not own (Firestore rules already handle this via `ownerId` checks, but UI should be defensive).
+
+#### 5. Downgrade Policy (The "First Store" Rule)
+- **Automatic Enforcement**: If a user's subscription expires and they are moved to the `starter` plan, and they own > 1 store:
+    - **Primary Store**: The oldest store (by `createdAt`) remains active and manageable.
+    - **Secondary Stores**: Automatically set to `status: "closed"` (publicly hidden) and "Locked" in the Admin Panel.
+- **UI Experience**: Locked stores will appear in the `StoreSwitcher` but will be grayed out with a lock icon. Clicking them will redirect the user to the **Billing** tab to renew their Growth sub.
+- **Data Preservation**: No data is deleted. Once a subscription is reactivated, the stores become manageable again.
+
+---
+
+## 🚀 TanStack Query Migration (No-useEffect Pattern)
+
+As part of a codebase hardening initiative, we have migrated core data-fetching logic away from React's `useEffect` and manual `onSnapshot` listeners to **TanStack Query** (`@tanstack/react-query`).
+
+### 🛠️ Why?
+- **Avoids "Effect Hell"**: Eliminates double-renders, race conditions, and accidental infinite loops caused by dependency array choreography.
+- **Global Caching**: Data (Products, Orders, Services) is now cached globally. Switching between tabs or opening modals is instant.
+- **Declarative Loading**: Replaced manual `isLoading` state with standard TanStack Query flags.
+- **Automatic Retries**: Better handling of flaky network conditions.
+
+### 📦 Key Implementations
+- **Web Admin**: `ProductsPage`, `OrdersPage`, and `ServicesPage` now use `useQuery` for fetching and `useMutation` for actions (Delete, Save, Toggle).
+- **Mobile Vendor**: `VendorContext` has been refactored to use `useQuery` for all core data lists (orders, products, bookings, complaints, services).
+- **useMountEffect**: A new custom hook `useMountEffect` was introduced for explicit one-time synchronizations (like Auth listeners).
+
+### 🧪 How to Test
+
+#### 1. Verify Caching
+- Open the **Products** page in the Web Admin.
+- Navigate to **Orders** and then back to **Products**.
+- **Observation**: The product list should load instantly from the cache without a "Loading..." spinner.
+
+#### 2. Verify Mutation Sync
+- Delete a product or service.
+- **Observation**: The UI should automatically refresh. This is handled by `queryClient.invalidateQueries`, which tells TanStack Query to refetch the data after a successful deletion.
+
+#### 3. Inspect Network (Chrome DevTools)
+- Open the Network tab.
+- Refresh the dashboard.
+- You will see individual `getDocs` requests. If you navigate away and back quickly, you will notice fewer requests because of the default `staleTime`.
+
+#### 4. Test Error Handling
+- (Optional) Simulate an offline state.
+- TanStack Query will automatically attempt 3 retries before showing an error state.
+
+### 🚩 Best Practices for new code
+- **NEVER** use `useEffect` for data fetching. Use `useQuery`.
+- **NEVER** sync local state to props via `useEffect`. Derive the state or use `useMemo`.
+- Use `useMutation` for any `addDoc`, `updateDoc`, or `deleteDoc` operations to ensure cache invalidation.
+
+---
+
 ## 🚀 Web Admin Onboarding Tutorial Plan
 
 ### Mechanism

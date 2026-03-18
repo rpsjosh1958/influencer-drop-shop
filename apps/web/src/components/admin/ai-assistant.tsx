@@ -10,7 +10,7 @@ import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { Product } from "@/types";
 
 export function AiAssistant() {
-  const { storeId, storePlan } = useAdminStore();
+  const { storeId, userPlan } = useAdminStore();
   const [isOpen, setIsOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -145,7 +145,7 @@ export function AiAssistant() {
     return <div className="whitespace-pre-wrap">{content}</div>;
   }, []);
 
-  if (storePlan !== "growth") {
+  if (userPlan !== "growth") {
     return null;
   }
 

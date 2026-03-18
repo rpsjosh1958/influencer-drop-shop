@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -7,16 +7,12 @@ import { auth } from "@/lib/firebase";
 
 export default function Index() {
   const router = useRouter();
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const checkUser = async () => {
-      // We need to wait for Auth to initialize.
-      // Since this component mounts inside Stack, we can assume _layout is mounted.
-      // But we need to listen to auth state here or rely on _layout processing?
-      // Let's listen directly to be safe and fast.
-
-      const unsub = onAuthStateChanged(auth, async (user) => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      // Small delay to ensure Root Layout is mounted before navigation
+      // This prevents the "Attempted to navigate before mounting the Root Layout" error
+      setTimeout(async () => {
         if (user) {
           const savedMode = await AsyncStorage.getItem("appMode");
           console.log("[Index] User found. Mode:", savedMode);
@@ -33,22 +29,14 @@ export default function Index() {
           if (!hasSeenOnboarding) {
             router.replace("/(auth)/onboarding");
           } else {
-            // Default to tabs (which handles guest/auth logic internally or shows login?)
-            // Or redirect to /(auth)/login?
-            // Existing logic redirected to (tabs) if user logged in, but what if not?
-            // Previous _layout logic: if (!user) -> ??
-            // It seemed to rely on (tabs) being accessible or redirecting to auth.
-            // Let's send to (tabs) for now, as (tabs) layout allows guests?
+            // Default to tabs (which handles guest/auth logic internally)
             router.replace("/(tabs)");
           }
         }
-        // setChecking(false); // No need, we replaced.
-      });
+      }, 100);
+    });
 
-      return () => unsub();
-    };
-
-    checkUser();
+    return () => unsub();
   }, []);
 
   return (

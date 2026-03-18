@@ -79,7 +79,7 @@ function SetupRequired({
 }
 
 export default function StoreSettingsPage() {
-  const { storeId, storeName, planExpiresAt, loading: storeLoading } = useAdminStore();
+  const { storeId, storeName, userPlan, planExpiresAt, loading: storeLoading } = useAdminStore();
   const { currentStepTarget, isActive: isTourActive } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -283,7 +283,7 @@ export default function StoreSettingsPage() {
   };
 
   const onSuccess = async (reference: any) => {
-    // On success, upgrade the plan
+    // On success, upgrade the account-level plan
     const planDetails = BILLING_PLANS[billingCycle];
     setLoading(true);
     try {
@@ -291,19 +291,24 @@ export default function StoreSettingsPage() {
       const expiresAt = new Date();
       expiresAt.setDate(now.getDate() + planDetails.days);
 
-      await updateDoc(doc(db, "stores", storeId!), {
+      // CRITICAL: Update the USER document (Centralized Subscription)
+      await updateDoc(doc(db, "users", auth.currentUser!.uid), {
         plan: "growth",
-        isVerified: true, // Immediate verification
+        isTrial: false,
         planStartedAt: now,
         planExpiresAt: expiresAt,
-        billingCycle: billingCycle, // Track cycle
+        billingCycle: billingCycle,
       });
-      setConfig((prev: any) => ({
-        ...prev,
+
+      // Also update current store immediately for UI feedback 
+      // (The sync trigger will eventually update all others)
+      await updateDoc(doc(db, "stores", storeId!), {
         plan: "growth",
         isVerified: true,
-      }));
-      setSuccess("Upgrade Successful! Welcome to Growth.");
+        planExpiresAt: expiresAt,
+      });
+
+      setSuccess("Upgrade Successful! Your entire account is now on the Growth Plan.");
     } catch (err) {
       console.error("Upgrade failed", err);
       alert("Payment successful but upgrade failed. Contact support.");
@@ -1194,190 +1199,149 @@ export default function StoreSettingsPage() {
                   ) : (
                     <>
                       {/* Current Plan Card */}
-                      <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-xl font-bold text-white">Billing & Plan</h2>
-                        
+                      <div className="flex flex-col gap-1 mb-4">
+                        <h2 className="text-xl font-bold text-white">Account Subscription</h2>
+                        <p className="text-xs text-zinc-400 font-medium">One plan. All your stores.</p>
                       </div>
-                      <div className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-4 text-zinc-900 flex justify-between items-center">
-                    <div>
-                      <h2 className="text-xl font-bold text-zinc-900">
-                        Current Plan
-                      </h2>
-                      <p className="text-zinc-500">
-                        {config.plan === "growth" && expiryInfo ? (
-                          <span className="flex flex-col">
-                            <span className="text-purple-600 font-bold">
-                              Expires in {expiryInfo.days} days
-                            </span>
-                            <span className="text-[10px] text-zinc-400">
-                              Renewal Date: {expiryInfo.date}
-                            </span>
-                          </span>
-                        ) : (
-                          "Your active subscription tier."
-                        )}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <div
-                        className={`px-4 py-2 rounded-full font-bold text-sm flex items-center gap-2 ${
-                          config.plan === "growth"
-                            ? "bg-black text-white"
-                            : "bg-zinc-100 text-zinc-500"
-                        }`}
-                      >
-                        {config.plan === "growth" ? (
-                          <Zap size={16} fill="white" />
-                        ) : null}
-                        {config.plan === "growth"
-                          ? "GROWTH (PRO)"
-                          : "STARTER (FREE)"}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* GROWTH UPGRADE CARD */}
-                  <div
-                    data-tour="settings-billing"
-                    className={`p-8 rounded-3xl border ${
-                      config.plan === "growth"
-                        ? "bg-gradient-to-br from-zinc-900 to-black text-white border-black"
-                        : "bg-white border-zinc-200"
-                    }`}
-                  >
-                    {/* Billing Cycle Selector - Only show if NOT on growth (or maybe allow extending?) - Let's allow extending/switching */}
-                    <div className="mb-6 bg-zinc-100 p-1.5 rounded-xl inline-flex">
-                      {(Object.entries(BILLING_PLANS) as [string, any][]).map(
-                        ([key, details]) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => setBillingCycle(key as any)}
-                            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                              billingCycle === key
-                                ? "bg-white text-black shadow-sm"
-                                : "text-zinc-500 hover:text-zinc-900"
-                            }`}
-                          >
-                            {details.label}
-                          </button>
-                        )
-                      )}
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
-                      <div className="space-y-4 max-w-lg">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`h-12 w-12 rounded-2xl flex items-center justify-center ${
-                              config.plan === "growth"
-                                ? "bg-white text-black"
-                                : "bg-black text-white"
-                            }`}
-                          >
-                            <Zap
-                              size={24}
-                              fill={
-                                config.plan === "growth" ? "black" : "white"
-                              }
-                            />
+                      
+                      <div className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-4 text-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h2 className="text-xl font-bold text-zinc-900">
+                              {userPlan === "growth" ? "Growth Plan" : "Starter Plan"}
+                            </h2>
+                            {userPlan === "growth" && <BadgeCheck size={20} className="text-blue-500" />}
                           </div>
-                          <div>
-                            <h3
-                              className={`text-2xl font-black ${
-                                config.plan === "growth"
-                                  ? "text-white"
-                                  : "text-zinc-900"
-                              }`}
-                            >
-                              Growth Plan
-                            </h3>
-                            <p
-                              className={`font-medium ${
-                                config.plan === "growth"
-                                  ? "text-zinc-400"
-                                  : "text-zinc-500"
-                              }`}
-                            >
-                              GHS {BILLING_PLANS[billingCycle].price}
-                            </p>
-                            <p className="text-xs text-zinc-400 mt-1">
-                              Billed {BILLING_PLANS[billingCycle].label}
-                            </p>
-                          </div>
-                        </div>
-                        <ul className="space-y-2 text-black">
-                          {[
-                            "2% Transaction Fee (Reduced from 8%)",
-                            "Verified Badge (Blue Tick)",
-                            "Instant Withdrawals",
-                            "Priority Support",
-                          ].map((item, i) => (
-                            <li
-                              key={i}
-                              className="flex items-center gap-2 text-sm font-medium opacity-90"
-                            >
-                              <CheckCircle2 size={16} /> {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      {config.plan === "starter" ? (
-                        <div className="w-full md:w-auto">
-                          <button
-                            type="button"
-                            onClick={handleUpgrade}
-                            disabled={loading}
-                            className="w-full md:w-auto px-8 py-4 bg-black text-white rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-zinc-200"
-                          >
-                            Upgrade Now
-                          </button>
-                          <p className="text-xs text-center mt-2 text-zinc-400">
-                            Secured by Paystack
+                          <p className="text-zinc-500 text-sm max-w-md">
+                            {userPlan === "growth" && expiryInfo ? (
+                              <span className="flex flex-col gap-1">
+                                <span className="text-purple-600 font-bold">
+                                  Expires in {expiryInfo.days} days ({expiryInfo.date})
+                                </span>
+                                <span className="text-[11px] text-zinc-400 leading-relaxed">
+                                  This plan covers all your stores. If your subscription expires, your secondary stores will be locked and only your oldest store will remain active.
+                                </span>
+                              </span>
+                            ) : (
+                              "The standard free plan for individual creators. Allows one active store with basic features."
+                            )}
                           </p>
                         </div>
-                      ) : (
-                        <div className="bg-white/10 p-4 rounded-xl backdrop-blur-md border border-white/20">
-                          <div className="flex items-center gap-3 mb-2">
-                            <ShieldCheck size={20} className="text-green-400" />
-                            <span className="font-bold">Plan Active</span>
+                        <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
+                          <div
+                            className={`px-4 py-2 rounded-full font-bold text-xs flex items-center gap-2 tracking-widest uppercase ${
+                              userPlan === "growth"
+                                ? "bg-black text-white"
+                                : "bg-zinc-100 text-zinc-500 border border-zinc-200"
+                            }`}
+                          >
+                            {userPlan === "growth" && <Zap size={14} fill="white" />}
+                            {userPlan === "growth" ? "ACTIVE PRO" : "BASIC"}
                           </div>
-                          <div className="text-sm opacity-80">
-                            Verification Status:{" "}
-                            <strong className="capitalize">
-                              <strong className="capitalize flex items-center gap-1">
-                                {config.plan === "growth" ? (
-                                  <>
-                                    Verified{" "}
-                                    <BadgeCheck
-                                      size={14}
-                                      className="text-blue-500"
-                                    />
-                                  </>
-                                ) : (
-                                  "Standard"
-                                )}
-                              </strong>
-                            </strong>
+                          {userPlan === "growth" && (
+                             <span className="text-[10px] font-black text-zinc-300 uppercase tracking-tighter">Verified Creator Account</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* GROWTH UPGRADE CARD */}
+                      <div
+                        data-tour="settings-billing"
+                        className={`p-8 rounded-3xl border relative overflow-hidden ${
+                          userPlan === "growth"
+                            ? "bg-zinc-50 border-zinc-200"
+                            : "bg-white border-zinc-200"
+                        }`}
+                      >
+                        {userPlan === "growth" && (
+                          <div className="absolute top-0 right-0 p-4">
+                             <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-[10px] font-black uppercase">Active</div>
+                          </div>
+                        )}
+
+                        <div className="mb-6 bg-zinc-100 p-1.5 rounded-xl inline-flex">
+                          {(Object.entries(BILLING_PLANS) as [string, any][]).map(
+                            ([key, details]) => (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() => setBillingCycle(key as any)}
+                                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                                  billingCycle === key
+                                    ? "bg-white text-black shadow-sm"
+                                    : "text-zinc-500 hover:text-zinc-900"
+                                }`}
+                              >
+                                {details.label}
+                              </button>
+                            )
+                          )}
+                        </div>
+
+                        <div className="flex flex-col md:flex-row gap-8 items-start md:items-center justify-between">
+                          <div className="space-y-4 max-w-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-12 rounded-2xl flex items-center justify-center bg-black text-white">
+                                <Zap size={24} fill="white" />
+                              </div>
+                              <div>
+                                <h3 className="text-2xl font-black text-zinc-900">
+                                  {userPlan === "growth" ? "Extend Subscription" : "Upgrade to Growth"}
+                                </h3>
+                                <p className="font-medium text-zinc-500">
+                                  GHS {BILLING_PLANS[billingCycle].price}
+                                </p>
+                                <p className="text-xs text-zinc-400 mt-1">
+                                  Billed {BILLING_PLANS[billingCycle].label}
+                                </p>
+                              </div>
+                            </div>
+                            <ul className="space-y-2">
+                              {[
+                                "Unlimited Stores (Pro Sync)",
+                                "2% Transaction Fee (Reduced from 8%)",
+                                "Verified Account Badge",
+                                "Instant Withdrawals & Advanced Styling",
+                              ].map((item, i) => (
+                                <li
+                                  key={i}
+                                  className="flex items-center gap-2 text-sm font-medium text-zinc-600"
+                                >
+                                  <CheckCircle2 size={16} className="text-zinc-900" /> {item}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+
+                          <div className="w-full md:w-auto">
+                            <button
+                              type="button"
+                              onClick={handleUpgrade}
+                              disabled={loading}
+                              className="w-full md:w-auto px-8 py-4 bg-black text-white rounded-xl font-bold hover:scale-105 transition-all shadow-xl shadow-zinc-200"
+                            >
+                              {userPlan === "growth" ? "Extend Plan" : "Upgrade Account"}
+                            </button>
+                            <p className="text-xs text-center mt-2 text-zinc-400">
+                              Secured by Paystack
+                            </p>
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </>
+                      </div>
+                    </>
+                  )}
+                </motion.div>
               )}
-            </motion.div>
-          )}
-          {activeTab === "payouts" && (
-            <motion.div
-              data-tour="settings-payouts"
-              key="payouts"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={!isTypeSelected ? "space-y-6" : "bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"}
-            >
+
+              {activeTab === "payouts" && (
+                <motion.div
+                  data-tour="settings-payouts"
+                  key="payouts"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={!isTypeSelected ? "space-y-6" : "bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"}
+                >
               {!isTypeSelected ? (
                 <SetupRequired 
                   title="Payouts Locked"

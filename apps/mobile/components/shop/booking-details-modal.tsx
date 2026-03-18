@@ -89,13 +89,15 @@ export function BookingDetailsModal({
   const [fetchedStoreName, setFetchedStoreName] = useState("");
   const [cancellationHours, setCancellationHours] = useState(24);
   const [cancelling, setCancelling] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const { showAlert } = useAlert();
 
   useEffect(() => {
     console.log(
       "BookingDetailsModal visible:",
       visible,
       "Booking:",
-      booking?.id
+      booking?.id,
     );
     if (visible && booking) {
       // Fetch Store Name if missing
@@ -112,7 +114,7 @@ export function BookingDetailsModal({
       // Fetch Cancellation Policy
       if (booking.storeId) {
         getDoc(
-          doc(db, "stores", booking.storeId, "availability", "settings")
+          doc(db, "stores", booking.storeId, "availability", "settings"),
         ).then((snap) => {
           if (snap.exists()) {
             const data = snap.data() as AvailabilitySettings;
@@ -155,9 +157,6 @@ export function BookingDetailsModal({
       return false;
     }
   };
-
-  const [showConfirm, setShowConfirm] = useState(false);
-  const { showAlert } = useAlert();
 
   const handleCancelClick = () => {
     setShowConfirm(true);
@@ -420,7 +419,7 @@ export function BookingDetailsModal({
                 <View className="mt-4 flex-row items-start gap-2 bg-zinc-50 p-4 rounded-xl pb-8">
                   <AlertCircle size={16} color="#71717a" className="mt-0.5" />
                   <P className="text-zinc-500 text-xs flex-1">
-                    Cancellation isn't available for this booking (Policy:{" "}
+                    Cancellation isn&apos;t available for this booking (Policy:{" "}
                     {cancellationHours}h notice required). Please contact the
                     store directly.
                   </P>

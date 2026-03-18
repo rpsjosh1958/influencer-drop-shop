@@ -23,7 +23,6 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeProvider } from "@/components/providers";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -37,6 +36,8 @@ import { AdminNavBadge } from "@/components/admin/nav-badge";
 import { useMemo } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { OnboardingProvider } from "@/context/onboarding-context";
+import { ThemeProvider } from "next-themes";
+import { StoreSwitcher } from "@/components/admin/store-switcher";
 
 export default function AdminLayout({
   children,
@@ -268,8 +269,8 @@ function DynamicSidebar({
     <>
       {/* MOBILE HEADER - Visible only on mobile */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 z-40 w-full">
-        <div className="font-bold text-lg tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[200px]">
-          {storeName || "DROP."}
+        <div className="flex-1 truncate pr-4 pt-4">
+          <StoreSwitcher />
         </div>
         <button
           onClick={() => setMobileMenuOpen(true)}
@@ -291,9 +292,9 @@ function DynamicSidebar({
           {/* Drawer Content */}
           <div className="absolute top-0 bottom-0 left-0 w-[280px] bg-white dark:bg-zinc-900 shadow-xl animate-in slide-in-from-left duration-200 flex flex-col">
             <div className="p-4 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
-              <h1 className="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[180px]">
-                {storeName || "DROP."}
-              </h1>
+              <div className="flex-1 truncate pr-4 pt-4">
+                <StoreSwitcher />
+              </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-2 -mr-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
@@ -360,25 +361,26 @@ function DynamicSidebar({
           collapsed ? "w-20" : "w-64"
         )}
       >
-        <div className="p-6 flex items-center justify-between h-20">
-          {!collapsed && (
-            <h1 
-              data-tour="sidebar-brand"
-              className="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 truncate max-w-[160px]"
-            >
-              {storeName || "DROP."}
-            </h1>
-          )}
+        <div className={cn(
+          "pt-6 px-4 flex transition-all duration-300 mb-6",
+          collapsed ? "flex-col items-center gap-4" : "flex-row items-center gap-2"
+        )}>
+          <div className="flex-1 min-w-0">
+            <StoreSwitcher collapsed={collapsed} />
+          </div>
           <Tooltip content={collapsed ? "Expand" : "Collapse"} side="right">
             <button
               data-tour="sidebar-collapse"
               onClick={() => setCollapsed(!collapsed)}
-              className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              className={cn(
+                "rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0 flex items-center justify-center bg-zinc-50 dark:bg-zinc-900/50",
+                collapsed ? "w-12 h-12" : "w-12 h-12"
+              )}
             >
               {collapsed ? (
-                <ChevronRight size={18} />
+                <ChevronRight size={20} />
               ) : (
-                <ChevronLeft size={18} />
+                <ChevronLeft size={20} />
               )}
             </button>
           </Tooltip>
@@ -386,7 +388,10 @@ function DynamicSidebar({
 
         <nav 
           data-tour="sidebar-menu"
-          className="flex-1 px-3 space-y-2 overflow-y-auto custom-scrollbar"
+          className={cn(
+            "flex-1 space-y-2 overflow-y-auto custom-scrollbar",
+            collapsed ? "px-4" : "px-3"
+          )}
         >
           {navItems.map((item) => {
             const isActive = pathname === item.href;
@@ -395,16 +400,18 @@ function DynamicSidebar({
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  "flex items-center transition-all duration-200",
+                  collapsed 
+                    ? "justify-center w-12 h-12 rounded-2xl mx-auto" 
+                    : "gap-3 px-3 py-2.5 rounded-xl text-sm font-medium",
                   isActive
                     ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-md"
-                    : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-50",
-                  collapsed && "justify-center px-2"
+                    : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-50"
                 )}
               >
-                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <item.icon size={20} strokeWidth={isActive ? 2.5 : 2} className="shrink-0" />
                 {!collapsed && (
-                  <div className="flex-1 flex items-center justify-between">
+                  <div className="flex-1 flex items-center justify-between truncate">
                     <span>{item.name}</span>
                     {item.name === "Complaints" && (
                       <AdminNavBadge type="complaints" />
@@ -430,15 +437,18 @@ function DynamicSidebar({
           })}
         </nav>
 
-        <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 space-y-2">
+        <div className={cn(
+          "border-t border-zinc-200 dark:border-zinc-800 space-y-2",
+          collapsed ? "p-4 flex flex-col items-center" : "p-4"
+        )}>
           {collapsed ? (
             <Tooltip content="Broadcast" side="right">
               <button
                 data-tour="sidebar-broadcast"
                 onClick={() => setShowBroadcast(true)}
-                className="flex items-center justify-center p-2 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full"
+                className="flex items-center justify-center w-12 h-12 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-2xl transition-colors border border-transparent hover:border-purple-100 dark:hover:border-purple-900/30"
               >
-                <Megaphone size={20} className="w-5 h-5 flex-shrink-0" />
+                <Megaphone size={20} className="shrink-0" />
               </button>
             </Tooltip>
           ) : (
@@ -452,31 +462,24 @@ function DynamicSidebar({
             </button>
           )}
 
-          <div
-            className={cn(
-              "flex items-center justify-between",
-              collapsed && "flex-col gap-2"
-            )}
-          >
-            {collapsed ? (
-              <Tooltip content="Logout" side="right">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center justify-center p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full"
-                >
-                  <LogOut size={20} className="flex-shrink-0" />
-                </button>
-              </Tooltip>
-            ) : (
+          {collapsed ? (
+            <Tooltip content="Logout" side="right">
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors w-full"
+                className="flex items-center justify-center w-12 h-12 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-2xl transition-colors border border-transparent hover:border-red-100 dark:hover:border-red-900/30"
               >
-                <LogOut size={20} className="flex-shrink-0" />
-                <span>Logout</span>
+                <LogOut size={20} className="shrink-0" />
               </button>
-            )}
-          </div>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl transition-colors w-full"
+            >
+              <LogOut size={20} className="flex-shrink-0" />
+              <span>Logout</span>
+            </button>
+          )}
         </div>
 
         <BroadcastModal

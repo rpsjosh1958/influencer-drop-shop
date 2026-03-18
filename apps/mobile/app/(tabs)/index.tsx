@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -60,6 +60,7 @@ import {
 } from "react-native-gesture-handler";
 import { TextInput, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { BlurView } from "expo-blur";
+import { useQuery } from "@tanstack/react-query";
 
 const { width } = Dimensions.get("window");
 
@@ -68,27 +69,30 @@ import { useRouter } from "expo-router";
 import { cn } from "@/lib/utils";
 
 import { useStore } from "@/context/store-context";
-import { StoreSwitcher } from "@/components/shop/store-switcher"; // Imported
-import { ReviewsListModal } from "@/components/shop/reviews-list-modal"; // Added
-import { ComplaintModal } from "@/components/shop/complaint-modal"; // Added
+import { StoreSwitcher } from "@/components/shop/store-switcher";
+import { ReviewsListModal } from "@/components/shop/reviews-list-modal";
+import { ComplaintModal } from "@/components/shop/complaint-modal";
 import { ServiceCard, ServiceItem } from "@/components/shop/service-card";
 import { BookingModal } from "@/components/shop/booking-modal";
-import { Star } from "lucide-react-native"; // Added
+import { Star } from "lucide-react-native";
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function ShopHome() {
   const router = useRouter();
   const { storeId, store, setStoreId } = useStore();
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [services, setServices] = useState<ServiceItem[]>([]);
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(
     null,
   );
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isReviewsOpen, setIsReviewsOpen] = useState(false); // Added
-  const [isComplaintOpen, setIsComplaintOpen] = useState(false); // Added
+  const [isReviewsOpen, setIsReviewsOpen] = useState(false);
+  const [isComplaintOpen, setIsComplaintOpen] = useState(false);
 
   // Filter State
   const [filterType, setFilterType] = useState<"all" | "product" | "service">(
@@ -101,20 +105,68 @@ export default function ShopHome() {
     max: "",
   });
 
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
   // Hero Slideshow
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
 
   // Use store status instead of system config
   const isLive = store?.status === "live";
 
-  useEffect(() => {
-    if (store?.theme) {
-      console.log(
-        "🎨 MOBILE THEME DEBUG:",
-        JSON.stringify(store.theme, null, 2),
+  // Data Fetching via TanStack Query
+  const { data: products = [], isLoading: productsLoading, refetch: refetchProducts } = useQuery({
+    queryKey: ["shop", storeId, "products"],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc"),
       );
-    }
-  }, [store?.theme]);
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Product[];
+    },
+    enabled: !!storeId,
+  });
+
+  const { data: services = [], isLoading: servicesLoading, refetch: refetchServices } = useQuery({
+    queryKey: ["shop", storeId, "services"],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "services"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as ServiceItem[];
+      return items.filter((s) => s.isActive);
+    },
+    enabled: !!storeId,
+  });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ["shop", storeId, "categories"],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "categories"),
+        orderBy("name", "asc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Category[];
+    },
+    enabled: !!storeId,
+  });
+
+  const loading = productsLoading || servicesLoading || categoriesLoading;
 
   // Slideshow Effect
   useEffect(() => {
@@ -131,10 +183,114 @@ export default function ShopHome() {
   // Search State
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Product[]>([]);
-  const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  // const [searchScope, setSearchScope] = useState<"store" | "global">("store"); // Replaced by params
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+
+  const handleSearchTextChange = (text: string) => {
+    setSearchQuery(text);
+    if (text.length < 2) {
+      setIsSearching(false);
+      setSearchResults([]);
+    }
+  };
+
+  const performSearch = () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    Keyboard.dismiss();
+  };
+
+  // Main Display Filtering
+  const displayedItems = useMemo<{
+    type: "unified";
+    items: any[];
+    products?: never;
+    services?: never;
+  } | {
+    type: "default";
+    items?: never;
+    products: Product[];
+    services: ServiceItem[];
+  }>(() => {
+    let baseProducts = products;
+    let baseServices = services;
+
+    // 1. Search Logic
+    if (isSearching && searchQuery) {
+      const lowerQ = searchQuery.toLowerCase();
+      baseProducts = baseProducts.filter((p) =>
+        p.name.toLowerCase().includes(lowerQ),
+      );
+      baseServices = baseServices.filter((s) =>
+        s.name.toLowerCase().includes(lowerQ),
+      );
+    }
+
+    // 2. Category Logic (Products Only)
+    if (selectedCategory !== "All") {
+      baseProducts = baseProducts.filter(
+        (p) => p.category === selectedCategory,
+      );
+    }
+
+    // 3. Status/Filter Logic
+    const isFilteredView =
+      filterType !== "all" ||
+      !!sortOrder ||
+      !!priceRange.min ||
+      !!priceRange.max;
+
+    if (isFilteredView) {
+      let combined = [
+        ...baseProducts.map((p) => ({ ...p, type: "product" as const })),
+        ...baseServices.map((s) => ({ ...s, type: "service" as const })),
+      ];
+
+      // Type Filter
+      if (filterType !== "all") {
+        combined = combined.filter((item) => item.type === filterType);
+      }
+
+      // Price Filter
+      if (priceRange.min) {
+        combined = combined.filter(
+          (item) => item.price >= parseFloat(priceRange.min),
+        );
+      }
+      if (priceRange.max) {
+        combined = combined.filter(
+          (item) => item.price <= parseFloat(priceRange.max),
+        );
+      }
+
+      // Sort
+      if (sortOrder) {
+        combined = combined.sort((a, b) => {
+          if (sortOrder === "asc") return a.price - b.price;
+          return b.price - a.price;
+        });
+      }
+
+      return { type: "unified", items: combined };
+    }
+
+    return { type: "default", products: baseProducts, services: baseServices };
+  }, [
+    products,
+    services,
+    isSearching,
+    searchQuery,
+    selectedCategory,
+    filterType,
+    sortOrder,
+    priceRange,
+  ]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchProducts(), refetchServices()]);
+    setRefreshing(false);
+  }, [refetchProducts, refetchServices]);
 
   // Notification State
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -144,21 +300,22 @@ export default function ShopHome() {
 
   const { notifications, unreadCount, markAsRead } = useNotifications();
 
-  // Filter Logic
-  const filteredNotifications = notifications.filter((n) => {
-    if (notifFilter === "unread") return !n.read;
-    if (notifFilter === "read") return n.read;
-    return true;
-  });
+  // Notification Filter Logic
+  const filteredNotifications = useMemo(() => {
+    return notifications.filter((n) => {
+      if (notifFilter === "unread") return !n.read;
+      if (notifFilter === "read") return n.read;
+      return true;
+    });
+  }, [notifications, notifFilter]);
 
   const { addToCart, cart } = useCart();
-  const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   // Animation Values
   const translateX = useSharedValue(0);
   const contextX = useSharedValue(0);
 
-  // Effect to sync state changes
+  // Effect to sync drawer animation
   useEffect(() => {
     const target = isNotificationOpen ? -width : 0;
     translateX.value = withTiming(target, {
@@ -206,73 +363,7 @@ export default function ShopHome() {
     };
   });
 
-  const fetchProducts = async () => {
-    if (!storeId) return;
-    try {
-      const q = query(
-        collection(db, "stores", storeId, "products"),
-        orderBy("createdAt", "desc"),
-      );
-      const snapshot = await getDocs(q);
-      const items = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Product[];
-      setProducts(items);
-    } catch (error) {
-      console.log("Error fetching products:", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProducts();
-
-    if (!storeId) return;
-
-    // Fetch Categories (Store Scoped)
-    const unsubCategories = onSnapshot(
-      query(
-        collection(db, "stores", storeId, "categories"),
-        orderBy("name", "asc"),
-      ),
-      (snapshot) => {
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Category[];
-        setCategories(items);
-      },
-      (error) => console.log("Error fetching categories:", error),
-    );
-
-    // Fetch Services (for service/hybrid stores)
-    const fetchServices = async () => {
-      try {
-        const qServices = query(
-          collection(db, "stores", storeId, "services"),
-          orderBy("createdAt", "desc"),
-        );
-        const snapshot = await getDocs(qServices);
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as ServiceItem[];
-        setServices(items.filter((s) => s.isActive));
-      } catch (error) {
-        console.log("Error fetching services:", error);
-      }
-    };
-    fetchServices();
-
-    return () => {
-      unsubCategories();
-    };
-  }, [storeId]);
-
-  // Search Logic
+  // Search Animation Logic
   const searchWidth = useSharedValue(0);
   const searchOpacity = useSharedValue(0);
 
@@ -285,11 +376,7 @@ export default function ShopHome() {
       searchOpacity.value = withTiming(0, { duration: 200 });
       Keyboard.dismiss();
       setSearchQuery("");
-      setSuggestions([]);
-      if (searchResults.length > 0) {
-        setSearchResults([]);
-        setIsSearching(false);
-      }
+      setIsSearching(false);
     }
   }, [isSearchOpen]);
 
@@ -300,126 +387,13 @@ export default function ShopHome() {
     };
   });
 
-  const handleSearchTextChange = (text: string) => {
-    setSearchQuery(text);
-    if (text.length > 1) {
-      // Client-side suggestions
-      const textLower = text.toLowerCase();
-      const matched = products.filter((p) =>
-        p.name.toLowerCase().includes(textLower),
-      );
-      setSuggestions(matched.slice(0, 5));
-    } else {
-      setSuggestions([]);
-    }
-  };
-
-  // Category State
-  interface Category {
-    id: string;
-    name: string;
-    slug: string;
-  }
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState("All");
-
-  const performSearch = async () => {
-    if (!searchQuery.trim()) return;
-    if (!storeId) return;
-
-    setIsSearching(true);
-    setLoading(true);
-    setSuggestions([]);
-    Keyboard.dismiss();
-
-    try {
-      // Store Search - storeId is guaranteed to be string here
-      const q = query(
-        collection(db, "stores", storeId, "products"),
-        where("name", ">=", searchQuery),
-        where("name", "<=", searchQuery + "\uf8ff"),
-      );
-
-      const snapshot = await getDocs(q);
-
-      if (!snapshot.empty) {
-        const results = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            storeId: data.storeId || doc.ref.parent.parent?.id,
-          };
-        }) as Product[];
-
-        setSearchResults(results);
-      } else {
-        // Fallback for case-insensitive local filtering (Store Scope)
-        const textLower = searchQuery.toLowerCase();
-        const localResults = products.filter((p) =>
-          p.name.toLowerCase().includes(textLower),
-        );
-        setSearchResults(localResults);
-      }
-    } catch (e) {
-      console.error("Search failed:", e);
-      // Fallback
-      const textLower = searchQuery.toLowerCase();
-      const localResults = products.filter((p) =>
-        p.name.toLowerCase().includes(textLower),
-      );
-      setSearchResults(localResults);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const displayedProducts = isSearching
-    ? searchResults
-    : selectedCategory === "All"
-      ? products
-      : products.filter((p) => p.category === selectedCategory);
-
-  // Filter Logic
-  const isFilteredView =
-    filterType !== "all" || !!sortOrder || !!priceRange.min || !!priceRange.max;
-
-  const filteredItems = isFilteredView
-    ? [
-        ...products.map((p) => ({ ...p, type: "product" as const })),
-        ...services.map((s) => ({ ...s, type: "service" as const })),
-      ]
-        .filter((item) => {
-          // 1. Category (If selected and item is product - similar to web logic)
-          if (
-            selectedCategory !== "All" &&
-            item.type === "product" &&
-            (item as Product).category !== selectedCategory
-          )
-            return false;
-
-          // 2. Type
-          if (filterType !== "all" && item.type !== filterType) return false;
-
-          // 3. Price
-          if (priceRange.min && item.price < parseFloat(priceRange.min))
-            return false;
-          if (priceRange.max && item.price > parseFloat(priceRange.max))
-            return false;
-
-          return true;
-        })
-        .sort((a, b) => {
-          if (sortOrder === "asc") return a.price - b.price;
-          if (sortOrder === "desc") return b.price - a.price;
-          return 0; // Default handling order: Mixed
-        })
-    : [];
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchProducts();
-  }, [storeId]);
+  const suggestions = useMemo(() => {
+    if (searchQuery.length < 2) return [];
+    const textLower = searchQuery.toLowerCase();
+    return products.filter((p: Product) =>
+      p.name.toLowerCase().includes(textLower),
+    ).slice(0, 5);
+  }, [searchQuery, products]);
 
   if (loading && !products.length) {
     return (
@@ -437,7 +411,7 @@ export default function ShopHome() {
               <Skeleton width="60%" height={20} radius={4} />
             </View>
             <View className="flex-row flex-wrap justify-center align-center">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4].map((i: number) => (
                 <View key={i} className="w-[48%] mb-6 space-y-3">
                   <Skeleton width="100%" height={256} radius={20} />
                   <Skeleton width="60%" height={24} radius={4} />
@@ -689,20 +663,18 @@ export default function ShopHome() {
               )}
 
               {/* Suggestions Dropdown */}
-              {isSearchOpen && suggestions.length > 0 && (
+              {isSearchOpen && (suggestions as Product[]).length > 0 && (
                 <View className="absolute top-[109px] left-6 right-6 bg-zinc-50 rounded-2xl shadow-xl z-50 border border-zinc-100 overflow-hidden">
-                  {suggestions.map((item, index) => (
+                  {(suggestions as Product[]).map((item: Product, index: number) => (
                     <Pressable
                       key={item.id}
                       onPress={() => {
                         setSearchQuery(item.name);
-                        setSuggestions([]);
-                        Keyboard.dismiss();
                         setIsSearching(true);
                         setSearchResults([item]);
                       }}
                       className={`p-4 flex-row items-center justify-between ${
-                        index !== suggestions.length - 1
+                        index !== (suggestions as Product[]).length - 1
                           ? "border-b border-zinc-50"
                           : ""
                       }`}
@@ -1004,11 +976,11 @@ export default function ShopHome() {
                         </View>
                       ))}
                     </View>
-                  ) : isFilteredView ? (
+                  ) : displayedItems.type === "unified" ? (
                     // FILTERED VIEW (Unified Grid)
                     <View className="mb-8 px-4">
                       <H1 className="text-lg font-bold mb-4 px-2">
-                        Filtered Results
+                        {isSearching ? "Search Results" : "Filtered Results"}
                       </H1>
                       <View
                         className={cn(
@@ -1018,8 +990,8 @@ export default function ShopHome() {
                             : "justify-between",
                         )}
                       >
-                        {filteredItems.length > 0 ? (
-                          filteredItems.map((item, i) => (
+                        {displayedItems.items.length > 0 ? (
+                          displayedItems.items.map((item, i) => (
                             <View
                               key={item.id}
                               style={{
@@ -1053,7 +1025,7 @@ export default function ShopHome() {
                         ) : (
                           <View className="w-full py-20 items-center">
                             <P className="text-zinc-400">
-                              No items match your filters.
+                              No items match your criteria.
                             </P>
                           </View>
                         )}
@@ -1072,7 +1044,7 @@ export default function ShopHome() {
                           )}
                         >
                           {/* Products First */}
-                          {displayedProducts.map((product, i) => (
+                          {displayedItems.products.map((product, i) => (
                             <View
                               key={product.id}
                               style={{
@@ -1104,7 +1076,7 @@ export default function ShopHome() {
                           ))}
 
                           {/* Services After Products */}
-                          {services.map((service, i) => (
+                          {displayedItems.services.map((service, i) => (
                             <View
                               key={service.id}
                               style={{
@@ -1119,22 +1091,22 @@ export default function ShopHome() {
                             >
                               <ServiceCard
                                 service={service}
-                                index={displayedProducts.length + i}
+                                index={displayedItems.products.length + i}
                                 onPress={(s) => setSelectedService(s)}
                               />
                             </View>
                           ))}
 
-                          {isSearching && searchResults.length === 0 && (
+                          {isSearching && displayedItems.products.length === 0 && displayedItems.services.length === 0 && (
                             <View className="w-full py-10 items-center">
                               <P className="text-zinc-400">
-                                No drops found matching "{searchQuery}"
+                                {`No drops found matching "${searchQuery}"`}
                               </P>
                             </View>
                           )}
                           {!isSearching &&
-                            displayedProducts.length === 0 &&
-                            services.length === 0 && (
+                            displayedItems.products.length === 0 &&
+                            displayedItems.services.length === 0 && (
                               <View className="w-full py-20 items-center">
                                 <P className="text-zinc-400">
                                   No products or services available.
@@ -1275,7 +1247,7 @@ export default function ShopHome() {
 
       {selectedService && (
         <BookingModal
-          service={selectedService}
+          service={selectedService as any}
           isVisible={!!selectedService}
           onClose={() => setSelectedService(null)}
         />

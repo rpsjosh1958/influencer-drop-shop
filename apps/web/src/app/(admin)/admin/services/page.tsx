@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
-  onSnapshot,
+  getDocs,
   doc,
   addDoc,
   updateDoc,
@@ -11,6 +12,7 @@ import {
   serverTimestamp,
   query,
   orderBy,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
@@ -21,7 +23,6 @@ import {
   Pencil,
   Trash2,
   Clock,
-  DollarSign,
   X,
   Briefcase,
   Search,
@@ -33,18 +34,91 @@ import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function ServicesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
-  const [services, setServices] = useState<ServiceItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [isLive, setIsLive] = useState(false);
+
+  // 1. Fetch Store Status (Query)
+  const { data: storeData } = useQuery({
+    queryKey: ["store", storeId],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const snap = await getDoc(doc(db, "stores", storeId));
+      return snap.exists() ? snap.data() : null;
+    },
+    enabled: !!storeId,
+  });
+
+  const isLive = storeData?.status === "live";
+
+  // 2. Fetch Services (Query)
+  const { data: services = [], isLoading: servicesLoading } = useQuery({
+    queryKey: ["services", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "services"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(
+        (d) => ({ id: d.id, ...d.data() }) as ServiceItem,
+      );
+    },
+    enabled: !!storeId,
+  });
+
+  // 3. Mutations
+  const saveMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      if (!storeId) return;
+      if (editingService) {
+        await updateDoc(
+          doc(db, "stores", storeId, "services", editingService.id),
+          {
+            ...payload,
+            updatedAt: serverTimestamp(),
+          },
+        );
+      } else {
+        await addDoc(collection(db, "stores", storeId, "services"), {
+          ...payload,
+          createdAt: serverTimestamp(),
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services", storeId] });
+      closeModal();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!storeId) return;
+      await deleteDoc(doc(db, "stores", storeId, "services", id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services", storeId] });
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: async (service: ServiceItem) => {
+      if (!storeId) return;
+      await updateDoc(doc(db, "stores", storeId, "services", service.id), {
+        isActive: !service.isActive,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["services", storeId] });
+    },
+  });
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(
     null,
   );
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -56,34 +130,6 @@ export default function ServicesPage() {
     images: [] as string[],
     isActive: true,
   });
-
-  // Fetch services
-  useEffect(() => {
-    if (!storeId) return;
-    const q = query(
-      collection(db, "stores", storeId, "services"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map(
-        (d) => ({ id: d.id, ...d.data() }) as ServiceItem,
-      );
-      setServices(items);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [storeId]);
-
-  // Check store status
-  useEffect(() => {
-    if (!storeId) return;
-    const unsub = onSnapshot(doc(db, "stores", storeId), (doc) => {
-      if (doc.exists()) {
-        setIsLive(doc.data().status === "live");
-      }
-    });
-    return () => unsub();
-  }, [storeId]);
 
   const resetForm = () => {
     setFormData({
@@ -123,57 +169,17 @@ export default function ServicesPage() {
 
   const handleSave = async () => {
     if (!storeId || !formData.name) return;
-    setSaving(true);
-    try {
-      const payload = {
-        ...formData,
-        storeId,
-        imageUrl: formData.images[0] || "",
-      };
-
-      if (editingService) {
-        await updateDoc(
-          doc(db, "stores", storeId, "services", editingService.id),
-          {
-            ...payload,
-            updatedAt: serverTimestamp(),
-          },
-        );
-      } else {
-        await addDoc(collection(db, "stores", storeId, "services"), {
-          ...payload,
-          createdAt: serverTimestamp(),
-        });
-      }
-      closeModal();
-    } catch (err) {
-      console.error("Failed to save service", err);
-    } finally {
-      setSaving(false);
-    }
+    const payload = {
+      ...formData,
+      storeId,
+      imageUrl: formData.images[0] || "",
+    };
+    saveMutation.mutate(payload);
   };
 
   const handleDelete = async (id: string) => {
     if (!storeId || !confirm("Delete this service?")) return;
-    setDeleting(id);
-    try {
-      await deleteDoc(doc(db, "stores", storeId, "services", id));
-    } catch (err) {
-      console.error("Failed to delete service", err);
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  const toggleActive = async (service: ServiceItem) => {
-    if (!storeId) return;
-    try {
-      await updateDoc(doc(db, "stores", storeId, "services", service.id), {
-        isActive: !service.isActive,
-      });
-    } catch (err) {
-      console.error("Failed to toggle service", err);
-    }
+    deleteMutation.mutate(id);
   };
 
   const filteredServices = services.filter(
@@ -182,7 +188,7 @@ export default function ServicesPage() {
       s.description?.toLowerCase().includes(search.toLowerCase()),
   );
 
-  if (storeLoading || loading) {
+  if (storeLoading || servicesLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="animate-spin text-zinc-400" size={32} />
@@ -299,14 +305,15 @@ export default function ServicesPage() {
 
                 <div className="flex items-center gap-2 pt-2 border-t border-zinc-100">
                   <button
-                    onClick={() => toggleActive(service)}
+                    onClick={() => toggleActiveMutation.mutate(service)}
+                    disabled={toggleActiveMutation.isPending}
                     className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
                       service.isActive
                         ? "bg-green-50 text-green-700 hover:bg-green-100"
                         : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
                     }`}
                   >
-                    {service.isActive ? "Active" : "Inactive"}
+                    {toggleActiveMutation.isPending ? "..." : (service.isActive ? "Active" : "Inactive")}
                   </button>
 
                   <Tooltip
@@ -322,21 +329,17 @@ export default function ServicesPage() {
                           : "hover:bg-zinc-100 text-black"
                       }`}
                     >
-                      {isLive ? (
-                        <Pencil size={16} className="opacity-50" />
-                      ) : (
-                        <Pencil size={16} />
-                      )}
+                      <Pencil size={16} className={isLive ? "opacity-50" : ""} />
                     </button>
                   </Tooltip>
 
                   <Tooltip content="Delete Service" side="top">
                     <button
                       onClick={() => handleDelete(service.id)}
-                      disabled={deleting === service.id}
+                      disabled={deleteMutation.isPending}
                       className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors disabled:opacity-50"
                     >
-                      {deleting === service.id ? (
+                      {deleteMutation.isPending ? (
                         <Loader2 className="animate-spin" size={16} />
                       ) : (
                         <Trash2 size={16} />
@@ -501,7 +504,7 @@ export default function ServicesPage() {
                       setFormData({ ...formData, isActive: !formData.isActive })
                     }
                     className={`w-12 h-6 rounded-full transition-colors relative ${
-                      formData.isActive ? "bg-green-500" : "bg-zinc-300"
+                      formData.isActive ? "bg-green-50" : "bg-zinc-300"
                     }`}
                   >
                     <div
@@ -522,10 +525,10 @@ export default function ServicesPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || !formData.name}
+                  disabled={saveMutation.isPending || !formData.name}
                   className="flex-1 py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {saving && <Loader2 className="animate-spin" size={18} />}
+                  {saveMutation.isPending && <Loader2 className="animate-spin" size={18} />}
                   {editingService ? "Save Changes" : "Create Service"}
                 </button>
               </div>

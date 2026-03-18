@@ -22,6 +22,7 @@ import {
   History,
   AlertCircle,
   Download,
+  Zap,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateFinancePDF } from "@/lib/pdf-generator";
@@ -29,10 +30,7 @@ import { generateFinanceExcel } from "@/lib/excel-generator";
 import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function FinancePage() {
-  const { storeId, loading: storeLoading } = useAdminStore();
-
-  // Store Plan State
-  const [storePlan, setStorePlan] = useState("starter"); // Default safe
+  const { storeId, userPlan, loading: storeLoading } = useAdminStore();
 
   // Wallet State
   const [wallet, setWallet] = useState<any>(null);
@@ -157,13 +155,6 @@ export default function FinancePage() {
   useEffect(() => {
     if (!storeId) return;
 
-    // 0. Store Plan (Realtime for immediate UI update)
-    const unsubStore = onSnapshot(doc(db, "stores", storeId), (doc) => {
-      if (doc.exists()) {
-        setStorePlan(doc.data().plan || "starter");
-      }
-    });
-
     // 1. Realtime Wallet
     const unsubWallet = onSnapshot(
       doc(db, "stores", storeId, "wallet", "main"),
@@ -188,7 +179,6 @@ export default function FinancePage() {
     });
 
     return () => {
-      unsubStore(); // Fixed missing cleanup
       unsubWallet();
       unsubTx();
     };
@@ -354,10 +344,10 @@ export default function FinancePage() {
         data-tour="finance-balance"
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden">
+        <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden shadow-2xl shadow-zinc-200">
           <div className="relative z-10">
-            <p className="text-zinc-400 font-medium mb-1 flex items-center gap-2">
-              <Wallet size={16} /> Available Balance
+            <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2">
+              <Wallet size={12} /> Available Balance
             </p>
             <h2 className="text-4xl font-black tracking-tight">
               {formatCurrency(wallet.currentBalance)}
@@ -366,23 +356,26 @@ export default function FinancePage() {
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-zinc-800 rounded-full blur-3xl opacity-50" />
         </div>
 
-        {storePlan !== "growth" && (
-          <div className="bg-white border border-zinc-200 p-8 rounded-3xl">
-            <p className="text-zinc-500 font-medium mb-1">Pending (T+2)</p>
+        {userPlan !== "growth" && (
+          <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
+            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2">Pending (T+2)</p>
             <h2 className="text-3xl font-black tracking-tight text-zinc-400">
               {formatCurrency(wallet.pendingBalance)}
             </h2>
-            <p className="text-xs text-zinc-400 mt-2">
+            <p className="text-[10px] text-zinc-400 mt-2 font-medium">
               Funds clear 48h after delivery (Starter Plan).
             </p>
           </div>
         )}
 
-        <div className="bg-white border border-zinc-200 p-8 rounded-3xl">
-          <p className="text-zinc-500 font-medium mb-1">Total Earned</p>
+        <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
+          <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2">Total Earned</p>
           <h2 className="text-3xl font-black tracking-tight text-green-600">
             {formatCurrency(wallet.totalEarned)}
           </h2>
+          <p className="text-[10px] text-zinc-400 mt-2 font-medium">
+            Lifetime earnings on this store.
+          </p>
         </div>
       </div>
 

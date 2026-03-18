@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { ThemeProvider } from "@/components/providers";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -21,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SuperAdminNavBadge } from "@/components/admin/nav-badge";
+import { ThemeProvider } from "next-themes";
 
 const SUPER_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "")
   .split(",")
