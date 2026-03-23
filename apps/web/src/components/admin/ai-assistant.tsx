@@ -8,9 +8,11 @@ import { auth } from "@/lib/firebase";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { Product } from "@/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function AiAssistant() {
   const { storeId, userPlan } = useAdminStore();
+  const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -80,6 +82,26 @@ export function AiAssistant() {
       }, 100); // Small delay for animation
     }
   }, [isOpen]);
+
+  // Handle AI mutations to invalidate cache reliably
+  const [wasLoading, setWasLoading] = useState(false);
+  useEffect(() => {
+    if (isLoading) {
+      setWasLoading(true);
+    } else if (wasLoading && !isLoading) {
+      // AI completely finished its thought/action process
+      setWasLoading(false);
+      if (storeId) {
+        // Aggressively invalidate all major collections to guarantee the UI reflects any AI changes
+        queryClient.invalidateQueries({ queryKey: ["products", storeId] });
+        queryClient.invalidateQueries({ queryKey: ["services", storeId] });
+        queryClient.invalidateQueries({ queryKey: ["orders", storeId] });
+        queryClient.invalidateQueries({ queryKey: ["bookings", storeId] });
+        queryClient.invalidateQueries({ queryKey: ["store", storeId] });
+        queryClient.invalidateQueries({ queryKey: ["categories", storeId] });
+      }
+    }
+  }, [isLoading, wasLoading, storeId, queryClient]);
 
   // Click outside to close
   useEffect(() => {

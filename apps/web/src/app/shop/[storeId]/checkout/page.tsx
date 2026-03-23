@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
 
 interface Address {
   id: string;
@@ -417,13 +418,13 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 <span className="font-medium">
-                  GHS {(item.price * item.quantity).toFixed(2)}
+                  {formatCurrency(item.price * item.quantity)}
                 </span>
               </div>
             ))}
             <div className="border-t border-zinc-100 pt-4 mt-4 flex justify-between items-center font-bold text-lg">
               <span>Total</span>
-              <span>GHS {total.toFixed(2)}</span>
+              <span>{formatCurrency(total)}</span>
             </div>
           </div>
         </div>
@@ -626,7 +627,7 @@ export default function CheckoutPage() {
               className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg tracking-wide hover:bg-zinc-900 shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 mt-4"
             >
               <Truck size={20} />
-              PAY GHS {total.toFixed(2)} NOW
+              PAY {formatCurrency(total)} NOW
             </button>
           </form>
         </div>

@@ -3,6 +3,7 @@
 import { Product } from "@/types";
 import { Share2, Trash2 } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
+import { formatCurrency } from "@/lib/utils";
 
 interface AdminProductCardMobileProps {
   product: Product;
@@ -56,7 +57,7 @@ export function AdminProductCardMobile({
               {product.name}
             </h3>
             <span className="font-mono text-sm font-bold">
-              GHS {product.price.toFixed(2)}
+              {formatCurrency(product.price)}
             </span>
           </div>
 

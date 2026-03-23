@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Star, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Product } from "@/types";
 import { ProductDetailsModal } from "./product-details-modal";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -147,7 +148,7 @@ export function ProductCard({
               {product.stock > 0 || product.hasVariants
                 ? product.hasVariants
                   ? "Select Options"
-                  : `Add to cart — GHS ${product.price}`
+                  : `Add to cart — ${formatCurrency(product.price)}`
                 : "Sold Out"}
             </button>
           </div>

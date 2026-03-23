@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { X, Check, BadgeCheck } from "lucide-react-native";
 import { Product } from "./product-card";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { formatCurrency } from "@/lib/format";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "@/context/store-context";
 
@@ -264,7 +265,7 @@ export function ProductDetailsModal({
                 {product.name}
               </H1>
               <P className="text-2xl font-medium text-zinc-500 mt-2">
-                GHS {currentPrice.toFixed(2)}
+                {formatCurrency(currentPrice)}
               </P>
             </View>
 
@@ -395,7 +396,7 @@ export function ProductDetailsModal({
                 ? "SOLD OUT"
                 : product.hasVariants && !selectedVariant
                 ? "SELECT OPTIONS"
-                : `ADD TO BAG • GHS ${currentPrice.toFixed(2)}`
+                : `ADD TO BAG • ${formatCurrency(currentPrice)}`
             }
             disabled={
               isOutOfStock || (!!product.hasVariants && !selectedVariant)

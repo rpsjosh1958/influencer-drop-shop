@@ -15,6 +15,7 @@ import * as Haptics from "expo-haptics";
 import { ChevronsRight, Lock, Check } from "lucide-react-native";
 import { P } from "./text";
 import { ActivityIndicator } from "react-native";
+import { formatCurrency } from "@/lib/format";
 
 export interface SlideToPayRef {
   reset: () => void;
@@ -194,7 +195,7 @@ export const SlideToPay = forwardRef<SlideToPayRef, SlideToPayProps>(
                   <Lock size={14} color="white" />
                 </View>
                 <P className="text-white font-bold text-sm tracking-wide">
-                  GHS {amount.toFixed(2)}
+                  {formatCurrency(amount)}
                 </P>
               </View>
             )}

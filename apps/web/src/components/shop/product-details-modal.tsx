@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check, BadgeCheck } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { useStore } from "./store-provider";
+import { formatCurrency } from "@/lib/utils";
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -280,7 +281,7 @@ export function ProductDetailsModal({
                       {product.name}
                     </h2>
                     <p className="text-xl font-medium text-zinc-500 mt-1">
-                      GHS {currentPrice.toFixed(2)}
+                      {formatCurrency(currentPrice)}
                     </p>
                   </div>
                   <button
@@ -417,7 +418,7 @@ export function ProductDetailsModal({
                       ? "Sold Out"
                       : product.hasVariants && !selectedVariant
                         ? "Select Options"
-                        : `Add to Cart — GHS ${currentPrice.toFixed(2)}`}
+                        : `Add to Cart — ${formatCurrency(currentPrice)}`}
                   </button>
                   {currentStock > 0 && currentStock < 5 && (
                     <p className="text-center text-xs text-red-500 font-bold mt-3 animate-pulse">

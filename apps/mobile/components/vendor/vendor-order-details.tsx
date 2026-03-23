@@ -27,6 +27,7 @@ import {
   collection,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { formatCurrency } from "@/lib/format";
 
 interface VendorOrderDetailsProps {
   order: any | null;
@@ -214,7 +215,7 @@ export function VendorOrderDetails({
                     Total
                   </P>
                   <H1 className="text-2xl font-black">
-                    GHS {order.total.toFixed(2)}
+                    {formatCurrency(order.total)}
                   </H1>
                 </View>
               </View>
@@ -322,8 +323,8 @@ export function VendorOrderDetails({
                         </P>
                       )}
                       <P className="text-zinc-500 text-sm mt-1">
-                        {item.quantity} x GHS{" "}
-                        {(item.selectedVariant?.price || item.price).toFixed(2)}
+                        {item.quantity} x{" "}
+                        {formatCurrency(item.selectedVariant?.price || item.price)}
                       </P>
                     </View>
                   </View>

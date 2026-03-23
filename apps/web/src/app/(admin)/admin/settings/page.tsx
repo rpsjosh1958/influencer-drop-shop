@@ -39,6 +39,7 @@ import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
+import { formatCurrency } from "@/lib/utils";
 
 const TABS = [
   { id: "general", label: "General", icon: Store },
@@ -1289,7 +1290,7 @@ export default function StoreSettingsPage() {
                                   {userPlan === "growth" ? "Extend Subscription" : "Upgrade to Growth"}
                                 </h3>
                                 <p className="font-medium text-zinc-500">
-                                  GHS {BILLING_PLANS[billingCycle].price}
+                                  {formatCurrency(BILLING_PLANS[billingCycle].price)}
                                 </p>
                                 <p className="text-xs text-zinc-400 mt-1">
                                   Billed {BILLING_PLANS[billingCycle].label}

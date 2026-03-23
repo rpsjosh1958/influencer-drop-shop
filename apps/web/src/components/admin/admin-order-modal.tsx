@@ -12,8 +12,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Order } from "@/types";
-
-// Local Order interface removed in favor of @/types import
+import { Portal } from "@/components/ui/portal";
+import { formatCurrency } from "@/lib/utils";
 
 interface AdminOrderModalProps {
   isOpen: boolean;
@@ -58,98 +58,82 @@ export function AdminOrderModal({
   onUpdate,
 }: AdminOrderModalProps) {
   const [updating, setUpdating] = useState(false);
-  const [optimisticStatus, setOptimisticStatus] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (order) {
+      setCurrentStatus(order.status);
+    }
+  }, [order]);
 
   if (!order) return null;
 
-  const currentStatus = optimisticStatus || order.status;
-
   const handleStatusChange = async (newStatus: string) => {
-    // 1. Optimistic Update
-    setOptimisticStatus(newStatus);
+    if (!order || !storeId || updating) return;
     setUpdating(true);
+    setCurrentStatus(newStatus);
 
     try {
-      if (!storeId) throw new Error("Store ID is missing");
-      const ref = doc(db, "stores", storeId, "orders", order.id);
-      await updateDoc(ref, { status: newStatus });
+      const orderRef = doc(db, "stores", storeId, "orders", order.id);
+      await updateDoc(orderRef, {
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+      });
 
-      // Create Notification
-      if (order.userId) {
-        // Ensure we have the user ID
-        await addDoc(collection(db, "notifications"), {
-          userId: order.userId,
-          type: "order_update",
-          title: `Order ${newStatus.replace("-", " ")} 📦`,
-          message: `Your order #${order.id
-            .slice(0, 8)
-            .toUpperCase()} is now ${newStatus.replace("-", " ")}.`,
-          read: false,
-          orderId: order.id,
-          createdAt: serverTimestamp(),
-        });
-      }
+      // Add timeline event
+      await addDoc(collection(db, "stores", storeId, "orders", order.id, "timeline"), {
+        status: newStatus,
+        message: `Order status updated to ${newStatus}`,
+        createdAt: serverTimestamp(),
+      });
 
-      // 2. Trigger Query Invalidation in Parent
-      onUpdate?.();
+      if (onUpdate) onUpdate();
     } catch (error) {
-      console.error("Failed to update status", error);
-      // Revert if failed
-      setOptimisticStatus(null);
-      alert("Failed to update status");
+      console.error("Error updating order status:", error);
+      setCurrentStatus(order.status); // Revert on error
     } finally {
       setUpdating(false);
-      // We don't clear optimisticStatus immediately here to prevent flickering 
-      // if the parent hasn't re-rendered with new data yet.
-      // It will naturally clear when a new 'order' prop arrives or modal closes.
     }
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm"
-          />
-
-          {/* Modal */}
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+    <Portal>
+      <AnimatePresence>
+        {isOpen && order && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden pointer-events-auto max-h-[90vh] flex flex-col"
+              className="bg-white dark:bg-zinc-900 w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden relative z-10 max-h-[90vh] flex flex-col border border-zinc-200 dark:border-zinc-800"
             >
               {/* Header */}
-              <div className="bg-zinc-50 px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-xs bg-black text-white px-2 py-1 rounded">
-                    #{order.id.slice(0, 8).toUpperCase()}
-                  </span>
-                  <span className="text-sm text-zinc-500">
-                    {order.createdAt?.seconds
-                      ? new Date(
-                          order.createdAt.seconds * 1000,
-                        ).toLocaleString()
-                      : "Date N/A"}
-                  </span>
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tighter">
+                    Order Details
+                  </h3>
+                  <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                    #{order.id.slice(0, 8)}
+                  </p>
                 </div>
                 <button
                   onClick={onClose}
-                  className="p-2 hover:bg-zinc-200 black rounded-full transition-colors opacity-50 hover:opacity-100"
+                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
                 >
-                  <X color="black" size={20} />
+                  <X size={20} />
                 </button>
               </div>
 
               {/* Scrollable Content */}
-              <div className="p-6 overflow-y-auto space-y-8">
+              <div className="p-6 overflow-y-auto space-y-8 custom-scrollbar">
                 {/* Status Section */}
                 <div>
                   <h4 className="text-xs font-bold uppercase text-zinc-400 mb-3 tracking-wider">
@@ -188,12 +172,12 @@ export function AdminOrderModal({
                     <h4 className="text-xs font-bold uppercase text-zinc-400 mb-3 tracking-wider">
                       Customer
                     </h4>
-                    <div className="bg-zinc-50 p-4 rounded-xl space-y-1 text-sm border border-zinc-100">
-                      <p className="font-bold text-base text-black">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl space-y-1 text-sm border border-zinc-100 dark:border-zinc-800">
+                      <p className="font-bold text-base text-zinc-900 dark:text-white">
                         {order.customerName || "Guest User"}
                       </p>
-                      <p className="text-zinc-600">{order.customerEmail}</p>
-                      <p className="text-zinc-600">{order.shipping?.phone}</p>
+                      <p className="text-zinc-600 dark:text-zinc-400">{order.customerEmail}</p>
+                      <p className="text-zinc-600 dark:text-zinc-400">{order.shipping?.phone}</p>
                     </div>
                   </div>
 
@@ -202,12 +186,12 @@ export function AdminOrderModal({
                     <h4 className="text-xs font-bold uppercase text-zinc-400 mb-3 tracking-wider">
                       Shipping To
                     </h4>
-                    <div className="bg-zinc-50 p-4 rounded-xl space-y-1 text-sm border border-zinc-100">
-                      <p className="text-zinc-900">{order.shipping?.street}</p>
-                      <p className="text-zinc-600">
+                    <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl space-y-1 text-sm border border-zinc-100 dark:border-zinc-800">
+                      <p className="text-zinc-900 dark:text-white">{order.shipping?.street}</p>
+                      <p className="text-zinc-600 dark:text-zinc-400">
                         {order.shipping?.city}, {order.shipping?.country}
                       </p>
-                      <p className="text-zinc-600">{order.shipping?.zip}</p>
+                      <p className="text-zinc-600 dark:text-zinc-400">{order.shipping?.zip}</p>
                     </div>
                   </div>
 
@@ -217,7 +201,7 @@ export function AdminOrderModal({
                       <h4 className="text-xs font-bold uppercase text-zinc-400 mb-2 tracking-wider">
                         Note from Customer
                       </h4>
-                      <div className="bg-yellow-50 border border-yellow-100 p-4 rounded-xl text-sm italic text-yellow-900">
+                      <div className="bg-yellow-50 dark:bg-yellow-900/10 border border-yellow-100 dark:border-yellow-900/20 p-4 rounded-xl text-sm italic text-yellow-900 dark:text-yellow-200">
                         "{order.customerNote}"
                       </div>
                     </div>
@@ -233,9 +217,9 @@ export function AdminOrderModal({
                     {order.items.map((item: any, idx: number) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-4 p-3 border border-zinc-100 rounded-xl hover:bg-zinc-50 transition-colors"
+                        className="flex items-center gap-4 p-3 border border-zinc-100 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                       >
-                        <div className="h-16 w-16 bg-zinc-200 rounded-lg overflow-hidden flex-shrink-0 relative">
+                        <div className="h-16 w-16 bg-zinc-200 dark:bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={
@@ -249,7 +233,7 @@ export function AdminOrderModal({
                           />
                         </div>
                         <div className="flex-1">
-                          <p className="font-bold text-black text-sm line-clamp-1">
+                          <p className="font-bold text-zinc-900 dark:text-white text-sm line-clamp-1">
                             {item.name}
                           </p>
                           {item.selectedVariant && (
@@ -258,36 +242,31 @@ export function AdminOrderModal({
                             </p>
                           )}
                           <p className="text-xs text-zinc-500">
-                            Qty: {item.quantity} × GHS{" "}
-                            {item.selectedVariant?.price || item.price}
+                            Qty: {item.quantity} × {formatCurrency(item.selectedVariant?.price || item.price)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-black text-sm">
-                            GHS{" "}
-                            {(
-                              (item.selectedVariant?.price || item.price) *
-                              item.quantity
-                            ).toFixed(2)}
+                          <p className="font-bold text-zinc-900 dark:text-white text-sm">
+                            {formatCurrency((item.selectedVariant?.price || item.price) * item.quantity)}
                           </p>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="flex justify-between items-center mt-6 pt-6 border-t border-zinc-100">
-                    <span className="font-bold text-zinc-400 text-lg">
+                  <div className="flex justify-between items-center mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                    <span className="font-bold text-zinc-400 text-lg uppercase tracking-widest">
                       Total Amount
                     </span>
-                    <span className="font-black text-black text-2xl">
-                      GHS {order.total.toFixed(2)}
+                    <span className="font-black text-zinc-900 dark:text-white text-2xl">
+                      {formatCurrency(order.total)}
                     </span>
                   </div>
                 </div>
               </div>
             </motion.div>
           </div>
-        </>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </Portal>
   );
 }

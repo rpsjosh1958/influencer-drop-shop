@@ -5,14 +5,17 @@ import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
 import { useMemo, useState } from "react";
-import { Package, Menu, Search, Filter } from "lucide-react-native";
+import { Filter, Menu, Package, Search, Plus } from "lucide-react-native";
 import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";
+import { formatCurrency } from "@/lib/format";
+import { ManualOrderModal } from "@/components/vendor/manual-order-modal";
 
 export default function VendorOrders() {
   const navigation = useNavigation<any>();
-  const { orders, loading, refreshStore } = useVendor();
+  const { orders, loading, refreshStore, products, store } = useVendor();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [showManualOrder, setShowManualOrder] = useState(false);
 
   const filteredOrders = useMemo(() => {
     if (filter === "all") return orders;
@@ -29,8 +32,7 @@ export default function VendorOrders() {
     return orders;
   }, [orders, filter]);
 
-  const formatMoney = (amount: number) =>
-    `GHS ${amount.toLocaleString("en-GH", { minimumFractionDigits: 2 })}`;
+  const formatMoney = (amount: number) => formatCurrency(amount);
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -44,6 +46,12 @@ export default function VendorOrders() {
           </Pressable>
           <H1 className="text-xl font-black uppercase">Orders</H1>
         </View>
+        <Pressable
+          onPress={() => setShowManualOrder(true)}
+          className="bg-black w-10 h-10 rounded-full items-center justify-center flex-row shadow-sm active:scale-95 transition-all"
+        >
+          <Plus size={20} color="white" />
+        </Pressable>
       </View>
 
       {/* Tabs */}
@@ -167,6 +175,14 @@ export default function VendorOrders() {
           refreshStore();
           setSelectedOrder(null);
         }}
+      />
+
+      <ManualOrderModal
+        visible={showManualOrder}
+        onClose={() => setShowManualOrder(false)}
+        products={products as any}
+        storeId={store?.id || ""}
+        storeName={store?.name || "Store"}
       />
     </SafeAreaView>
   );

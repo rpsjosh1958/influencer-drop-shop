@@ -37,6 +37,7 @@ import { AnalyticsModal } from "@/components/vendor/analytics-modal";
 import { VendorStoreSwitcher } from "@/components/vendor/vendor-store-switcher";
 import { useRouter } from "expo-router";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 
 const { width } = Dimensions.get("window");
 
@@ -60,8 +61,7 @@ export default function VendorDashboard() {
   const navigation = useNavigation();
   const router = useRouter();
 
-  const formatMoney = (amount: number) =>
-    `GHS ${amount.toLocaleString("en-GH", { minimumFractionDigits: 2 })}`;
+  const formatMoney = (amount: number) => formatCurrency(amount);
 
   const handleToggleStatus = async () => {
     setToggling(true);
@@ -366,20 +366,29 @@ export default function VendorDashboard() {
                         }}
                         className="bg-white p-4 mb-4 rounded-2xl border border-zinc-100 flex-row items-center justify-between active:scale-[0.98] transition-all shadow-sm"
                       >
-                        <View className="flex-row items-center gap-4">
+                        <View className="flex-row items-center gap-4 flex-1">
                           <View className={cn(
                             "w-12 h-12 rounded-2xl items-center justify-center border",
                             isOrder ? "bg-zinc-50 border-zinc-100" : "bg-purple-50 border-purple-100"
                           )}>
                             {isOrder ? <ShoppingBag size={20} color="black" /> : <Calendar size={20} color="#8b5cf6" />}
                           </View>
-                          <View>
+                          <View className="flex-1">
                             <H1 className="text-sm font-black" numberOfLines={1}>
-                              {isOrder ? `Order #${item.id.slice(-5).toUpperCase()}` : item.serviceName}
+                              {isOrder ? item.customerName : item.userName || "Customer"}
                             </H1>
-                            <P className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                              {isOrder ? item.customerName : item.userName}
-                            </P>
+                            <View className="flex-row items-center gap-1.5">
+                              <P className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                                {isOrder ? `Order #${item.id.slice(-5).toUpperCase()}` : item.serviceName}
+                              </P>
+                              <P className="text-xs text-zinc-300 font-black">•</P>
+                              <P className="text-[10px] text-zinc-400 font-medium">
+                                {item.createdAt?.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }) : '--:--'}
+                              </P>
+                            </View>
                           </View>
                         </View>
 

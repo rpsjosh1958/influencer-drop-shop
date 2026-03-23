@@ -50,6 +50,7 @@ import {
   parse,
   isAfter,
 } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 interface BookingModalProps {
   service: ServiceItem;
@@ -319,7 +320,7 @@ export function BookingModal({
             <div>
               <h2 className="text-xl font-bold">Book {service.name}</h2>
               <p className="text-sm text-zinc-500">
-                {service.duration} min · GHS {service.price}
+                {service.duration} min · {formatCurrency(service.price)}
               </p>
             </div>
             <button
@@ -564,7 +565,7 @@ export function BookingModal({
                   </div>
                   <div className="flex justify-between text-sm pt-2 border-t border-zinc-200">
                     <span className="text-zinc-500">Total</span>
-                    <span className="font-bold">GHS {service.price}</span>
+                    <span className="font-bold">{formatCurrency(service.price)}</span>
                   </div>
                   <p className="text-xs text-zinc-400 pt-2">
                     * Payment will be collected at the appointment

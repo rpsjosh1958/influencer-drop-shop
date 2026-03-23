@@ -28,6 +28,7 @@ import {
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { formatCurrency } from "@/lib/utils";
 
 interface OrderData {
   id: string;
@@ -347,7 +348,7 @@ export default function AdminDashboard() {
               Total Revenue
             </h3>
             <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1">
-              GHS {revenue.toFixed(2)}
+              {formatCurrency(revenue)}
             </p>
           </div>
         </motion.div>
@@ -467,7 +468,7 @@ export default function AdminDashboard() {
                       </p>
                     </div>
                     <span className="font-black text-green-400 tracking-tighter">
-                      GHS {order?.total?.toFixed(2)}
+                      {formatCurrency(order?.total ?? 0)}
                     </span>
                   </div>
                 ))

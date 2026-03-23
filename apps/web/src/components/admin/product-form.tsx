@@ -17,6 +17,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 import { Loader2, Upload, X, Check } from "lucide-react";
 import { Product, Category, ProductOption, ProductVariant } from "@/types";
+import { Portal } from "@/components/ui/portal";
 
 interface ProductFormProps {
   storeId: string;
@@ -66,16 +67,10 @@ export function ProductForm({
   const categoryRef = useRef<HTMLSelectElement>(null);
 
   // Pre-fill
+  // Pre-fill Category once loaded
   useEffect(() => {
-    if (initialData) {
-      if (nameRef.current) nameRef.current.value = initialData.name;
-      if (priceRef.current)
-        priceRef.current.value = initialData.price.toString();
-      if (stockRef.current)
-        stockRef.current.value = initialData.stock.toString();
-      if (descRef.current) descRef.current.value = initialData.description;
-      if (categoryRef.current)
-        categoryRef.current.value = initialData.category || "";
+    if (initialData && categories.length > 0 && categoryRef.current) {
+      categoryRef.current.value = initialData.category || "";
     }
   }, [initialData, categories]);
 
@@ -285,6 +280,7 @@ export function ProductForm({
   };
 
   return (
+    <Portal>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8">
         <div className="flex items-center justify-between p-6 border-b border-zinc-100 dark:border-zinc-800">
@@ -351,6 +347,7 @@ export function ProductForm({
                 <label className="block text-sm font-bold mb-1">Name</label>
                 <input
                   ref={nameRef}
+                  defaultValue={initialData?.name}
                   required
                   className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
                   placeholder="e.g. Graphic Tee"
@@ -361,6 +358,7 @@ export function ProductForm({
                   <label className="block text-sm font-bold mb-1">Price</label>
                   <input
                     ref={priceRef}
+                    defaultValue={initialData?.price}
                     type="number"
                     step="0.01"
                     required
@@ -394,6 +392,7 @@ export function ProductForm({
                 </label>
                 <textarea
                   ref={descRef}
+                  defaultValue={initialData?.description}
                   rows={3}
                   className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
                   placeholder="Details..."
@@ -432,6 +431,7 @@ export function ProductForm({
                 </label>
                 <input
                   ref={stockRef}
+                  defaultValue={initialData?.stock}
                   type="number"
                   required
                   className="w-full p-3 bg-white text-black border border-zinc-200 rounded-xl outline-none ring-black"
@@ -576,5 +576,6 @@ export function ProductForm({
         </form>
       </div>
     </div>
+    </Portal>
   );
 }

@@ -28,6 +28,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { generateFinancePDF } from "@/lib/pdf-generator";
 import { generateFinanceExcel } from "@/lib/excel-generator";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { formatCurrency } from "@/lib/utils";
+import { Portal } from "@/components/ui/portal";
 
 export default function FinancePage() {
   const { storeId, userPlan, loading: storeLoading } = useAdminStore();
@@ -220,12 +222,6 @@ export default function FinancePage() {
     );
   }
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-GH", {
-      style: "currency",
-      currency: "GHS",
-    }).format(val || 0);
-  };
 
   const months = [
     "January",
@@ -438,6 +434,7 @@ export default function FinancePage() {
       </div>
 
       {/* Withdraw Modal */}
+      <Portal>
       <AnimatePresence>
         {showWithdraw && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -505,6 +502,7 @@ export default function FinancePage() {
           </div>
         )}
       </AnimatePresence>
+      </Portal>
     </div>
   );
 }

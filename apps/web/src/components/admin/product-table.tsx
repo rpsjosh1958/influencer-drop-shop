@@ -3,6 +3,7 @@
 import { Product } from "@/types";
 import { Trash2, Share2 } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
+import { formatCurrency } from "@/lib/utils";
 
 interface AdminProductTableProps {
   products: Product[];
@@ -75,8 +76,8 @@ export function AdminProductTable({
                   <span className="font-medium">{product.name}</span>
                 </div>
               </td>
-              <td className="px-6 py-4 font-mono">
-                GHS {product.price.toFixed(2)}
+              <td className="px-6 py-4 ">
+                {formatCurrency(product.price)}
               </td>
               <td className="px-6 py-4">
                 <span

@@ -37,6 +37,7 @@ import { router } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { formatCurrency } from "@/lib/format";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -147,7 +148,7 @@ function CartItemRow({ item, index, onUpdate, onRemove }: any) {
                 </P>
               )}
               <P className="text-zinc-900 font-bold mt-2 text-lg">
-                GHS {item.variant?.price || item.price}
+                {formatCurrency(item.variant?.price || item.price)}
               </P>
             </View>
 
@@ -372,7 +373,7 @@ export function FloatingCart() {
                     TOTAL
                   </P>
                   <H1 className="text-2xl font-black">
-                    GHS {total.toFixed(2)}
+                    {formatCurrency(total)}
                   </H1>
                 </View>
 

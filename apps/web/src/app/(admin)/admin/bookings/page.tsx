@@ -31,6 +31,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { formatCurrency } from "@/lib/utils";
+import { Portal } from "@/components/ui/portal";
 import {
   format,
   startOfMonth,
@@ -418,7 +420,7 @@ export default function BookingsPage() {
                         {booking.serviceName}
                       </div>
                       <div className="text-sm text-zinc-500">
-                        GHS {booking.servicePrice}
+                        {formatCurrency(booking.servicePrice)}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -452,6 +454,7 @@ export default function BookingsPage() {
       )}
 
       {/* Booking Detail Modal */}
+      <Portal>
       <AnimatePresence>
         {selectedBooking && (
           <motion.div
@@ -488,7 +491,7 @@ export default function BookingsPage() {
                     {selectedBooking.serviceName}
                   </div>
                   <div className="text-zinc-600">
-                    GHS {selectedBooking.servicePrice}
+                    {formatCurrency(selectedBooking.servicePrice)}
                   </div>
                 </div>
 
@@ -632,6 +635,7 @@ export default function BookingsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Portal>
     </div>
   );
 }

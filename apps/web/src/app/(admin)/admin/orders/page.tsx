@@ -21,10 +21,11 @@ import {
   Loader2,
 } from "lucide-react";
 import ReactDatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 import { AdminOrderModal } from "@/components/admin/admin-order-modal";
+import { ManualOrderModal } from "@/components/admin/manual-order-modal";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { formatCurrency } from "@/lib/utils";
 import { startOfDay, endOfDay, isBefore, isAfter } from "date-fns";
 
 const ITEMS_PER_PAGE_OPTIONS = [20, 50, 100, 200];
@@ -62,7 +63,26 @@ export default function OrdersPage() {
     enabled: !!storeId,
   });
 
+  // 3. Fetch Products for Manual Order Modal
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as any[]; // using any or Product
+    },
+    enabled: !!storeId,
+  });
+
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showManualOrderModal, setShowManualOrderModal] = useState(false);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
@@ -216,6 +236,14 @@ export default function OrdersPage() {
             </h1>
             <p className="text-zinc-500 text-sm">Manage customer orders</p>
           </div>
+          <div className="flex xl:hidden items-center gap-2">
+             <button
+                onClick={() => setShowManualOrderModal(true)}
+                className="p-2 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:scale-105 active:scale-95 transition-transform shadow-md"
+              >
+                <ShoppingBag size={18} />
+              </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 gap-y-3">
@@ -273,8 +301,14 @@ export default function OrdersPage() {
             />
           </div>
 
-          {/* Export Actions */}
-          <div data-tour="orders-export" className="relative ml-2 z-20">
+          {/* Export & Actions */}
+          <div data-tour="orders-export" className="relative ml-auto xl:ml-2 z-20 flex items-center gap-2">
+            <button
+              onClick={() => setShowManualOrderModal(true)}
+              className="hidden xl:flex h-9 px-4 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-white text-xs font-bold uppercase rounded-lg transition-colors items-center gap-2"
+            >
+              <ShoppingBag size={14} /> Add Order
+            </button>
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
               className="h-9 px-4 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-2"
@@ -367,7 +401,7 @@ export default function OrdersPage() {
 
                   <div className="flex items-center gap-6 text-right">
                     <div>
-                      <p className="font-bold">GHS {order.total.toFixed(2)}</p>
+                      <p className="font-bold">{formatCurrency(order.total)}</p>
                       <p className="text-xs text-zinc-400">
                         {order.items.length} items
                       </p>
@@ -472,6 +506,14 @@ export default function OrdersPage() {
           queryClient.invalidateQueries({ queryKey: ["orders", storeId] });
         }}
       />
+      
+      {showManualOrderModal && (
+        <ManualOrderModal
+          isOpen={showManualOrderModal}
+          onClose={() => setShowManualOrderModal(false)}
+          products={products}
+        />
+      )}
     </div>
   );
 }

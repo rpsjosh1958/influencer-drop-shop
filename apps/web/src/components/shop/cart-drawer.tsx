@@ -8,7 +8,7 @@ import { useRouter, useParams } from "next/navigation";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
-
+import { formatCurrency } from "@/lib/utils";
 export function CartDrawer() {
   const {
     cart,
@@ -92,7 +92,7 @@ export function CartDrawer() {
                           </p>
                         )}
                         <p className="text-zinc-500 text-sm">
-                          GHS {item.selectedVariant?.price || item.price}
+                          {formatCurrency(item.selectedVariant?.price || item.price)}
                         </p>
                       </div>
                       <div className="flex items-center justify-between">
@@ -160,7 +160,7 @@ export function CartDrawer() {
             <div className="p-6 border-t border-zinc-100 bg-zinc-50 space-y-4">
               <div className="flex items-center justify-between text-lg font-bold">
                 <span>Total</span>
-                <span>GHS {total.toFixed(2)}</span>
+                <span>{formatCurrency(total)}</span>
               </div>
               <button
                 onClick={() => {

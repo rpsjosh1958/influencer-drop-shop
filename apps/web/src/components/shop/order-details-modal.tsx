@@ -18,6 +18,7 @@ import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { useParams } from "next/navigation";
 import { useStore } from "./store-provider";
+import { formatCurrency } from "@/lib/utils";
 
 interface OrderItem {
   id: string;
@@ -261,19 +262,15 @@ export function OrderDetailsModal() {
                             </p>
                           )}
                           <p className="text-xs text-zinc-400 mt-1">
-                            Qty: {item.quantity} × GHS{" "}
-                            {(
-                              item.selectedVariant?.price || item.price
-                            ).toFixed(2)}
+                            Qty: {item.quantity} ×{" "}
+                            {formatCurrency(item.selectedVariant?.price || item.price)}
                           </p>
                         </div>
                         <div className="flex flex-col justify-center text-right">
                           <p className="font-bold text-sm">
-                            GHS{" "}
-                            {(
-                              (item.selectedVariant?.price || item.price) *
-                              item.quantity
-                            ).toFixed(2)}
+                            {formatCurrency(
+                              (item.selectedVariant?.price || item.price) * item.quantity
+                            )}
                           </p>
                         </div>
                       </div>
@@ -347,7 +344,7 @@ export function OrderDetailsModal() {
                   <div className="pt-6 border-t border-zinc-100 space-y-2">
                     <div className="flex justify-between text-lg font-black mt-4">
                       <span>TOTAL</span>
-                      <span>GHS {Number(order.total || 0).toFixed(2)}</span>
+                      <span>{formatCurrency(order.total || 0)}</span>
                     </div>
                   </div>
 

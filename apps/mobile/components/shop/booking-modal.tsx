@@ -67,6 +67,7 @@ import {
 import { useRouter } from "expo-router";
 import { TextInput } from "react-native";
 import { useAlert } from "@/context/alert-context";
+import { formatCurrency } from "@/lib/format";
 
 const { width } = Dimensions.get("window");
 
@@ -663,7 +664,7 @@ export function BookingModal({
                             Price
                           </P>
                           <H1 className="text-lg font-black">
-                            GHS {service.price.toFixed(2)}
+                            {formatCurrency(service.price)}
                           </H1>
                         </View>
                       </View>

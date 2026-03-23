@@ -33,6 +33,7 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { useStore } from "@/context/store-context";
 import { useQuery } from "@tanstack/react-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { formatCurrency } from "@/lib/format";
 
 export default function OrdersScreen() {
   const router = useRouter();
@@ -241,8 +242,8 @@ export default function OrdersScreen() {
                       </View>
                       <H1 className="text-lg font-black">
                         {typeof item.total === "number"
-                          ? `GHS ${item.total.toFixed(2)}`
-                          : "GHS 0.00"}
+                          ? formatCurrency(item.total)
+                          : formatCurrency(0)}
                       </H1>
                     </View>
 
@@ -320,7 +321,7 @@ export default function OrdersScreen() {
                         </H1>
                       </View>
                       <H1 className="text-lg font-black">
-                        GHS {item.servicePrice.toFixed(2)}
+                        {formatCurrency(item.servicePrice)}
                       </H1>
                     </View>
 

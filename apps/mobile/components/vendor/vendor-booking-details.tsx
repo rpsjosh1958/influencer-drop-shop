@@ -30,6 +30,7 @@ import {
   collection,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { formatCurrency } from "@/lib/format";
 
 interface VendorBookingDetailsProps {
   booking: any | null;
@@ -223,7 +224,7 @@ export function VendorBookingDetails({
                     Price
                   </P>
                   <H1 className="text-2xl font-black">
-                    GHS {booking.servicePrice?.toFixed(2)}
+                    {formatCurrency(booking.servicePrice)}
                   </H1>
                 </View>
               </View>

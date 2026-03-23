@@ -25,6 +25,7 @@ import { useShopUI } from "@/context/shop-ui-context";
 import { useParams } from "next/navigation";
 import { Booking, BookingStatus } from "@/types";
 import { format, parseISO } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -262,7 +263,7 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                           </p>
                         </div>
                         <p className="font-bold text-sm text-black">
-                          GHS {order.total.toFixed(2)}
+                          {formatCurrency(order.total)}
                         </p>
                       </div>
 
@@ -345,7 +346,7 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                         </div>
                       </div>
                       <p className="font-bold text-sm text-black">
-                        GHS {booking.servicePrice}
+                        {formatCurrency(booking.servicePrice)}
                       </p>
                     </div>
 

@@ -27,6 +27,7 @@ import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { Booking, BookingStatus, AvailabilitySettings } from "@/types";
 import { format, parseISO, differenceInHours } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<
   BookingStatus,
@@ -296,7 +297,7 @@ export function BookingDetailsModal() {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-black">
-                          GHS {booking.servicePrice}
+                          {formatCurrency(booking.servicePrice)}
                         </p>
                       </div>
                     </div>

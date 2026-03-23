@@ -1,6 +1,7 @@
 import { View, Modal, Pressable, ScrollView } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { X, Clock } from "lucide-react-native";
+import { formatCurrency } from "@/lib/format";
 
 interface ServiceDetailsModalProps {
   visible: boolean;
@@ -45,7 +46,7 @@ export function ServiceDetailsModal({
                 {service.name}
               </H1>
               <P className="text-zinc-500 font-bold">
-                GHS {service.price?.toFixed(2)}
+                {formatCurrency(service.price)}
               </P>
             </View>
 

@@ -37,9 +37,9 @@ import {
   runTransaction,
   increment,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
-
 import { useStore } from "@/context/store-context";
+import { formatCurrency } from "@/lib/format";
+import { onAuthStateChanged } from "firebase/auth";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
@@ -63,7 +63,7 @@ export default function CheckoutScreen() {
   const [user, setUser] = useState<any>(null);
 
   useMountEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
+    const unsub = onAuthStateChanged(auth, async (u: any) => {
       setUser(u);
       if (u) {
         // 1. Basic Auth Info
@@ -393,17 +393,16 @@ export default function CheckoutScreen() {
                         </View>
                       </View>
                       <P className="font-bold">
-                        GHS{" "}
-                        {(
+                        {formatCurrency(
                           (item.variant?.price || item.price) * item.quantity
-                        ).toFixed(2)}
+                        )}
                       </P>
                     </View>
                   ))}
                   <View className="h-px bg-zinc-200 my-2" />
                   <View className="flex-row justify-between items-center">
                     <P className="font-bold text-lg">Total</P>
-                    <P className="font-black text-xl">GHS {total.toFixed(2)}</P>
+                    <P className="font-black text-xl">{formatCurrency(total)}</P>
                   </View>
                 </View>
               </View>

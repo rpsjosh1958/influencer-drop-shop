@@ -22,6 +22,12 @@ export const processOrderWallet = async (
   orderData: any, // Typed as any for flexibility with Firestore data
   storeId: string
 ) => {
+  // Skip wallet processing for manually added orders (cash, DM, etc)
+  if (orderData.paymentMethod === "manual" || orderData.status === "manual") {
+    console.log(`Order ${orderId} is manual. Skipping wallet processing.`);
+    return;
+  }
+
   const db = admin.firestore();
   try {
     // 1. Fetch Store to check Plan

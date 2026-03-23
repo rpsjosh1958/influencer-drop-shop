@@ -14,6 +14,7 @@ import { LineChart, BarChart } from "react-native-gifted-charts";
 import { useVendor } from "@/context/vendor-context";
 import { format, subDays, startOfWeek, isWithinInterval, startOfMonth, startOfYear, subMonths } from "date-fns";
 import { MotiView, AnimatePresence } from "moti";
+import { formatCurrency } from "@/lib/format";
 
 const { width } = Dimensions.get("window");
 
@@ -30,8 +31,7 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
   const [range, setRange] = useState<TimeRange>("all");
   const [dataType, setDataType] = useState<DataType>("revenue");
 
-  const formatMoney = (amount: number) =>
-    `GHS ${amount.toLocaleString("en-GH", { minimumFractionDigits: 0 })}`;
+  const formatMoney = (amount: number) => formatCurrency(amount);
 
   const parseDate = (createdAt: any) => {
     if (!createdAt) return new Date();

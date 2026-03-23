@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Clock, Loader2, Briefcase } from "lucide-react";
 import { ServiceItem } from "@/types";
 import { BookingModal } from "./booking-modal";
+import { formatCurrency } from "@/lib/utils";
 
 interface ServiceCardProps {
   service: ServiceItem;
@@ -88,7 +89,7 @@ export function ServiceCard({
               }}
               className="w-full py-3 rounded-xl font-bold uppercase tracking-wide text-xs shadow-lg backdrop-blur-md transition-transform active:scale-95 bg-white/90 text-black hover:bg-white"
             >
-              Book Now — GHS {service.price}
+              Book Now — {formatCurrency(service.price)}
             </button>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { View, ScrollView, Pressable, Image, Alert } from "react-native";
+import { View, ScrollView, Pressable, Image, Alert, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
@@ -9,9 +9,10 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { router } from "expo-router";
 import { ServiceDetailsModal } from "@/components/vendor/service-details-modal";
+import { formatCurrency } from "@/lib/format";
 
 export default function VendorInventory() {
-  const { store, products } = useVendor();
+  const { store, products, loading, refreshStore } = useVendor();
   const [activeTab, setActiveTab] = useState<"products" | "services">(
     "products"
   );
@@ -108,7 +109,13 @@ export default function VendorInventory() {
         </Pressable>
       </View>
 
-      <ScrollView className="flex-1" contentContainerStyle={{ padding: 24 }}>
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ padding: 24 }}
+        refreshControl={
+          <RefreshControl refreshing={loading} onRefresh={refreshStore} />
+        }
+      >
         {activeTab === "products"
           ? products.map((p) => (
               <Pressable
@@ -128,7 +135,7 @@ export default function VendorInventory() {
                 <View className="flex-1 ml-4 justify-center">
                   <P className="font-bold text-base mb-1">{p.name}</P>
                   <P className="font-bold text-zinc-500">
-                    GHS {p.price?.toFixed(2)}
+                    {formatCurrency(p.price)}
                   </P>
                   <View className="flex-row items-center mt-2">
                     <View
@@ -155,7 +162,7 @@ export default function VendorInventory() {
                 <View className="flex-1 ml-4">
                   <P className="font-bold text-base">{s.name}</P>
                   <P className="text-zinc-500 text-xs mt-1">
-                    {s.duration} minutes • GHS {s.price?.toFixed(2)}
+                    {s.duration} minutes • {formatCurrency(s.price)}
                   </P>
                 </View>
               </Pressable>

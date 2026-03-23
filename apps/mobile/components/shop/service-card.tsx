@@ -3,6 +3,7 @@ import { MotiView, MotiImage } from "moti";
 import { P, H2 } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
 import { Ionicons } from "@expo/vector-icons";
+import { formatCurrency } from "@/lib/format";
 
 export type ServiceItem = {
   id: string;
@@ -81,8 +82,8 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
             <View className="bg-white/90 rounded-xl py-3 items-center">
               <P className="text-xs font-bold uppercase tracking-wide text-black">
                 {isCompact
-                  ? `GHS ${service.price}`
-                  : `Book Now — GHS ${service.price}`}
+                  ? formatCurrency(service.price)
+                  : `Book Now — ${formatCurrency(service.price)}`}
               </P>
             </View>
           </View>

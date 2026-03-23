@@ -15,6 +15,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ReviewForm } from "./review-form";
 import { Order } from "../../types";
+import { formatCurrency } from "@/lib/format";
 
 interface OrderDetailsModalProps {
   order: Order | null;
@@ -147,7 +148,7 @@ export function OrderDetailsModal({
                     Total
                   </P>
                   <H1 className="text-2xl font-black">
-                    GHS {order.total.toFixed(2)}
+                    {formatCurrency(order.total)}
                   </H1>
                 </View>
               </View>
@@ -222,15 +223,14 @@ export function OrderDetailsModal({
                         </P>
                       )}
                       <P className="text-zinc-500 text-sm mt-1">
-                        Qty: {item.quantity} × GHS{" "}
-                        {(item.selectedVariant?.price || item.price).toFixed(2)}
+                        Qty: {item.quantity} ×{" "}
+                        {formatCurrency(item.selectedVariant?.price || item.price)}
                       </P>
                       <P className="font-semibold text-sm mt-1">
-                        GHS{" "}
-                        {(
+                        {formatCurrency(
                           (item.selectedVariant?.price || item.price) *
                           item.quantity
-                        ).toFixed(2)}
+                        )}
                       </P>
                     </View>
                   </View>

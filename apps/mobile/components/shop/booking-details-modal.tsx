@@ -37,6 +37,7 @@ import {
 } from "../../../web/src/types";
 import { differenceInHours, parseISO } from "date-fns";
 import { useAlert } from "@/context/alert-context";
+import { formatCurrency } from "@/lib/format";
 
 interface BookingDetailsModalProps {
   booking: (Booking & { storeName?: string }) | null;
@@ -285,7 +286,7 @@ export function BookingDetailsModal({
                     Price
                   </P>
                   <H1 className="text-2xl font-black">
-                    GHS {booking.servicePrice.toFixed(2)}
+                    {formatCurrency(booking.servicePrice)}
                   </H1>
                 </View>
               </View>

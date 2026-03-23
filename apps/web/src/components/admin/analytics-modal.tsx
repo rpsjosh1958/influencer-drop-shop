@@ -36,6 +36,8 @@ import {
   startOfYear,
   subMonths,
 } from "date-fns";
+import { formatCurrency } from "@/lib/utils";
+import { Portal } from "@/components/ui/portal";
 
 interface AnalyticsModalProps {
   isOpen: boolean;
@@ -71,8 +73,7 @@ export function AnalyticsModal({
     return () => setMounted(false);
   }, []);
 
-  const formatMoney = (amount: number) =>
-    `GHS ${amount.toLocaleString("en-GH", { minimumFractionDigits: 0 })}`;
+  const formatMoney = (amount: number) => formatCurrency(amount);
 
   const parseDate = (createdAt: any) => {
     if (!createdAt) return new Date();

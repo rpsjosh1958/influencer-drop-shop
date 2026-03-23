@@ -2,6 +2,7 @@ import { Pressable, View } from "react-native";
 import { MotiView, MotiImage } from "moti";
 import { P, H2 } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
+import { formatCurrency } from "@/lib/format";
 
 export type Product = {
   id: string;
@@ -85,28 +86,25 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
           )}
         </View>
 
-        <View className="px-1 space-y-1">
-          <View className="flex-row justify-between items-start">
-            <H2
-              className="text-base font-bold leading-tight flex-1 mr-2"
-              numberOfLines={1}
-              style={{ color: primaryColor }}
-            >
-              {product.name}
-            </H2>
-            <P className="font-medium" style={{ color: primaryColor }}>
-              GHS {product.price.toFixed(2)}
-            </P>
-          </View>
+        <View className="px-1 space-y-1 mt-1">
+          <H2
+            className="text-base font-black leading-tight"
+            numberOfLines={1}
+            style={{ color: primaryColor }}
+          >
+            {product.name}
+          </H2>
+          
+          <P className="font-bold text-sm" style={{ color: primaryColor }}>
+            {formatCurrency(product.price)}
+          </P>
 
-          <View className="flex-row items-center justify-between">
-            <P
-              className="text-zinc-500 text-xs line-clamp-1 flex-1 mr-2"
-              numberOfLines={1}
-            >
-              {product.description || ""}
-            </P>
-          </View>
+          <P
+            className="text-zinc-500 text-xs line-clamp-1"
+            numberOfLines={1}
+          >
+            {product.description || ""}
+          </P>
         </View>
       </Pressable>
     </MotiView>

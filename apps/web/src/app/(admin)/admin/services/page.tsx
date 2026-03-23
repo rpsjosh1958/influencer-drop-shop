@@ -30,7 +30,9 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { Tooltip } from "@/components/ui/tooltip";
+import { Portal } from "@/components/ui/portal";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { formatCurrency } from "@/lib/utils";
 
 export default function ServicesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -295,7 +297,7 @@ export default function ServicesPage() {
 
                 <div className="flex items-center gap-4 text-sm">
                   <div className="flex items-center gap-1 text-zinc-600">
-                    <span className="font-bold">GHS {service.price}</span>
+                    <span className="font-bold">{formatCurrency(service.price)}</span>
                   </div>
                   <div className="flex items-center gap-1 text-zinc-600">
                     <Clock size={14} />
@@ -354,6 +356,7 @@ export default function ServicesPage() {
       )}
 
       {/* Modal */}
+      <Portal>
       <AnimatePresence>
         {modalOpen && (
           <motion.div
@@ -536,6 +539,7 @@ export default function ServicesPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </Portal>
     </div>
   );
 }

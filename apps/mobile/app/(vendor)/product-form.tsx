@@ -195,7 +195,7 @@ export default function ProductFormScreen() {
   });
 
   // 2. Fetch Initial Data (If Edit)
-  useMountEffect(() => {
+  useEffect(() => {
     if (isEditing && store?.id) {
       const fetchProduct = async () => {
         try {
@@ -224,8 +224,19 @@ export default function ProductFormScreen() {
       };
 
       fetchProduct();
+    } else if (!isEditing) {
+      setName("");
+      setDescription("");
+      setPrice("");
+      setStock("");
+      setImages([]);
+      setCategory("");
+      setHasVariants(false);
+      setOptions([]);
+      setVariants([]);
+      setFetching(false);
     }
-  });
+  }, [isEditing, store?.id, id]);
 
   // --- IMAGES ---
   const pickImage = async () => {
@@ -370,8 +381,10 @@ export default function ProductFormScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView className="flex-1 p-6">
+        <ScrollView 
+          className="flex-1 p-6"
+          keyboardShouldPersistTaps="handled"
+        >
             {/* Images */}
             <View className="mb-8">
               <P className="text-xs font-bold text-zinc-400 uppercase mb-3">
@@ -626,7 +639,6 @@ export default function ProductFormScreen() {
 
             <View className="h-20" />
           </ScrollView>
-        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
       {/* Footer Save */}

@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useCallback,
+  useRef,
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight, Check, HelpCircle } from "lucide-react";
@@ -474,6 +475,9 @@ export function OnboardingProvider({
   const [seenTutorials, setSeenTutorials] = useState<Record<string, boolean>>(
     {},
   );
+  const seenTutorialsRef = useRef<Record<string, boolean>>({});
+  const justExitedRef = useRef(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -484,51 +488,66 @@ export function OnboardingProvider({
       try {
         const userDoc = await getDoc(doc(db, "users", auth.currentUser!.uid));
         if (userDoc.exists()) {
-          setSeenTutorials(userDoc.data().seenAdminTutorials || {});
+          const seen = userDoc.data().seenAdminTutorials || {};
+          setSeenTutorials(seen);
+          seenTutorialsRef.current = seen;
         }
+        setHasInitialized(true);
       } catch (e) {
         console.error("Failed to fetch tutorial status", e);
+        setHasInitialized(true); // Still initialize to prevent block
       }
     };
     fetchTutorialStatus();
   }, [auth.currentUser]);
 
   // 2. Automatic Trigger Logic
+  // NOTE: seenTutorials is read from ref to avoid re-triggering this effect on exit
   useEffect(() => {
-    if (!auth.currentUser || isActive) return;
+    if (!auth.currentUser || isActive || !hasInitialized) return;
+
+    // Cooldown: prevent immediate re-trigger after exiting a tutorial
+    if (justExitedRef.current) {
+      justExitedRef.current = false;
+      return;
+    }
 
     // Don't show the tutorial on mobile — the dialogue box is not mobile-responsive
     if (typeof window !== "undefined" && window.innerWidth < 768) return;
 
+    const seen = seenTutorialsRef.current;
     const currentCategory = PATH_TO_CATEGORY[pathname];
 
     if (pathname.startsWith("/admin/")) {
       // Priority 1: Sidebar (Always first if never seen)
-      if (!seenTutorials["sidebar"]) {
+      if (!seen["sidebar"]) {
         const timer = setTimeout(() => {
           const index = TUTORIAL_STEPS.findIndex(
             (s) => s.category === "sidebar",
           );
-          setCurrentStep(index);
-          setIsActive(true);
+          if (index !== -1) {
+            setCurrentStep(index);
+            setIsActive(true);
+          }
         }, 2000);
         return () => clearTimeout(timer);
       }
       // Priority 2: Page-specific tutorial
-      else if (currentCategory && !seenTutorials[currentCategory]) {
-        // If we just finished sidebar, trigger next one faster (500ms instead of 2000ms)
-        const delay = seenTutorials["sidebar"] ? 500 : 2000;
+      else if (currentCategory && !seen[currentCategory]) {
+        const delay = 1500;
         const timer = setTimeout(() => {
           const index = TUTORIAL_STEPS.findIndex(
             (s) => s.category === currentCategory,
           );
-          setCurrentStep(index);
-          setIsActive(true);
+          if (index !== -1) {
+            setCurrentStep(index);
+            setIsActive(true);
+          }
         }, delay);
         return () => clearTimeout(timer);
       }
     }
-  }, [pathname, auth.currentUser, seenTutorials, isActive]);
+  }, [pathname, hasInitialized]);
 
   const updateTargetRect = useCallback(() => {
     const step = TUTORIAL_STEPS[currentStep];
@@ -629,11 +648,13 @@ export function OnboardingProvider({
 
   const exitTutorial = async () => {
     const currentCategory = TUTORIAL_STEPS[currentStep].category;
+    justExitedRef.current = true;
     setIsActive(false);
 
     if (auth.currentUser) {
       try {
         const newSeen = { ...seenTutorials, [currentCategory]: true };
+        seenTutorialsRef.current = newSeen;
         await updateDoc(doc(db, "users", auth.currentUser.uid), {
           seenAdminTutorials: newSeen,
         });
