@@ -10,6 +10,7 @@ import {
   getDoc,
   orderBy,
   query,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Product } from "@/types";
@@ -27,7 +28,7 @@ import { AdminProductTable } from "@/components/admin/product-table";
 import { AdminProductCardMobile } from "@/components/admin/product-card-mobile";
 
 // Lucide Icons Import Fix
-import { Plus as PlusIcon, Trash2 as TrashIcon, Download as DownloadIcon, Share2 as ShareIcon, Loader2 } from "lucide-react";
+import { Plus as PlusIcon, Trash2 as TrashIcon, Download as DownloadIcon, Share2 as ShareIcon, Loader2, Search } from "lucide-react";
 
 export default function ProductsPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -45,28 +46,43 @@ export default function ProductsPage() {
     enabled: !!storeId,
   });
 
-  const isLive = storeData?.status === "live";
-  const storeSlug = storeData?.slug || "";
-  const storeName = storeData?.name || "Store";
-  const storeLogo = storeData?.logo || "";
-
-  // 2. Fetch Products (Query)
-  const { data: products = [], isLoading: productsLoading } = useQuery({
-    queryKey: ["products", storeId],
-    queryFn: async () => {
-      if (!storeId) return [];
-      const q = query(
-        collection(db, "stores", storeId, "products"),
-        orderBy("createdAt", "desc")
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Product[];
-    },
-    enabled: !!storeId,
-  });
+   const isLive = storeData?.status === "live";
+   const storeSlug = storeData?.slug || "";
+   const storeName = storeData?.name || "Store";
+   const storeLogo = storeData?.logo || "";
+   
+   // Search State
+   const [searchTerm, setSearchTerm] = useState("");
+   
+   // 2. Fetch Products (Query) - always fetch all products for client-side filtering
+   // We'll handle search client-side for immediate feedback
+   const { data: allProducts = [], isLoading: productsLoading } = useQuery({
+     queryKey: ["products", storeId],
+     queryFn: async () => {
+       if (!storeId) return [];
+       const q = query(
+         collection(db, "stores", storeId, "products"),
+         orderBy("createdAt", "desc")
+       );
+       const snapshot = await getDocs(q);
+       return snapshot.docs.map((doc) => ({
+         id: doc.id,
+         ...doc.data(),
+       })) as Product[];
+     },
+     enabled: !!storeId,
+   });
+   
+   // Client-side filtered products (for immediate feedback as user types)
+   const products = useMemo(() => {
+     if (!searchTerm) return allProducts;
+     
+     // Case-insensitive search for better UX
+     const searchLower = searchTerm.toLowerCase();
+     return allProducts.filter(product => 
+       product.name.toLowerCase().includes(searchLower)
+     );
+   }, [allProducts, searchTerm]);
 
   // 3. Delete Mutation
   const deleteMutation = useMutation({
@@ -222,57 +238,66 @@ export default function ProductsPage() {
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            Inventory
-            <HelpTrigger category="products" />
-          </h1>
-          <p className="text-zinc-500">Manage your drop items</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {(selectedIds.length > 0 || currentStepTarget === "products-bulk") && (
-            <div 
-              data-tour="products-bulk"
-              className={cn(
-                "flex items-center gap-2 transition-all",
-                selectedIds.length === 0 && "opacity-50 pointer-events-none"
-              )}
-            >
-              <button
-                onClick={handleBulkDownload}
-                disabled={generatingBulk}
-                className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-white px-4 py-2 rounded-xl font-bold hover:bg-black transition-colors animate-in fade-in zoom-in disabled:opacity-50"
-              >
-                <DownloadIcon
-                  size={18}
-                  className={generatingBulk ? "animate-bounce" : ""}
-                />
-                {generatingBulk
-                  ? "Generating..."
-                  : `Download Images (${selectedIds.length})`}
-              </button>
-
-              <button
-                onClick={handleBulkDelete}
-                disabled={isBulkDeleting}
-                className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-colors animate-in fade-in zoom-in"
-              >
-                {isBulkDeleting ? <Loader2 className="animate-spin" size={18} /> : <TrashIcon size={18} />}
-                Delete ({selectedIds.length})
-              </button>
+       <div className="flex items-center justify-between">
+         <div>
+           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+             Inventory
+             <HelpTrigger category="products" />
+           </h1>
+           <p className="text-zinc-500">Manage your drop items</p>
+         </div>
+         <div className="flex items-center gap-4 md:gap-6">
+            <div className="relative w-48 md:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products..."
+                className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-sm focus:ring-2 focus:ring-black focus:border-black outline-none"
+              />
             </div>
-          )}
-          <button
-            data-tour="products-add"
-            onClick={handleAdd}
-            className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity"
-          >
-            <PlusIcon size={20} />
-            Add Product
-          </button>
-        </div>
-      </div>
+           {(selectedIds.length > 0 || currentStepTarget === "products-bulk") && (
+             <div 
+               data-tour="products-bulk"
+               className={cn(
+                 "flex items-center gap-2 transition-all",
+                 selectedIds.length === 0 && "opacity-50 pointer-events-none"
+               )}
+             >
+               <button
+                 onClick={handleBulkDownload}
+                 disabled={generatingBulk}
+                 className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-white px-4 py-2 rounded-xl font-bold hover:bg-black transition-colors animate-in fade-in zoom-in disabled:opacity-50"
+               >
+                 <DownloadIcon
+                   size={18}
+                   className={generatingBulk ? "animate-bounce" : ""}
+                 />
+                 {generatingBulk
+                   ? "Generating..."
+                   : `Download Images (${selectedIds.length})`}
+               </button>
+ 
+               <button
+                 onClick={handleBulkDelete}
+                 disabled={isBulkDeleting}
+                 className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-colors animate-in fade-in zoom-in"
+               >
+                 {isBulkDeleting ? <Loader2 className="animate-spin" size={18} /> : <TrashIcon size={18} />}
+                 Delete ({selectedIds.length})
+               </button>
+             </div>
+           )}
+           <button
+             data-tour="products-add"
+             onClick={handleAdd}
+             className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity"
+           >
+             <PlusIcon size={20} />
+             Add Product
+           </button>
+         </div>
+       </div>
 
       {loading ? (
         <div className="space-y-4">

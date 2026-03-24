@@ -155,7 +155,7 @@ export function ProductCard({
         </div>
 
         <div className="space-y-1 px-2">
-          <h3 className="text-lg font-bold tracking-tight">{product.name}</h3>
+          <h3 className="text-lg font-bold tracking-tight truncate">{product.name}</h3>
           <div className="flex items-center justify-between">
             <p className="text-zinc-500 text-sm line-clamp-1">
               {product.description}

@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Order } from "@/types";
+import { formatCurrency } from "@/lib/utils";
 
 interface ExportOptions {
   fileName?: string;
@@ -82,6 +83,8 @@ export const generateOrdersPDF = (orders: Order[], options: ExportOptions) => {
         row[col.header] = order.items
           .map((i) => `${i.quantity}x ${i.name}`)
           .join("\n");
+      } else if (col.dataKey === "total") {
+        row[col.header] = formatCurrency(order.total || 0).replace(/GH[₵\u20B5]/g, "GHS");
       } else {
         row[col.header] = order[col.dataKey] || "-";
       }
@@ -175,7 +178,7 @@ export const generateFinancePDF = (
   doc.setFont("helvetica", "bold");
   doc.setTextColor(0, 128, 0); // Green
   doc.text(
-    `${options.currency || "GHS"} ${options.totalEarned.toFixed(2)}`,
+    formatCurrency(options.totalEarned).replace(/GH[₵\u20B5]/g, "GHS"),
     20,
     yPos + 20
   );
@@ -189,9 +192,7 @@ export const generateFinancePDF = (
       : "-",
     tx.description || "Transaction",
     tx.type?.toUpperCase() || "-",
-    `${tx.type === "credit" ? "+" : "-"} ${options.currency || "GHS"} ${
-      tx.amount?.toFixed(2) || "0.00"
-    }`,
+    `${tx.type === "credit" ? "+" : "-"} ${formatCurrency(tx.amount || 0).replace(/GH[₵\u20B5]/g, "GHS")}`,
     tx.status?.toUpperCase() || "-",
   ]);
 

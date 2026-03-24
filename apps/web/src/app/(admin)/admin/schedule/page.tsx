@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
-import { Loader2, Clock, Calendar, Plus, Trash2, Save, X } from "lucide-react";
+import { Loader2, Clock, Calendar, Plus, Trash2, Save, X, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DaySchedule, TimeSlot, AvailabilitySettings } from "@/types";
 import DatePicker from "react-datepicker";
@@ -49,10 +49,10 @@ export default function SchedulePage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
 
-  const [schedule, setSchedule] =
-    useState<AvailabilitySettings["schedule"]>(DEFAULT_SCHEDULE);
-  const [blockedDates, setBlockedDates] = useState<string[]>([]);
-  const [cancellationHours, setCancellationHours] = useState(24);
+   const [schedule, setSchedule] =
+     useState<AvailabilitySettings["schedule"]>(DEFAULT_SCHEDULE);
+   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+   const [cancellationHours, setCancellationHours] = useState(24);
 
   // Fetch existing availability
   useEffect(() => {
@@ -153,9 +153,22 @@ export default function SchedulePage() {
     }));
   };
 
-  const removeBlockedDate = (date: string) => {
-    setBlockedDates((prev) => prev.filter((d) => d !== date));
-  };
+   const removeBlockedDate = (date: string) => {
+     setBlockedDates((prev) => prev.filter((d) => d !== date));
+   };
+
+    const copyDayToOthers = (dayToCopy: string) => {
+      const template = schedule[dayToCopy as keyof typeof schedule];
+      setSchedule((prev) => {
+        const newSchedule = { ...prev };
+        DAYS.forEach((day) => {
+          if (day !== dayToCopy) {
+            newSchedule[day] = template;
+          }
+        });
+        return newSchedule;
+      });
+    };
 
   if (storeLoading || loading) {
     return (
@@ -204,22 +217,22 @@ export default function SchedulePage() {
         )}
       </AnimatePresence>
 
-      {/* Working Hours */}
-      <div
-        data-tour="schedule-hours"
-        className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-100 rounded-xl">
-            <Clock className="text-blue-600" size={20} />
-          </div>
-          <div>
-            <h2 className="text-lg text-black font-bold">Working Hours</h2>
-            <p className="text-sm text-zinc-500">
-              Set your available time slots for each day.
-            </p>
-          </div>
-        </div>
+       {/* Working Hours */}
+       <div
+         data-tour="schedule-hours"
+         className="bg-white rounded-3xl border border-zinc-200 p-6 space-y-4"
+       >
+         <div className="flex items-center gap-3 mb-4">
+           <div className="p-2 bg-blue-100 rounded-xl">
+             <Clock className="text-blue-600" size={20} />
+           </div>
+           <div>
+             <h2 className="text-lg text-black font-bold">Working Hours</h2>
+             <p className="text-sm text-zinc-500">
+               Set your available time slots for each day.
+             </p>
+           </div>
+         </div>
 
         <div className="space-y-3">
           {DAYS.map((day) => {
@@ -266,39 +279,50 @@ export default function SchedulePage() {
                   )}
                 </div>
 
-                {daySchedule.enabled && daySchedule.slots.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {daySchedule.slots.map((slot, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="time"
-                          value={slot.start}
-                          onChange={(e) =>
-                            updateSlot(day, idx, "start", e.target.value)
-                          }
-                          className="px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
-                        />
-                        <span className="text-zinc-400">to</span>
-                        <input
-                          type="time"
-                          value={slot.end}
-                          onChange={(e) =>
-                            updateSlot(day, idx, "end", e.target.value)
-                          }
-                          className="px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
-                        />
-                        {daySchedule.slots.length > 1 && (
-                          <button
-                            onClick={() => removeSlot(day, idx)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                 <div className="flex items-center justify-between mb-2">
+                   <div className="flex items-center gap-2">
+                     {daySchedule.enabled && daySchedule.slots.length > 0 && (
+                       <div className="mt-3 space-y-2">
+                         {daySchedule.slots.map((slot, idx) => (
+                           <div key={idx} className="flex items-center gap-2">
+                             <input
+                               type="time"
+                               value={slot.start}
+                               onChange={(e) =>
+                                 updateSlot(day, idx, "start", e.target.value)
+                               }
+                               className="px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
+                             />
+                             <span className="text-zinc-400">to</span>
+                             <input
+                               type="time"
+                               value={slot.end}
+                               onChange={(e) =>
+                                 updateSlot(day, idx, "end", e.target.value)
+                               }
+                               className="px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
+                             />
+                             {daySchedule.slots.length > 1 && (
+                               <button
+                                 onClick={() => removeSlot(day, idx)}
+                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                               >
+                                 <Trash2 size={16} />
+                               </button>
+                             )}
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+                   <button
+                     onClick={() => copyDayToOthers(day)}
+                     disabled={!daySchedule.enabled || daySchedule.slots.length === 0}
+                     className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded hover:text-blue-800 transition-colors disabled:opacity-50"
+                   >
+                     <Copy size={16} />
+                   </button>
+                 </div>
               </div>
             );
           })}

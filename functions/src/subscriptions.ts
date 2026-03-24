@@ -4,7 +4,7 @@ import * as logger from "firebase-functions/logger";
 
 /**
  * Scheduled Job: Check for Expired Subscriptions
- * Frequency: Every 24 hours
+ * Frequency: Every hour
  * Action: Downgrades expired "growth" plans to "starter" and removes verification.
  */
 export const checkSubscriptionExpiry = onSchedule(
