@@ -269,15 +269,16 @@ function DynamicSidebar({
     <>
       {/* MOBILE HEADER - Visible only on mobile */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-4 z-40 w-full">
-        <div className="flex-1 truncate pr-4 pt-4">
-          <StoreSwitcher />
-        </div>
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="p-2 -mr-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
+          className="p-2 -ml-2 mr-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg"
         >
           <Menu size={24} />
         </button>
+        {/* CHANGED FROM: "flex-1 truncate" */}
+        <div className="flex-1 min-w-0">
+          <StoreSwitcher />
+        </div>
       </div>
 
       {/* MOBILE DRAWER / SHEET */}
@@ -292,7 +293,8 @@ function DynamicSidebar({
           {/* Drawer Content */}
           <div className="absolute top-0 bottom-0 left-0 w-[280px] bg-white dark:bg-zinc-900 shadow-xl animate-in slide-in-from-left duration-200 flex flex-col">
             <div className="p-4 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
-              <div className="flex-1 truncate pr-4 pt-4">
+              {/* CHANGED FROM: "flex-1 truncate pr-4 pt-4" */}
+              <div className="flex-1 min-w-0 pr-4 pt-4">
                 <StoreSwitcher />
               </div>
               <button

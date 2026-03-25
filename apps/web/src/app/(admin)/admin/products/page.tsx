@@ -238,22 +238,23 @@ export default function ProductsPage() {
         ))}
       </div>
 
-       <div className="flex items-center justify-between">
-         <div>
-           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-             Inventory
-             <HelpTrigger category="products" />
-           </h1>
-           <p className="text-zinc-500">Manage your drop items</p>
-         </div>
-         <div className="flex items-center gap-4 md:gap-6">
-            <div className="relative w-48 md:w-64">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            Inventory
+            <HelpTrigger category="products" />
+          </h1>
+          <p className="text-zinc-500">Manage your drop items</p>
+        </div>
+        <div className="flex items-center gap-4 md:gap-6">
+            {/* Desktop search */}
+            <div className="hidden md:block relative w-48 md:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
               <input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search products..."
-                className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-sm focus:ring-2 focus:ring-black focus:border-black outline-none"
+                className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
               />
             </div>
            {(selectedIds.length > 0 || currentStepTarget === "products-bulk") && (
@@ -296,6 +297,19 @@ export default function ProductsPage() {
              <PlusIcon size={20} />
              Add Product
            </button>
+          </div>
+       </div>
+
+       {/* Mobile search: under header, before mobile select-all */}
+       <div className="md:hidden mt-2">
+         <div className="relative w-full">
+           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+           <input
+             value={searchTerm}
+             onChange={(e) => setSearchTerm(e.target.value)}
+             placeholder="Search products..."
+             className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
+           />
          </div>
        </div>
 

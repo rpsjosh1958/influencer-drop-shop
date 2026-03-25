@@ -690,6 +690,16 @@ export default function CreateStoreWizard() {
           </motion.div>
         </div>
       </motion.div>
+
+      {/* Success Modal shown after store creation */}
+      <StoreSuccessModal
+        isOpen={showSuccessModal}
+        onContinue={() => {
+          setShowSuccessModal(false);
+          router.push("/admin/dashboard");
+        }}
+        userEmail={formData.email || user?.email || ""}
+      />
     </div>
   );
 }

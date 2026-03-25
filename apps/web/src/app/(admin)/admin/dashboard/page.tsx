@@ -24,6 +24,7 @@ import {
   ShoppingBag,
   Award,
   TrendingUp,
+  ExternalLink,
 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
@@ -405,6 +406,17 @@ export default function AdminDashboard() {
               <BadgeCheck className="w-6 h-6 text-blue-500 fill-blue-500/10" />
             )}
             <HelpTrigger category="dashboard" />
+            {storeId && (
+              <a
+                href={`/shop/${storeId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900 ml-1"
+              >
+                <ExternalLink size={12} />
+                <span>View Store</span>
+              </a>
+            )}
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Real-time command center
