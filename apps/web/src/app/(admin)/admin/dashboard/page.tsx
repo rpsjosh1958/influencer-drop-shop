@@ -53,23 +53,36 @@ interface BookingData {
   [key: string]: any;
 }
 
+interface ActivityItem {
+  id: string;
+  type: 'order' | 'booking';
+  customerName?: string;
+  customerEmail?: string;
+  amount?: number;
+  itemsCount?: number;
+  serviceName?: string;
+  createdAt: any;
+}
+
 export default function AdminDashboard() {
   const { storeId, loading: storeLoading } = useAdminStore();
   const [storeName, setStoreName] = useState("");
   const [isVerified, setIsVerified] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [storeType, setStoreType] = useState<"products" | "services" | "both">("both");
   const [loading, setLoading] = useState(true);
   const [revenue, setRevenue] = useState(0);
   const [ordersCount, setOrdersCount] = useState(0);
+  const [bookingsCount, setBookingsCount] = useState(0);
   const [allOrders, setAllOrders] = useState<OrderData[]>([]);
   const [recentOrders, setRecentOrders] = useState<OrderData[]>([]);
+  const [recentBookings, setRecentBookings] = useState<BookingData[]>([]);
   const [products, setProducts] = useState<ProductData[]>([]);
-  const [bookings, setBookings] = useState<BookingData[]>([]);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [toggling, setToggling] = useState(false);
-
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [activeSalesIndex, setActiveSalesIndex] = useState(0);
 
   // Real-time listener for Store Config
   useEffect(() => {
@@ -81,66 +94,98 @@ export default function AdminDashboard() {
         setIsLive(data.status === "live");
         setStoreName(data.name);
         setIsVerified(!!data.isVerified);
+        // Set store type flags
+        setStoreType(data.storeType || 'both'); // Default to both if not set
       }
       setLoading(false);
     });
     return () => unsub();
   }, [storeId]);
 
-  // Real-time listener for Metrics & Recent Orders
-  useEffect(() => {
-    if (!storeId) return;
+   // Real-time listener for Metrics & Recent Orders
+   useEffect(() => {
+     if (!storeId) return;
 
-    const q = query(
-      collection(db, "stores", storeId, "orders"),
-      orderBy("createdAt", "desc")
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      let totalRev = 0;
-      let count = 0;
-      const recent: any[] = [];
-      const all: any[] = [];
+     const ordersQ = query(
+       collection(db, "stores", storeId, "orders"),
+       orderBy("createdAt", "desc")
+     );
+     const ordersUnsub = onSnapshot(ordersQ, (snapshot) => {
+       let totalRev = 0;
+       let ordersCount = 0;
+       const recentOrders: any[] = [];
+       const allOrders: any[] = [];
 
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const orderData = { id: doc.id, ...data } as OrderData;
-        all.push(orderData);
+       snapshot.forEach((doc) => {
+         const data = doc.data();
+         const orderData = { id: doc.id, ...data } as OrderData;
+         allOrders.push(orderData);
 
-        const isPaidOrFulfilled = [
-          "paid",
-          "processing",
-          "packaged",
-          "sent-out",
-          "shipped",
-          "delivered",
-          "completed",
-        ].includes(data.status);
+         const isPaidOrFulfilled = [
+           "paid",
+           "processing",
+           "packaged",
+           "sent-out",
+           "shipped",
+           "delivered",
+           "completed",
+         ].includes(data.status);
 
-        if (isPaidOrFulfilled) {
-          let matchesMonth = true;
-          if (selectedMonth && data.createdAt) {
-            const date = data.createdAt.toDate();
-            const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-            if (monthKey !== selectedMonth) matchesMonth = false;
-          }
+         if (isPaidOrFulfilled) {
+           let matchesMonth = true;
+           if (selectedMonth && data.createdAt) {
+             const date = data.createdAt.toDate();
+             const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+             if (monthKey !== selectedMonth) matchesMonth = false;
+           }
 
-          if (matchesMonth) {
-            totalRev += data.total || 0;
-            count++;
-          }
-        }
+           if (matchesMonth) {
+             totalRev += data.total || 0;
+             ordersCount++;
+           }
+         }
 
-        if (recent.length < 5) {
-          recent.push(orderData);
-        }
-      });
-      setRevenue(totalRev);
-      setOrdersCount(count);
-      setRecentOrders(recent);
-      setAllOrders(all);
-    });
-    return () => unsub();
-  }, [storeId, selectedMonth]);
+         if (recentOrders.length < 5) {
+           recentOrders.push(orderData);
+         }
+       });
+       setRevenue(totalRev);
+       setOrdersCount(ordersCount);
+       setRecentOrders(recentOrders);
+       setAllOrders(allOrders);
+     });
+
+     // Real-time listener for Bookings
+     const bookingsQ = query(
+       collection(db, "stores", storeId, "bookings"),
+       orderBy("createdAt", "desc")
+     );
+     const bookingsUnsub = onSnapshot(bookingsQ, (snapshot) => {
+       const recentBookings: any[] = [];
+       let bookingsCount = 0;
+
+       snapshot.forEach((doc) => {
+         const data = doc.data();
+         const bookingData = { id: doc.id, ...data } as BookingData;
+         
+         // Count bookings that are confirmed or pending (active bookings)
+         if (["confirmed", "pending"].includes(data.status)) {
+           bookingsCount++;
+         }
+
+         if (recentBookings.length < 5) {
+           recentBookings.push(bookingData);
+         }
+       });
+       setBookingsCount(bookingsCount);
+       setRecentBookings(recentBookings);
+     });
+
+     return () => {
+       ordersUnsub();
+       bookingsUnsub();
+     };
+   }, [storeId, selectedMonth]);
 
   // Real-time listener for Inventory Summary
   useEffect(() => {
@@ -157,75 +202,168 @@ export default function AdminDashboard() {
     return () => unsub();
   }, [storeId]);
 
-  // Bookings Listener
+   // Bookings Listener
+   useEffect(() => {
+     if (!storeId) return;
+     const q = query(collection(db, "stores", storeId, "bookings"), orderBy("createdAt", "desc"));
+     const unsub = onSnapshot(q, (snapshot) => {
+       setRecentBookings(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as BookingData[]);
+       // Update total bookings count
+       setBookingsCount(snapshot.docs.length);
+     });
+     return () => unsub();
+   }, [storeId]);
+
+   // Insights Logic (Matching Mobile)
+   const insights = useMemo(() => {
+     const activeOrdersCount = allOrders.filter(o => ["paid", "processing", "packaged"].includes(o.status)).length;
+     const lowStockCount = products.filter(p => p.stock > 0 && p.stock <= 5).length;
+     const pendingBookings = recentBookings.filter(b => b.status === "pending").length;
+     const totalBookings = bookingsCount;
+
+     // Top Product logic for all time
+     const prodMap: Record<string, number> = {};
+     allOrders.forEach(o => {
+         o.items?.forEach((item: any) => {
+             prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
+         });
+     });
+     const topProduct = Object.entries(prodMap).sort((a,b) => b[1] - a[1])[0];
+
+     const list = [
+       {
+         label: "Total Sales",
+         value: allOrders.length.toString(),
+         icon: <TrendingUp className="w-4 h-4 text-blue-500" />,
+         color: "text-blue-600",
+       },
+       {
+         label: "Active Orders",
+         value: activeOrdersCount.toString(),
+         icon: <ShoppingBag className="w-4 h-4 text-blue-500" />,
+         color: "text-blue-600",
+       },
+     ];
+
+     if (topProduct) {
+         list.push({
+             label: "Popular Item",
+             value: topProduct[0],
+             icon: <Award className="w-4 h-4 text-green-500" />,
+             color: "text-green-600",
+         });
+     }
+
+     if (lowStockCount > 0) {
+       list.push({
+         label: "Low Stock",
+         value: `${lowStockCount} Items`,
+         icon: <AlertTriangle className="w-4 h-4 text-orange-500" />,
+         color: "text-orange-600",
+       });
+     }
+
+     if (pendingBookings > 0) {
+       list.push({
+         label: "New Bookings",
+         value: pendingBookings.toString(),
+         icon: <Calendar className="w-4 h-4 text-purple-500" />,
+         color: "text-purple-600",
+       });
+     }
+
+     return list;
+   }, [allOrders, products, recentBookings, bookingsCount]);
+
+   const salesViews = useMemo(
+     () => {
+       if (storeType === "products") {
+         return [
+           {
+             label: "Total Sales",
+             value: ordersCount.toString(),
+             icon: <ShoppingBag className="w-4 h-4 text-blue-500" />,
+             color: "text-blue-600",
+           },
+         ];
+       }
+
+       if (storeType === "services") {
+         return [
+           {
+             label: "Total Bookings",
+             value: bookingsCount.toString(),
+             icon: <Calendar className="w-4 h-4 text-purple-500" />,
+             color: "text-purple-600",
+           },
+         ];
+       }
+
+       if (storeType === "both") {
+         return [
+           {
+             label: "Total Sales",
+             value: ordersCount.toString(),
+             icon: <ShoppingBag className="w-4 h-4 text-blue-500" />,
+             color: "text-blue-600",
+           },
+           {
+             label: "Total Bookings",
+             value: bookingsCount.toString(),
+             icon: <Calendar className="w-4 h-4 text-purple-500" />,
+             color: "text-purple-600",
+           },
+         ];
+       }
+
+       // Fallback if storeType is something unexpected
+       return [
+         {
+           label: "Total Activity",
+           value: (ordersCount + bookingsCount).toString(),
+           icon: <Activity className="w-4 h-4 text-zinc-500" />,
+           color: "text-zinc-600",
+         },
+       ];
+     },
+     [storeType, ordersCount, bookingsCount],
+   );
+
   useEffect(() => {
-    if (!storeId) return;
-    const q = query(collection(db, "stores", storeId, "bookings"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snapshot) => {
-      setBookings(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as BookingData[]);
-    });
-    return () => unsub();
-  }, [storeId]);
-
-  // Insights Logic (Matching Mobile)
-  const insights = useMemo(() => {
-    const activeOrdersCount = allOrders.filter(o => ["paid", "processing", "packaged"].includes(o.status)).length;
-    const lowStockCount = products.filter(p => p.stock > 0 && p.stock <= 5).length;
-    const pendingBookings = bookings.filter(b => b.status === "pending").length;
-
-    // Top Product logic for all time
-    const prodMap: Record<string, number> = {};
-    allOrders.forEach(o => {
-        o.items?.forEach((item: any) => {
-            prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
-        });
-    });
-    const topProduct = Object.entries(prodMap).sort((a,b) => b[1] - a[1])[0];
-
-    const list = [
-      {
-        label: "Total Sales",
-        value: allOrders.length.toString(),
-        icon: <TrendingUp className="w-4 h-4 text-blue-500" />,
-        color: "text-blue-600",
-      },
-      {
-        label: "Active Orders",
-        value: activeOrdersCount.toString(),
-        icon: <ShoppingBag className="w-4 h-4 text-blue-500" />,
-        color: "text-blue-600",
-      },
-    ];
-
-    if (topProduct) {
-        list.push({
-            label: "Popular Item",
-            value: topProduct[0],
-            icon: <Award className="w-4 h-4 text-green-500" />,
-            color: "text-green-600",
-        });
+    if (salesViews.length <= 1) {
+      setActiveSalesIndex(0);
+      return;
     }
+    const timer = setInterval(() => {
+      setActiveSalesIndex((prev) => (prev + 1) % salesViews.length);
+    }, 3000); // 3s, same cadence as analytics
+    return () => clearInterval(timer);
+  }, [salesViews.length]);
 
-    if (lowStockCount > 0) {
-      list.push({
-        label: "Low Stock",
-        value: `${lowStockCount} Items`,
-        icon: <AlertTriangle className="w-4 h-4 text-orange-500" />,
-        color: "text-orange-600",
-      });
-    }
+   const recentActivity = useMemo<ActivityItem[]>(() => {
+    const mappedOrders: ActivityItem[] = recentOrders.map((order) => ({
+      id: order.id,
+      type: 'order',
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      amount: order.total,
+      itemsCount: order.items?.length || 0,
+      createdAt: order.createdAt,
+    }));
 
-    if (pendingBookings > 0) {
-      list.push({
-        label: "New Bookings",
-        value: pendingBookings.toString(),
-        icon: <Calendar className="w-4 h-4 text-purple-500" />,
-        color: "text-purple-600",
-      });
-    }
+    const mappedBookings: ActivityItem[] = recentBookings.map((booking) => ({
+      id: booking.id,
+      type: 'booking',
+      customerName: booking.customerName || booking.name, // Adjust fallback fields if needed
+      customerEmail: booking.customerEmail || booking.email,
+      serviceName: booking.serviceName,
+      createdAt: booking.createdAt,
+    }));
 
-    return list;
-  }, [allOrders, products, bookings]);
+    return [...mappedOrders, ...mappedBookings]
+      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      .slice(0, 10);
+  }, [recentOrders, recentBookings]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -328,147 +466,189 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Metrics Grid */}
-      <div 
-        data-tour="dashboard-metrics"
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <div className="flex items-center justify-between">
-            <div className={`p-3 rounded-2xl bg-green-500/10`}>
-              <CreditCard className={`w-6 h-6 text-green-500`} />
-            </div>
-          </div>
-          <div className="mt-4">
-            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-              Total Revenue
-            </h3>
-            <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1">
-              {formatCurrency(revenue)}
-            </p>
-          </div>
-        </motion.div>
+       {/* Metrics Grid */}
+       <div 
+         data-tour="dashboard-metrics"
+         className="grid grid-cols-1 md:grid-cols-3 gap-6"
+       >
+         <motion.div
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow"
+         >
+           <div className="flex items-center justify-between">
+             <div className={`p-3 rounded-2xl bg-green-500/10`}>
+               <CreditCard className={`w-6 h-6 text-green-500`} />
+             </div>
+           </div>
+           <div className="mt-4">
+             <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
+               Total Revenue
+             </h3>
+             <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1">
+               {formatCurrency(revenue)}
+             </p>
+           </div>
+         </motion.div>
 
-        {/* Total Orders Card (Reverted to standard metric) */}
+        {/* Dynamic Total Sales / Bookings card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow"
+          className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all cursor-pointer relative overflow-hidden h-44 flex flex-col justify-between"
         >
-          <div className="flex items-center justify-between">
-            <div className={`p-3 rounded-2xl bg-blue-500/10`}>
-              <Activity className={`w-6 h-6 text-blue-500`} />
+          <div className="flex items-center justify-between mb-2">
+            <div className="p-3 rounded-2xl bg-blue-500/10">
+              <Activity className="w-6 h-6 text-blue-500" />
             </div>
           </div>
-          <div className="mt-4">
-            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-              Total Orders
-            </h3>
-            <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50 mt-1">
-              {ordersCount}
-            </p>
-          </div>
-        </motion.div>
 
-        {/* Dynamic Insights Card (Still Card 3) */}
-        <motion.div
-          data-tour="dashboard-analytics"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          onClick={() => setShowAnalytics(true)}
-          className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden h-44 flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
-              <BarChart3 className="w-6 h-6 text-zinc-900 dark:text-white" />
-            </div>
-            <ChevronRight className="w-5 h-5 text-zinc-300 group-hover:text-black dark:group-hover:text-white transition-colors" />
-          </div>
-          
           <div>
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeInsightIndex}
+                key={activeSalesIndex}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
               >
                 <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50 truncate pr-8">
-                  {insights[activeInsightIndex].value}
+                  {salesViews[activeSalesIndex]?.value ?? "0"}
                 </p>
                 <div className="flex items-center gap-2 mt-1">
-                  {insights[activeInsightIndex].icon}
-                  <span className={`text-[10px] font-black uppercase tracking-widest ${insights[activeInsightIndex].color}`}>
-                    {insights[activeInsightIndex].label}
+                  {salesViews[activeSalesIndex]?.icon}
+                  <span
+                    className={`text-[10px] font-black uppercase tracking-widest ${
+                      salesViews[activeSalesIndex]?.color ?? "text-zinc-500"
+                    }`}
+                  >
+                    {salesViews[activeSalesIndex]?.label ?? "Total Sales"}
                   </span>
                 </div>
               </motion.div>
             </AnimatePresence>
           </div>
 
-          <div className="flex gap-1 absolute bottom-6 right-6">
-            {insights.map((_, i) => (
-              <div 
-                key={i} 
-                className={`h-1 rounded-full transition-all duration-300 ${activeInsightIndex === i ? 'w-4 bg-black dark:bg-white' : 'w-1 bg-zinc-200 dark:bg-zinc-800'}`} 
-              />
-            ))}
-          </div>
+          {salesViews.length > 1 && (
+            <div className="flex gap-1 absolute bottom-6 right-6">
+              {salesViews.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    activeSalesIndex === i
+                      ? "w-4 bg-black dark:bg-white"
+                      : "w-1 bg-zinc-200 dark:bg-zinc-800"
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </motion.div>
-      </div>
 
-      <AnalyticsModal
-        isOpen={showAnalytics}
-        onClose={() => setShowAnalytics(false)}
-        orders={allOrders}
-        products={products}
-        bookings={bookings}
-      />
+         {/* Dynamic Insights Card (Still Card 3) */}
+         <motion.div
+           data-tour="dashboard-analytics"
+           initial={{ opacity: 0, y: 20 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.2 }}
+           onClick={() => setShowAnalytics(true)}
+           className="p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all cursor-pointer group relative overflow-hidden h-44 flex flex-col justify-between"
+         >
+           <div className="flex items-center justify-between mb-4">
+             <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
+               <BarChart3 className="w-6 h-6 text-zinc-900 dark:text-white" />
+             </div>
+             <ChevronRight className="w-5 h-5 text-zinc-300 group-hover:text-black dark:group-hover:text-white transition-colors" />
+           </div>
+           
+           <div>
+             <AnimatePresence mode="wait">
+               <motion.div
+                 key={activeInsightIndex}
+                 initial={{ opacity: 0, y: 10 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 exit={{ opacity: 0, y: -10 }}
+                 transition={{ duration: 0.3 }}
+               >
+                 <p className="text-2xl font-black text-zinc-900 dark:text-zinc-50 truncate pr-8">
+                   {insights[activeInsightIndex].value}
+                 </p>
+                 <div className="flex items-center gap-2 mt-1">
+                   {insights[activeInsightIndex].icon}
+                   <span className={`text-[10px] font-black uppercase tracking-widest ${insights[activeInsightIndex].color}`}>
+                     {insights[activeInsightIndex].label}
+                   </span>
+                 </div>
+               </motion.div>
+             </AnimatePresence>
+           </div>
+
+           <div className="flex gap-1 absolute bottom-6 right-6">
+             {insights.map((_, i) => (
+               <div 
+                 key={i} 
+                 className={`h-1 rounded-full transition-all duration-300 ${activeInsightIndex === i ? 'w-4 bg-black dark:bg-white' : 'w-1 bg-zinc-200 dark:bg-zinc-800'}`} 
+               />
+             ))}
+           </div>
+         </motion.div>
+       </div>
+
+       <AnalyticsModal
+         isOpen={showAnalytics}
+         onClose={() => setShowAnalytics(false)}
+         orders={allOrders}
+         products={products}
+         bookings={recentBookings}
+       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto md:h-96">
-        <div 
-          data-tour="dashboard-orders"
+         <div 
+          data-tour="dashboard-activity"
           className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group h-[500px] md:h-full"
         >
           <div className="relative z-10 h-full flex flex-col">
-            <h3 className="text-2xl font-bold mb-2 uppercase tracking-tight">Live Orders</h3>
+            <h3 className="text-2xl font-bold mb-2 uppercase tracking-tight">Store Activity</h3>
             <p className="text-zinc-400 mb-6 font-medium">
-              Real-time feed of incoming purchases.
+              Real-time feed of incoming orders and bookings.
             </p>
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-zinc-700">
-              {recentOrders.length === 0 ? (
+              {recentActivity.length === 0 ? (
                 <div className="h-full flex items-center justify-center border-2 border-dashed border-zinc-800 rounded-xl">
-                  <span className="text-zinc-600 font-black uppercase tracking-widest text-xs">No active orders</span>
+                  <span className="text-zinc-600 font-black uppercase tracking-widest text-xs">No recent activity</span>
                 </div>
               ) : (
-                recentOrders.map((order, i) => (
+                recentActivity.map((activity, i) => (
                   <div
-                    key={i}
+                    key={`${activity.id}-${i}`}
                     className="bg-zinc-800/50 p-4 rounded-2xl flex items-center justify-between backdrop-blur-sm border border-zinc-700/50"
                   >
                     <div>
                       <h4 className="font-bold">
-                        {order.customerName || order.customerEmail}
+                        {activity.customerName || activity.customerEmail || 'Guest'}
                       </h4>
                       <p className="text-xs text-zinc-400 font-bold uppercase tracking-wider">
-                        {order.items ? order.items.length : 0} items •{" "}
-                        {order.createdAt?.seconds
+                        {activity.type === 'order' 
+                          ? `${activity.itemsCount || 0} items` 
+                          : activity.serviceName || 'Service Booking'}
+                      </p>
+                      <p className="text-xs text-zinc-400">
+                        {activity.createdAt?.seconds
                           ? new Date(
-                              order.createdAt.seconds * 1000
-                            ).toLocaleTimeString()
+                              activity.createdAt.seconds * 1000
+                            ).toLocaleString(undefined, {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
                           : "Just now"}
                       </p>
                     </div>
                     <span className="font-black text-green-400 tracking-tighter">
-                      {formatCurrency(order?.total ?? 0)}
+                      {activity.type === 'order'
+                        ? formatCurrency(activity.amount ?? 0)
+                        : 'Booking'}
                     </span>
                   </div>
                 ))
@@ -517,12 +697,12 @@ export default function AdminDashboard() {
             <a
               href="/admin/products"
               className="block w-full py-2 text-center text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:text-zinc-50 dark:hover:text-white transition-colors"
-            >
-              Manage All Items →
-            </a>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+              >
+                Manage All Items →
+              </a>
+            </div>
+           </div>
+         </div>
+       
+       </div>
+     )}
