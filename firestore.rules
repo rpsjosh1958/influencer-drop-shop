@@ -46,7 +46,13 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       
       // Only the owner can edit their store settings (Name, Theme, etc.)
-      allow update, delete: if isStoreOwner();
+      // Super Admin can edit anything (Approval, Suspension, etc.)
+      allow update: if isSuperAdmin() || (
+        isStoreOwner() && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['onboardingStatus', 'isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId'])
+      );
+
+      allow delete: if isStoreOwner() || isSuperAdmin();
 
       // Helper for subcollections to check parent store ownership
       function isParentStoreOwner() {

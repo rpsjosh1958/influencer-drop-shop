@@ -80,7 +80,15 @@ function SetupRequired({
 }
 
 export default function StoreSettingsPage() {
-  const { storeId, storeName, userPlan, planExpiresAt, loading: storeLoading } = useAdminStore();
+  const { 
+    storeId, 
+    storeName, 
+    userPlan, 
+    planExpiresAt, 
+    loading: storeLoading,
+    onboardingStatus,
+    onboardingNotes
+  } = useAdminStore();
   const { currentStepTarget, isActive: isTourActive } = useOnboarding();
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -239,6 +247,11 @@ export default function StoreSettingsPage() {
 
     try {
       const payload = { ...config };
+
+      // Reset onboarding status if saving after requested info
+      if (onboardingStatus === "needs_more_info") {
+        payload.onboardingStatus = "pending";
+      }
 
       // Enforce Hero Defaults for Free Plan
       if (isFreePlan) {
@@ -471,6 +484,21 @@ export default function StoreSettingsPage() {
         {/* Content Area */}
         <div className="flex-1">
           <div className="space-y-6">
+            {onboardingStatus === "needs_more_info" && (
+              <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl space-y-3">
+                <div className="flex items-center gap-3 text-amber-800">
+                  <AlertCircle size={24} />
+                  <h3 className="font-bold text-lg">Action Required for Approval</h3>
+                </div>
+                <div className="bg-white/50 p-4 rounded-2xl border border-amber-200/50 text-amber-900 text-sm italic">
+                  &quot;{onboardingNotes || "Please review your store details and documents."}&quot;
+                </div>
+                <p className="text-sm text-amber-700 font-medium">
+                  Please update the requested information below and save your changes. Our team will automatically re-review your store.
+                </p>
+              </div>
+            )}
+
             <AnimatePresence mode="wait">
               {activeTab === "general" && (
                 <motion.div

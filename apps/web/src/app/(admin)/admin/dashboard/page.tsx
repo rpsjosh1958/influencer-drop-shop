@@ -25,11 +25,12 @@ import {
   Award,
   TrendingUp,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
 import { HelpTrigger } from "@/context/onboarding-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 
 interface OrderData {
   id: string;
@@ -66,7 +67,13 @@ interface ActivityItem {
 }
 
 export default function AdminDashboard() {
-  const { storeId, loading: storeLoading } = useAdminStore();
+  const { 
+    storeId, 
+    loading: storeLoading, 
+    onboardingStatus, 
+    onboardingNotes, 
+    isSuspended 
+  } = useAdminStore();
   const [storeName, setStoreName] = useState("");
   const [isVerified, setIsVerified] = useState(false);
   const [isLive, setIsLive] = useState(false);
@@ -84,6 +91,8 @@ export default function AdminDashboard() {
   const [toggling, setToggling] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [activeSalesIndex, setActiveSalesIndex] = useState(0);
+
+  const onboardingBlocked = onboardingStatus !== "approved" || isSuspended;
 
   // Real-time listener for Store Config
   useEffect(() => {
@@ -374,7 +383,7 @@ export default function AdminDashboard() {
   }, [insights.length]);
 
   const toggleStore = async () => {
-    if (!storeId || toggling) return;
+    if (!storeId || toggling || onboardingBlocked) return;
     setToggling(true);
     try {
       await updateDoc(doc(db, "stores", storeId), {
@@ -397,6 +406,57 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Onboarding / Suspension Banner */}
+      {onboardingBlocked && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={cn(
+            "p-4 rounded-2xl border flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm",
+            isSuspended 
+              ? "bg-red-50 border-red-100 text-red-700 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400"
+              : onboardingStatus === "rejected"
+              ? "bg-red-50 border-red-100 text-red-700 dark:bg-red-900/20 dark:border-red-900/30 dark:text-red-400"
+              : onboardingStatus === "needs_more_info"
+              ? "bg-amber-50 border-amber-100 text-amber-700 dark:bg-amber-900/20 dark:border-amber-900/30 dark:text-amber-400"
+              : "bg-blue-50 border-blue-100 text-blue-700 dark:bg-blue-900/20 dark:border-blue-900/30 dark:text-blue-400"
+          )}
+        >
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "p-2 rounded-xl shrink-0",
+              isSuspended || onboardingStatus === "rejected" ? "bg-red-100 dark:bg-red-900/40" : 
+              onboardingStatus === "needs_more_info" ? "bg-amber-100 dark:bg-amber-900/40" : "bg-blue-100 dark:bg-blue-900/40"
+            )}>
+              {isSuspended || onboardingStatus === "rejected" ? <AlertTriangle size={20} /> : 
+               onboardingStatus === "needs_more_info" ? <Sparkles size={20} /> : <Zap size={20} />}
+            </div>
+            <div>
+              <h4 className="font-bold text-sm uppercase tracking-tight">
+                {isSuspended ? "Store Suspended" : 
+                 onboardingStatus === "pending" ? "Onboarding in Progress" : 
+                 onboardingStatus === "needs_more_info" ? "Action Required" : 
+                 "Application Rejected"}
+              </h4>
+              <p className="text-xs font-medium opacity-90">
+                {isSuspended ? "Your store has been suspended by an administrator. Please contact support." :
+                 onboardingStatus === "pending" ? "Your store is currently under review. You'll be notified once approved." :
+                 onboardingStatus === "needs_more_info" ? (onboardingNotes || "We need a bit more information to approve your store.") :
+                 (onboardingNotes || "Your store application was not approved. Contact support for details.")}
+              </p>
+            </div>
+          </div>
+          {onboardingStatus === "needs_more_info" && (
+            <a 
+              href="/admin/settings"
+              className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 transition-colors shrink-0"
+            >
+              Update Details
+            </a>
+          )}
+        </motion.div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -463,10 +523,10 @@ export default function AdminDashboard() {
             </span>
             <button
               onClick={toggleStore}
-              disabled={loading || toggling}
+              disabled={loading || toggling || onboardingBlocked}
               className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:focus:ring-zinc-50 ${
                 isLive ? "bg-green-500" : "bg-zinc-200 dark:bg-zinc-700"
-              }`}
+              } ${onboardingBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <span
                 className={`${

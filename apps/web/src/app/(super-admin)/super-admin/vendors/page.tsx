@@ -144,6 +144,7 @@ export default function VendorsPage() {
               <th className="p-4">Store Name</th>
               <th className="p-4">Plan</th>
               <th className="p-4">Status</th>
+              <th className="p-4">Onboarding</th>
               <th className="p-4">Verification</th>
               <th className="p-4 text-right">Actions</th>
             </tr>
@@ -202,6 +203,18 @@ export default function VendorsPage() {
                         <Lock size={10} /> Suspended
                       </span>
                     )}
+                  </div>
+                </td>
+                <td className="p-4">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${
+                      vendor.onboardingStatus === "approved" ? "bg-green-500" :
+                      vendor.onboardingStatus === "rejected" ? "bg-red-500" :
+                      vendor.onboardingStatus === "needs_more_info" ? "bg-amber-500" : "bg-blue-500"
+                    }`} />
+                    <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider">
+                      {vendor.onboardingStatus || "PENDING"}
+                    </span>
                   </div>
                 </td>
                 <td className="p-4">

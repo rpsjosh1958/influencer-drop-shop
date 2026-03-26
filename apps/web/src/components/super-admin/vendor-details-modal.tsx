@@ -19,8 +19,20 @@ import {
   getCountFromServer,
   updateDoc,
   doc,
+  getDoc,
+  serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { 
+  FileText, 
+  ShieldCheck, 
+  AlertCircle, 
+  ThumbsUp, 
+  MessageSquare,
+  ThumbsDown,
+  Info,
+  ExternalLink
+} from "lucide-react";
 
 interface VendorDetailsModalProps {
   store: StoreConfig;
@@ -44,11 +56,20 @@ export function VendorDetailsModal({
     revenue: 0,
   });
   const [suspending, setSuspending] = useState(false);
+  const [ownerData, setOwnerData] = useState<any>(null);
+  const [adminNotes, setAdminNotes] = useState("");
+  const [updatingOnboarding, setUpdatingOnboarding] = useState(false);
 
   const fetchDetails = useCallback(async () => {
     if (!store?.id) return;
     setLoading(true);
     try {
+      // 0. Get Owner Data
+      const userSnap = await getDoc(doc(db, "users", store.ownerId));
+      if (userSnap.exists()) {
+        setOwnerData(userSnap.data());
+      }
+
       // 1. Get Product Count
       const productsSnap = await getCountFromServer(
         collection(db, "stores", store.id, "products")
@@ -85,18 +106,54 @@ export function VendorDetailsModal({
         bookings: bookingsSnap.data().count,
         revenue: totalRevenue,
       });
+      setAdminNotes(store.onboardingNotes || "");
     } catch (error) {
       console.error("Error fetching vendor details:", error);
     } finally {
       setLoading(false);
     }
-  }, [store?.id]);
+  }, [store?.id, store?.ownerId, store?.onboardingNotes]);
 
   useEffect(() => {
     if (isOpen && store) {
       fetchDetails();
     }
   }, [isOpen, store, fetchDetails]);
+
+  const handleOnboardingAction = async (status: "approved" | "needs_more_info" | "rejected") => {
+    if (!store?.id) return;
+    
+    let confirmMsg = `Are you sure you want to change status to ${status.toUpperCase()}?`;
+    if (status === "approved") confirmMsg = "Approve this store? It will be allowed to go LIVE.";
+    if (status === "rejected") confirmMsg = "Reject this store? This will notify the vendor.";
+    
+    if (!confirm(confirmMsg)) return;
+
+    setUpdatingOnboarding(true);
+    try {
+      const updates: any = {
+        onboardingStatus: status,
+        onboardingNotes: adminNotes,
+        onboardingUpdatedAt: serverTimestamp(),
+        onboardingReviewerId: auth.currentUser?.uid || "system",
+      };
+
+      if (status === "approved") {
+        updates.isVerified = true; // Auto-verify on approval
+      } else if (status === "rejected") {
+        updates.status = "closed"; // Force close on rejection
+      }
+
+      await updateDoc(doc(db, "stores", store.id), updates);
+      onUpdate({ ...store, ...updates });
+      alert(`Status updated to ${status}`);
+    } catch (error) {
+      console.error("Onboarding update failed", error);
+      alert("Failed to update status");
+    } finally {
+      setUpdatingOnboarding(false);
+    }
+  };
 
   const toggleSuspension = async () => {
     const isSuspended = !!store.isSuspended;
@@ -317,6 +374,93 @@ export function VendorDetailsModal({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Onboarding & KYC Section */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+              <ShieldCheck size={12} className="text-amber-500" />
+              Onboarding & KYC Verification
+            </h3>
+            
+            <div className="bg-zinc-950 rounded-2xl border border-zinc-800 overflow-hidden">
+              {/* KYC Info */}
+              <div className="p-6 border-b border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 block">Vendor Identity</label>
+                  <div className="space-y-2">
+                    <p className="text-white font-bold flex items-center gap-2">
+                      <FileText size={14} className="text-zinc-400" />
+                      {ownerData?.vendorType === "company" ? "Registered Company" : "Individual Vendor"}
+                    </p>
+                    {ownerData?.identity?.ghanaCard && (
+                      <p className="text-zinc-400 text-sm font-mono bg-zinc-900 px-2 py-1 rounded inline-block">
+                        ID: {ownerData.identity.ghanaCard}
+                      </p>
+                    )}
+                    {ownerData?.identity?.companyDoc && (
+                      <a 
+                        href={ownerData.identity.companyDoc} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="text-blue-400 text-xs font-bold flex items-center gap-1 hover:underline"
+                      >
+                        <ExternalLink size={12} /> View Document
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 block">Current Status</label>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800">
+                    <div className={`w-2 h-2 rounded-full ${
+                      store.onboardingStatus === "approved" ? "bg-green-500" :
+                      store.onboardingStatus === "rejected" ? "bg-red-500" :
+                      store.onboardingStatus === "needs_more_info" ? "bg-amber-500" : "bg-blue-500"
+                    }`} />
+                    <span className="text-xs font-black text-white uppercase tracking-wider">
+                      {store.onboardingStatus || "PENDING"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Admin Notes / Communication */}
+              <div className="p-6 bg-zinc-900/30">
+                <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 block">Onboarding Notes (Internal/Shared)</label>
+                <textarea 
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Reason for rejection or requested info..."
+                  className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-amber-500 min-h-[80px]"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-4 bg-zinc-950 border-t border-zinc-800 flex flex-wrap gap-3">
+                <button
+                  onClick={() => handleOnboardingAction("approved")}
+                  disabled={updatingOnboarding || store.onboardingStatus === "approved"}
+                  className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:bg-zinc-800 text-white rounded-xl font-bold text-sm transition-all"
+                >
+                  <ThumbsUp size={16} /> Approve Store
+                </button>
+                <button
+                  onClick={() => handleOnboardingAction("needs_more_info")}
+                  disabled={updatingOnboarding}
+                  className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all"
+                >
+                  <MessageSquare size={16} /> Request Info
+                </button>
+                <button
+                  onClick={() => handleOnboardingAction("rejected")}
+                  disabled={updatingOnboarding || store.onboardingStatus === "rejected"}
+                  className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:bg-zinc-800 text-white rounded-xl font-bold text-sm transition-all"
+                >
+                  <ThumbsDown size={16} /> Reject
+                </button>
+              </div>
             </div>
           </div>
 

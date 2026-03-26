@@ -32,6 +32,9 @@ interface AdminStoreContextType {
   storeType: StoreType | null;
   storeFeatures: StoreFeatures | null;
   pendingBookingsCount: number;
+  onboardingStatus: "pending" | "approved" | "rejected" | "needs_more_info";
+  onboardingNotes: string | null;
+  isSuspended: boolean;
   loading: boolean;
   ownedStores: StoreListItem[];
   switchStore: (id: string) => void;
@@ -54,6 +57,9 @@ export function AdminStoreProvider({
   const [storeType, setStoreType] = useState<StoreType | null>(null);
   const [storeFeatures, setStoreFeatures] = useState<StoreFeatures | null>(null);
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
+  const [onboardingStatus, setOnboardingStatus] = useState<"pending" | "approved" | "rejected" | "needs_more_info">("approved");
+  const [onboardingNotes, setOnboardingNotes] = useState<string | null>(null);
+  const [isSuspended, setIsSuspended] = useState(false);
   const [ownedStores, setOwnedStores] = useState<StoreListItem[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -173,6 +179,9 @@ export function AdminStoreProvider({
           
           setStoreName(data?.name || "Store");
           setStoreType(data?.type || "product");
+          setOnboardingStatus(data?.onboardingStatus || "approved");
+          setOnboardingNotes(data?.onboardingNotes || null);
+          setIsSuspended(!!data?.isSuspended);
 
           if (userPlan === "starter") {
             setStoreFeatures({
@@ -220,6 +229,9 @@ export function AdminStoreProvider({
         storeType,
         storeFeatures,
         pendingBookingsCount,
+        onboardingStatus,
+        onboardingNotes,
+        isSuspended,
         loading,
         ownedStores,
         switchStore,

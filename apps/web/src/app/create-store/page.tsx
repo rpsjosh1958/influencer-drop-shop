@@ -325,7 +325,10 @@ export default function CreateStoreWizard() {
         type: storeType,
         features,
         ownerId: auth.currentUser.uid,
-        status: "live",
+        status: "closed",
+        onboardingStatus: "pending",
+        isVerified: false,
+        isSuspended: false,
         plan: "starter",
         createdAt: serverTimestamp(),
         theme: {

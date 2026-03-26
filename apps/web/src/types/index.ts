@@ -123,6 +123,11 @@ export interface StoreConfig {
   status: "live" | "closed";
   plan: "starter" | "growth";
   isVerified?: boolean;
+  isSuspended?: boolean;
+  onboardingStatus?: "pending" | "approved" | "rejected" | "needs_more_info";
+  onboardingUpdatedAt?: any;
+  onboardingReviewerId?: string;
+  onboardingNotes?: string;
   createdAt: any;
   theme?: {
     primaryColor: string;

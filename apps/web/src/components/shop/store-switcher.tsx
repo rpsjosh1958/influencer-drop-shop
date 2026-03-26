@@ -20,6 +20,7 @@ interface Store {
   name: string;
   logo?: string;
   isVerified?: boolean;
+  onboardingStatus?: string;
 }
 
 export function StoreSwitcher() {
@@ -32,14 +33,16 @@ export function StoreSwitcher() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: stores = [], isLoading: loading } = useQuery({
-    queryKey: ["stores", "live"],
+    queryKey: ["stores", "live", "approved"],
     queryFn: async () => {
       const q = query(collection(db, "stores"), where("status", "==", "live"));
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Store[];
+      return snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((s: any) => !s.onboardingStatus || s.onboardingStatus === "approved") as Store[];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

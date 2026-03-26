@@ -352,7 +352,7 @@ export const onStoreUpdated = onDocumentUpdated(
       let days = 30;
 
       if (cycle === "quarterly") days = 90;
-      if (cycle === "annually") days = 365;
+      if (cycle === "annual") days = 365;
 
       const expiresAt = new admin.firestore.Timestamp(
         now.seconds + days * 24 * 60 * 60,
@@ -811,10 +811,27 @@ export const initiateWithdrawal = onCall(async (request) => {
     .doc(storeId)
     .get();
 
-  if (!storeDoc.exists || storeDoc.data()?.ownerId !== auth.uid) {
+  const storeData = storeDoc.data();
+  if (!storeDoc.exists || storeData?.ownerId !== auth.uid) {
     throw new HttpsError(
       "permission-denied",
       "Not authorized to withdraw from this store"
+    );
+  }
+
+  // 2. Guard by Onboarding Status & Suspension
+  const isApproved = !storeData.onboardingStatus || storeData.onboardingStatus === "approved";
+  if (!isApproved) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Your store must be approved before you can withdraw funds."
+    );
+  }
+
+  if (storeData.isSuspended) {
+    throw new HttpsError(
+      "permission-denied",
+      "Withdrawals are disabled for suspended stores. Please contact support."
     );
   }
 
@@ -824,3 +841,4 @@ export const initiateWithdrawal = onCall(async (request) => {
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
 export { checkSubscriptionExpiry };
 export { sendPasswordReset } from "./auth";
+export * from "./onboarding";

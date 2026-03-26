@@ -38,9 +38,12 @@ export function StoreSuccessModal({
                 <Check size={40} strokeWidth={3} />
               </div>
 
-              <h2 className="text-3xl font-black mb-4 tracking-tight">
+              <h2 className="text-3xl font-black mb-2 tracking-tight">
                 Store Created!
               </h2>
+              <p className="text-zinc-500 font-medium mb-6">
+                Your store is currently pending review. We'll notify you once it's approved!
+              </p>
 
               <div className="bg-zinc-50 border border-zinc-100 rounded-2xl p-6 mb-6 text-left">
                 <div className="flex items-start gap-3 mb-2">
@@ -49,21 +52,20 @@ export function StoreSuccessModal({
                   </div>
                   <div>
                     <h3 className="font-bold text-zinc-900 text-lg">
-                      Verify Email
+                      Review Process
                     </h3>
                     <p className="text-sm text-zinc-500 leading-relaxed mt-1">
-                      We sent a confirmation link to{" "}
+                      We're reviewing your documents and store details. You'll receive an email at{" "}
                       <span className="font-bold text-zinc-900">
                         {userEmail}
-                      </span>
-                      .
+                      </span>{" "}
+                      shortly.
                     </p>
                   </div>
                 </div>
                 <div className="pl-[52px]">
                   <p className="text-xs font-medium text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                    ⚠️ Not in inbox? Please check your <b>Spam</b> or{" "}
-                    <b>Junk</b> folder.
+                    💡 You can still complete your profile in the dashboard while you wait.
                   </p>
                 </div>
               </div>

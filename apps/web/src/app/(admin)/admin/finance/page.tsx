@@ -32,7 +32,15 @@ import { formatCurrency } from "@/lib/utils";
 import { Portal } from "@/components/ui/portal";
 
 export default function FinancePage() {
-  const { storeId, userPlan, loading: storeLoading } = useAdminStore();
+  const { 
+    storeId, 
+    userPlan, 
+    loading: storeLoading,
+    onboardingStatus,
+    isSuspended
+  } = useAdminStore();
+
+  const canWithdraw = onboardingStatus === "approved" && !isSuspended;
 
   // Wallet State
   const [wallet, setWallet] = useState<any>(null);
@@ -252,14 +260,29 @@ export default function FinancePage() {
         </div>
         <button
           data-tour="finance-withdraw"
-          onClick={() => setShowWithdraw(true)}
-          disabled={!wallet || wallet.currentBalance < 10}
+          onClick={() => canWithdraw && setShowWithdraw(true)}
+          disabled={!wallet || wallet.currentBalance < 10 || !canWithdraw}
           className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
         >
-          <ArrowUpRight size={20} />
-          Withdraw Funds
+          {isSuspended ? (
+            <AlertCircle size={20} className="text-red-400" />
+          ) : (
+            <ArrowUpRight size={20} />
+          )}
+          {isSuspended ? "Withdrawals Locked" : "Withdraw Funds"}
         </button>
       </div>
+
+      {!canWithdraw && (
+        <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-800">
+          <AlertCircle className="shrink-0" size={20} />
+          <div className="text-sm font-medium">
+            {isSuspended 
+              ? "Your store is suspended. Withdrawals are disabled."
+              : "Withdrawals are locked until your store onboarding is fully approved."}
+          </div>
+        </div>
+      )}
 
       {/* Reports Section */}
       <div
