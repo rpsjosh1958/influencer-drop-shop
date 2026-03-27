@@ -19,7 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SuperAdminNavBadge } from "@/components/admin/nav-badge";
+import { SuperAdminNavBadge, PendingVendorsBadge } from "@/components/admin/nav-badge";
 import { ThemeProvider } from "next-themes";
 
 const SUPER_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "")
@@ -142,6 +142,7 @@ export default function SuperAdminLayout({
                   <div className="flex-1 flex items-center justify-between">
                     <span>{item.name}</span>
                     {item.name === "Support & Comms" && <SuperAdminNavBadge />}
+                    {item.name === "Vendors" && <PendingVendorsBadge />}
                   </div>
                 </Link>
               );

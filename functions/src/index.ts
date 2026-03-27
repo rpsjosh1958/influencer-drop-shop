@@ -213,64 +213,6 @@ export const onStoreCreated = onDocumentCreated(
       logger.info(
         `Synced Plan (${plan}) to Store ${event.params.storeId}`
       );
-
-      if (!user.email) {
-        logger.warn(`Owner ${ownerId} has no email address.`);
-        return;
-      }
-
-      // 1. Send Email via Resend
-      const resend = new Resend(process.env.RESEND_API_KEY); // Lazy Init
-      const { data, error } = await resend.emails.send({
-        from: "The Drop <welcome@copdrop.io>",
-        to: [user.email],
-        subject: `Welcome to the Family`,
-        html: `
-          <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
-            <div style="max-width: 600px; margin: 0 auto;">
-              <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px;">Own The Hype.</h1>
-              <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
-              
-              <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
-                Hi <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
-                Your store <strong>${store.name}</strong> is live.
-              </p>
-
-              <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 40px; border: 1px solid #333;">
-                <p style="font-size: 16px; color: #fff; margin: 0;">
-                  🎁 <strong>You've unlocked a 30-Day Free Trial of Growth Plan.</strong><br/>
-                  <span style="color: #999; font-size: 14px;">Enjoy 0% platform fees, verified badge eligibility, and mobile app access.</span>
-                </p>
-              </div>
-
-              <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left;">
-                <h3 style="margin-top: 0; margin-bottom: 15px;">Your Launch Checklist:</h3>
-                <ul style="color: #ccc; padding-left: 20px;">
-                  <li style="margin-bottom: 10px;">Login to your Dashboard: <strong>copdrop.io/admin</strong></li>
-                  <li style="margin-bottom: 10px;">Add your first Product</li>
-                  <li style="margin-bottom: 10px;">Share your link: <strong>copdrop.io/shop/${
-                    store.slug
-                  }</strong></li>
-                </ul>
-              </div>
-
-              <a href="https://copdrop.io/admin" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 18px 40px; border-radius: 50px; text-decoration: none; font-weight: 900; font-size: 16px; transition: transform 0.2s;">
-                Go to Dashboard
-              </a>
-
-              <p style="margin-top: 60px; font-size: 12px; color: #666666;">
-                © 2026 The Drop Shop. • Accra, Ghana
-              </p>
-            </div>
-          </div>
-        `,
-      });
-
-      if (error) {
-        logger.error("Resend API Error:", error);
-      } else {
-        logger.info(`Welcome email sent to ${user.email}. ID: ${data?.id}`);
-      }
     } catch (err) {
       logger.error("Failed to execute onStoreCreated logic", err);
     }

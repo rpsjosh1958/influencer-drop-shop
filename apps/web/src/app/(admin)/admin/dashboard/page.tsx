@@ -461,7 +461,7 @@ export default function AdminDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-            {storeName || "Store"} Dashboard
+            {storeName || "Store"} 
             {isVerified && (
               <BadgeCheck className="w-6 h-6 text-blue-500 fill-blue-500/10" />
             )}

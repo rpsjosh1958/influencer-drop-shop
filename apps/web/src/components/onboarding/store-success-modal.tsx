@@ -65,7 +65,7 @@ export function StoreSuccessModal({
                 </div>
                 <div className="pl-[52px]">
                   <p className="text-xs font-medium text-amber-600 bg-amber-50 p-2 rounded-lg border border-amber-100">
-                    💡 You can still complete your profile in the dashboard while you wait.
+                    💡 Not in inbox? Check Spam.
                   </p>
                 </div>
               </div>

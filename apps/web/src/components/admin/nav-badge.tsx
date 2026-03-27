@@ -104,3 +104,28 @@ export function SuperAdminNavBadge() {
     </span>
   );
 }
+
+export function PendingVendorsBadge() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const q = query(
+      collection(db, "stores"),
+      where("onboardingStatus", "==", "pending")
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setCount(snapshot.size);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  if (count === 0) return null;
+
+  return (
+    <span className="bg-amber-500 text-black text-[10px] font-black px-2 py-0.5 rounded-full ml-auto animate-in zoom-in">
+      {count}
+    </span>
+  );
+}
