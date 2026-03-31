@@ -32,6 +32,7 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useEffect } from "react";
 
 // --- Sub-components for the floating icons ---
 const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: any) => (
@@ -62,7 +63,15 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastVisitedStore, setLastVisitedStore] = useState<string | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("copdrop_last_visited_store");
+      if (saved) setLastVisitedStore(saved);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,7 +211,7 @@ export default function AdminLogin() {
             </div>
           </div>
 
-          <div className="text-center mt-8">
+          <div className="text-center mt-8 space-y-4">
             <p className="text-zinc-500 text-xs">
               Want to sell your own drops?{" "}
               <button
@@ -212,6 +221,22 @@ export default function AdminLogin() {
                 CREATE A STORE
               </button>
             </p>
+
+            <div className="pt-4 border-t border-white/5">
+              <button
+                onClick={() => {
+                  if (lastVisitedStore) {
+                    router.push(`/shop/${lastVisitedStore}/login`);
+                  } else {
+                    router.push("/");
+                  }
+                }}
+                className="text-[10px] font-black text-zinc-500 hover:text-purple-400 tracking-[0.2em] uppercase transition-colors flex items-center justify-center gap-2 mx-auto"
+              >
+                <ShoppingBag size={12} />
+                {lastVisitedStore ? "Continue to Shop" : "Visit the Marketplace"}
+              </button>
+            </div>
           </div>
         </div>
       </motion.div>

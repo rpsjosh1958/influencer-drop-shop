@@ -215,6 +215,11 @@ export function VendorDetailsModal({
                 )}
               </h2>
               <p className="text-sm text-zinc-400">/{store.slug || "no-slug"}</p>
+              {ownerData && (
+                <p className="text-xs font-medium text-amber-500 mt-1">
+                  Owner: {ownerData?.vendorType === "company" ? ownerData?.contactPerson?.name || ownerData?.fullName : ownerData?.fullName}
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -328,6 +333,12 @@ export function VendorDetailsModal({
                 </span>
               </div>
               <div className="p-4 flex justify-between">
+                <span className="text-zinc-500 text-sm">Store Type</span>
+                <span className="text-white text-sm font-bold uppercase tracking-wider">
+                  {store.type || "product"}
+                </span>
+              </div>
+              <div className="p-4 flex justify-between">
                 <span className="text-zinc-500 text-sm">Current Plan</span>
                 <span className="text-white text-sm capitalize">
                   {store.plan || "Basic"}
@@ -389,14 +400,19 @@ export function VendorDetailsModal({
               <div className="p-6 border-b border-zinc-800 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 block">Vendor Identity</label>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="text-white font-bold flex items-center gap-2">
                       <FileText size={14} className="text-zinc-400" />
                       {ownerData?.vendorType === "company" ? "Registered Company" : "Individual Vendor"}
                     </p>
+                    <div className="space-y-1 bg-zinc-900/50 p-2 text-sm rounded-lg border border-zinc-800">
+                      <p className="text-xs text-zinc-400 flex justify-between">Email: <span className="text-white">{ownerData?.email || (ownerData?.vendorType === "company" && ownerData?.contactPerson?.email ? ownerData.contactPerson.email : "N/A")}</span></p>
+                      <p className="text-xs text-zinc-400 flex justify-between">Phone: <span className="text-white">{ownerData?.phone || (ownerData?.vendorType === "company" && ownerData?.contactPerson?.phone ? ownerData.contactPerson.phone : "N/A")}</span></p>
+                    </div>
                     {ownerData?.identity?.ghanaCard && (
-                      <p className="text-zinc-400 text-sm font-mono bg-zinc-900 px-2 py-1 rounded inline-block">
-                        ID: {ownerData.identity.ghanaCard}
+                      <p className="text-zinc-400 text-sm font-mono bg-zinc-900 px-2 py-1 flex justify-between items-center rounded border border-zinc-800 mt-2">
+                        <span>Card Number</span>
+                        <span className="text-white">{ownerData.identity.ghanaCard}</span>
                       </p>
                     )}
                     {ownerData?.identity?.companyDoc && (
@@ -404,9 +420,9 @@ export function VendorDetailsModal({
                         href={ownerData.identity.companyDoc} 
                         target="_blank" 
                         rel="noreferrer"
-                        className="text-blue-400 text-xs font-bold flex items-center gap-1 hover:underline"
+                        className="flex items-center justify-center gap-2 w-full mt-2 bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 py-2.5 rounded-lg text-xs font-bold transition-colors"
                       >
-                        <ExternalLink size={12} /> View Document
+                        <ExternalLink size={14} /> View Registration Doc
                       </a>
                     )}
                   </div>

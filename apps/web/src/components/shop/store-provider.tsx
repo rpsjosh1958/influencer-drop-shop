@@ -55,6 +55,7 @@ export interface StoreConfig {
   onboardingStatus?: "pending" | "approved" | "rejected" | "needs_more_info";
   onboardingNotes: string;
   plan?: string;
+  type: string;
   payoutConfig?: {
     bankName: string;
     bankCode: string;

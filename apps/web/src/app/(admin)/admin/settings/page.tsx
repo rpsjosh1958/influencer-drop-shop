@@ -162,7 +162,7 @@ export default function StoreSettingsPage() {
     },
   });
 
-  const isFreePlan = config.plan === "starter";
+  const isFreePlan = userPlan === "starter";
   const isTypeSelected = !!config.type;
 
   const getDaysLeft = () => {
@@ -248,10 +248,32 @@ export default function StoreSettingsPage() {
     try {
       const payload = { ...config };
 
+      // Strip restricted properties to avoid Firestore Rules Access Denied errors
+      delete payload.isVerified;
+      delete payload.isSuspended;
+      delete payload.ownerId;
+      delete payload.plan; // Plan upgrades are handled elsewhere
+      delete payload.onboardingNotes;
+      delete payload.onboardingReviewerId;
+      delete payload.onboardingUpdatedAt;
+      delete payload.createdAt;
+      delete payload.planExpiresAt;
+      delete payload.planChangedAt;
+
       // Reset onboarding status if saving after requested info
       if (onboardingStatus === "needs_more_info") {
         payload.onboardingStatus = "pending";
+      } else {
+        delete payload.onboardingStatus;
       }
+
+      // Synchronize `features` object with the selected `type`
+      const type = payload.type || "product";
+      payload.features = {
+        hasProducts: type === "product" || type === "hybrid",
+        hasServices: type === "service" || type === "hybrid",
+        hasPreorders: type === "hybrid",
+      };
 
       // Enforce Hero Defaults for Free Plan
       if (isFreePlan) {
@@ -260,6 +282,7 @@ export default function StoreSettingsPage() {
         payload.theme.hero.subheadline = "Browse our latest collection.";
         payload.theme.hero.enabled = true; // Ensure it's enabled
       }
+
 
       await updateDoc(doc(db, "stores", storeId), payload);
       setSuccess("Settings saved successfully.");
@@ -812,8 +835,9 @@ export default function StoreSettingsPage() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
+                  <div className={`space-y-6 ${isFreePlan ? "opacity-50 pointer-events-none select-none" : ""}`}>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-2">
                       <label className="text-sm font-bold text-zinc-900">
                         Background Color
                       </label>
@@ -886,6 +910,7 @@ export default function StoreSettingsPage() {
                           {size}
                         </button>
                       ))}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -948,7 +973,7 @@ export default function StoreSettingsPage() {
                   </div>
 
                   {config.theme.hero.enabled && (
-                    <>
+                    <div className={`space-y-6 ${isFreePlan ? "opacity-50 pointer-events-none select-none" : ""}`}>
                       <div className="space-y-4 border-b border-zinc-100 pb-6">
                         <label className="text-sm font-bold text-zinc-900">
                           Text Content
@@ -1082,11 +1107,11 @@ export default function StoreSettingsPage() {
                                 parseFloat(e.target.value)
                               )
                             }
-                            className="w-full accent-black"
+                            className="w-full accent-black disabled:opacity-50"
                           />
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
                 </motion.div>
               )}

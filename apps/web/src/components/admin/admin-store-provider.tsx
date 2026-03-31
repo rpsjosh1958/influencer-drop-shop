@@ -183,20 +183,14 @@ export function AdminStoreProvider({
           setOnboardingNotes(data?.onboardingNotes || null);
           setIsSuspended(!!data?.isSuspended);
 
-          if (userPlan === "starter") {
-            setStoreFeatures({
-              hasProducts: true,
-              hasServices: false,
-              hasPreorders: false,
-            });
-          } else if (data?.features) {
+          if (data?.features) {
             setStoreFeatures(data.features);
           } else {
             const type = data?.type || "product";
             setStoreFeatures({
-              hasProducts: type === "product" || type === "hybrid",
-              hasServices: type === "service" || type === "hybrid",
-              hasPreorders: type === "hybrid",
+               hasProducts: type === "product" || type === "hybrid",
+               hasServices: type === "service" || type === "hybrid",
+               hasPreorders: type === "hybrid",
             });
           }
           setLoading(false);
