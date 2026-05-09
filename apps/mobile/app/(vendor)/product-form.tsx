@@ -43,7 +43,7 @@ import * as ImagePicker from "expo-image-picker";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { SelectionModal } from "@/components/ui/selection-modal";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getDocs } from "firebase/firestore";
 
 const Pressable = NativePressable;
@@ -65,6 +65,7 @@ interface ProductVariant {
 
 export default function ProductFormScreen() {
   const { store } = useVendor();
+  const queryClient = useQueryClient();
   const { id } = useLocalSearchParams();
   const isEditing = !!id;
 
@@ -349,6 +350,10 @@ export default function ProductFormScreen() {
         });
         Alert.alert("Success", "Product created successfully");
       }
+
+      // Invalidate query to force refresh on inventory screen
+      queryClient.invalidateQueries({ queryKey: ["vendor-products", store.id] });
+      
       router.back();
     } catch (e) {
       console.error(e);

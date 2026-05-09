@@ -139,7 +139,7 @@ export function VendorDetailsModal({
       };
 
       if (status === "approved") {
-        updates.isVerified = true; // Auto-verify on approval
+        updates.isVerified = store.plan === "growth"; // Auto-verify only if on Growth Plan
       } else if (status === "rejected") {
         updates.status = "closed"; // Force close on rejection
       }

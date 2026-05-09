@@ -150,7 +150,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   // 6. Data Lists (Queries tied to active store)
   const effectiveStoreId = store?.id;
 
-  const { data: orders = [] } = useQuery({
+  const { data: orders = [], isFetching: ordersFetching } = useQuery({
     queryKey: ["vendor-orders", effectiveStoreId],
     queryFn: async () => {
       if (!effectiveStoreId) return [];
@@ -161,7 +161,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     enabled: !!effectiveStoreId && !isLocked,
   });
 
-  const { data: products = [] } = useQuery({
+  const { data: products = [], isFetching: productsFetching } = useQuery({
     queryKey: ["vendor-products", effectiveStoreId],
     queryFn: async () => {
       if (!effectiveStoreId) return [];
@@ -172,7 +172,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     enabled: !!effectiveStoreId && !isLocked,
   });
 
-  const { data: bookings = [] } = useQuery({
+  const { data: bookings = [], isFetching: bookingsFetching } = useQuery({
     queryKey: ["vendor-bookings", effectiveStoreId],
     queryFn: async () => {
       if (!effectiveStoreId) return [];
@@ -183,7 +183,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     enabled: !!effectiveStoreId && !isLocked,
   });
 
-  const { data: complaints = [] } = useQuery({
+  const { data: complaints = [], isFetching: complaintsFetching } = useQuery({
     queryKey: ["vendor-complaints", effectiveStoreId],
     queryFn: async () => {
       if (!effectiveStoreId) return [];
@@ -194,7 +194,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     enabled: !!effectiveStoreId && !isLocked,
   });
 
-  const { data: services = [] } = useQuery({
+  const { data: services = [], isFetching: servicesFetching } = useQuery({
     queryKey: ["vendor-services", effectiveStoreId],
     queryFn: async () => {
       if (!effectiveStoreId) return [];
@@ -231,10 +231,25 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshStore = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["vendor-owned-stores"] });
-    await queryClient.invalidateQueries({ queryKey: ["vendor-orders", effectiveStoreId] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["vendor-owned-stores"] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-orders", effectiveStoreId] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-products", effectiveStoreId] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-bookings", effectiveStoreId] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-complaints", effectiveStoreId] }),
+      queryClient.invalidateQueries({ queryKey: ["vendor-services", effectiveStoreId] }),
+    ]);
     return true;
   };
+
+  // Combine all fetching states for a comprehensive loading indicator
+  const combinedFetching = 
+    storesLoading || 
+    ordersFetching || 
+    productsFetching || 
+    bookingsFetching || 
+    complaintsFetching || 
+    servicesFetching;
 
   // Derived Metrics (remains same logic but tied to queries above)
   const metrics = useMemo<Metrics>(() => {
@@ -279,7 +294,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
         complaints,
         metrics,
         badgeCounts,
-        loading: storesLoading,
+        loading: combinedFetching,
         isLocked,
         switchStore,
         toggleStoreStatus,

@@ -341,7 +341,7 @@ export default function StoreSettingsPage() {
       // (The sync trigger will eventually update all others)
       await updateDoc(doc(db, "stores", storeId!), {
         plan: "growth",
-        isVerified: true,
+        isVerified: onboardingStatus === "approved",
         planExpiresAt: expiresAt,
       });
 

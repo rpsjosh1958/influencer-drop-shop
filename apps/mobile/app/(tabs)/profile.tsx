@@ -434,8 +434,8 @@ export default function ProfileScreen() {
               text: "Create Store",
               onPress: () =>
                 Linking.openURL(
-                  "https://thedrop-admin.vercel.app/create-store",
-                ), // Replace with actual URL if known, assuming prod/dev URL
+                  "https://copdrop.io/create-store",
+                ), 
             },
           ],
         );

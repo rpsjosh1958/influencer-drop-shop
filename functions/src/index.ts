@@ -208,7 +208,7 @@ export const onStoreCreated = onDocumentCreated(
         plan,
         isTrial,
         planExpiresAt: expiresAt,
-        isVerified: plan === "growth", // Enable Verification Badge for Growth Plan
+        isVerified: false, // New stores are 'pending' KYC, so impossible to be verified instantly
       });
       logger.info(
         `Synced Plan (${plan}) to Store ${event.params.storeId}`
@@ -255,7 +255,7 @@ export const onUserSubscriptionUpdated = onDocumentUpdated(
         batch.update(doc.ref, {
           plan: after.plan || "starter",
           planExpiresAt: after.planExpiresAt || null,
-          isVerified: after.plan === "growth",
+          isVerified: after.plan === "growth" && doc.data().onboardingStatus === "approved",
           isTrial: after.isTrial || false,
         });
       });
