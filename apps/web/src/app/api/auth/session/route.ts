@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase-admin";
 import { SignJWT } from "jose";
 
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+  throw new Error("SESSION_SECRET env var is not set. Server cannot start.");
+}
+
 const SESSION_SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET || "fallback-secret-change-in-production"
 );

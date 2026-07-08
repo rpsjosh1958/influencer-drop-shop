@@ -202,23 +202,6 @@ export async function POST(req: Request) {
           },
         },
       },
-      {
-        type: "function",
-        function: {
-          name: "deleteCategory",
-          description: "Delete a global category.",
-          parameters: {
-            type: "object",
-            properties: {
-              name: {
-                type: "string",
-                description: "Name of the category to delete",
-              },
-            },
-            required: ["name"],
-          },
-        },
-      },
       // --- ORDER TOOLS ---
       {
         type: "function",
@@ -711,19 +694,6 @@ export async function POST(req: Request) {
               createdAt: new Date(),
             });
             result = `Category created: ${name} (/${slug})`;
-          } else if (fnName === "deleteCategory") {
-            const targetName = (fnArgs as any).name.toLowerCase();
-            const snap = await adminDb.collection("categories").get();
-
-            const match = snap.docs.find((d: any) =>
-              d.data().name.toLowerCase().includes(targetName)
-            );
-            if (match) {
-              await adminDb.collection("categories").doc(match.id).delete();
-              result = `Category deleted: ${match.data().name}`;
-            } else {
-              result = `Category '${targetName}' not found.`;
-            }
           } else if (fnName === "updateOrderStatus") {
             const status = (fnArgs as any).status;
             const orderId = (fnArgs as any).orderId;

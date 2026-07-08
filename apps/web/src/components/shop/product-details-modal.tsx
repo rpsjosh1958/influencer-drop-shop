@@ -270,7 +270,7 @@ export function ProductDetailsModal({
                       <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">
                         SOLD BY {store?.name || "DROP."}
                       </p>
-                      {store?.isVerified && (
+                      {store?.plan === "growth" && (
                         <BadgeCheck
                           size={14}
                           className="text-blue-500 fill-blue-500 text-white"

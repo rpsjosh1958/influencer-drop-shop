@@ -924,37 +924,10 @@ export default function StoreSettingsPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
                 >
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-zinc-900">
                       Hero Section
                     </h2>
-                    {isFreePlan && (
-                      <div className="mb-6 bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-zinc-200 rounded-full flex items-center justify-center">
-                            <LayoutTemplate
-                              size={18}
-                              className="text-zinc-500"
-                            />
-                          </div>
-                          <div>
-                            <p className="font-bold text-sm">
-                              Hero Section Locked
-                            </p>
-                            <p className="text-xs text-zinc-500">
-                              Upgrade to Growth to add banners & images.
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab("billing")}
-                          className="text-xs font-bold bg-black text-white px-3 py-2 rounded-lg"
-                        >
-                          Upgrade
-                        </button>
-                      </div>
-                    )}
                     <label className="flex items-center gap-2 cursor-pointer text-zinc-900">
                       <span className="text-sm font-medium">Enable Hero</span>
                       <input
@@ -971,6 +944,28 @@ export default function StoreSettingsPage() {
                       />
                     </label>
                   </div>
+                  {isFreePlan && (
+                    <div className="mb-6 bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-zinc-200 rounded-full flex items-center justify-center">
+                          <LayoutTemplate size={18} className="text-zinc-500" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">Hero Section Locked</p>
+                          <p className="text-xs text-zinc-500">
+                            Upgrade to Growth to add banners & images.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("billing")}
+                        className="text-xs font-bold bg-black text-white px-3 py-2 rounded-lg"
+                      >
+                        Upgrade
+                      </button>
+                    </div>
+                  )}
 
                   {config.theme.hero.enabled && (
                     <div className={`space-y-6 ${isFreePlan ? "opacity-50 pointer-events-none select-none" : ""}`}>
@@ -1124,22 +1119,8 @@ export default function StoreSettingsPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
                 >
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-zinc-900">Footer</h2>
-                    {isFreePlan && (
-                      <div className="ml-4 flex-1 bg-zinc-50 border border-zinc-200 p-2 rounded-lg flex items-center justify-between px-4">
-                        <p className="text-xs text-zinc-500 font-medium">
-                          Footer customization is locked.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab("billing")}
-                          className="text-[10px] font-bold bg-black text-white px-2 py-1 rounded"
-                        >
-                          Upgrade
-                        </button>
-                      </div>
-                    )}
                     <label className="flex items-center gap-2 cursor-pointer text-zinc-900">
                       <span className="text-sm font-medium">Enable Footer</span>
                       <input
@@ -1156,6 +1137,28 @@ export default function StoreSettingsPage() {
                       />
                     </label>
                   </div>
+                  {isFreePlan && (
+                    <div className="mb-6 bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 bg-zinc-200 rounded-full flex items-center justify-center">
+                          <LinkIcon size={18} className="text-zinc-500" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">Footer Locked</p>
+                          <p className="text-xs text-zinc-500">
+                            Upgrade to Growth to customize your footer.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("billing")}
+                        className="text-xs font-bold bg-black text-white px-3 py-2 rounded-lg"
+                      >
+                        Upgrade
+                      </button>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-900">

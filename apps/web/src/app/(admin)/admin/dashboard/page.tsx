@@ -67,15 +67,15 @@ interface ActivityItem {
 }
 
 export default function AdminDashboard() {
-  const { 
-    storeId, 
-    loading: storeLoading, 
-    onboardingStatus, 
-    onboardingNotes, 
-    isSuspended 
+  const {
+    storeId,
+    loading: storeLoading,
+    onboardingStatus,
+    onboardingNotes,
+    isSuspended,
+    userPlan,
   } = useAdminStore();
   const [storeName, setStoreName] = useState("");
-  const [isVerified, setIsVerified] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [storeType, setStoreType] = useState<"products" | "services" | "both">("both");
   const [loading, setLoading] = useState(true);
@@ -103,7 +103,6 @@ export default function AdminDashboard() {
         const data = doc.data();
         setIsLive(data.status === "live");
         setStoreName(data.name);
-        setIsVerified(!!data.isVerified);
         // Set store type flags
         setStoreType(data.storeType || 'both'); // Default to both if not set
       }
@@ -462,7 +461,7 @@ export default function AdminDashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
             {storeName || "Store"} 
-            {isVerified && (
+            {userPlan === "growth" && (
               <BadgeCheck className="w-6 h-6 text-blue-500 fill-blue-500/10" />
             )}
             <HelpTrigger category="dashboard" />

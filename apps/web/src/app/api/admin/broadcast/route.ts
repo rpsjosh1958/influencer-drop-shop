@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { adminAuth } from "@/lib/firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
 const resendApiKey = process.env.RESEND_API_KEY;
 
@@ -12,10 +12,16 @@ export async function POST(req: Request) {
     if (!idToken) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    let decoded;
     try {
-      await adminAuth.verifyIdToken(idToken);
+      decoded = await adminAuth.verifyIdToken(idToken);
     } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const superAdminDoc = await adminDb.collection("super_admins").doc(decoded.uid).get();
+    if (!superAdminDoc.exists) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const { subject, message, target } = await req.json();

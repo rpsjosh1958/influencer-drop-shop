@@ -172,7 +172,7 @@ export default function VendorsPage() {
                     <div>
                       <div className="font-bold text-white flex items-center gap-1">
                         {vendor.name}
-                        {vendor.isVerified && (
+                        {vendor.plan === "growth" && (
                           <BadgeCheck className="w-4 h-4 text-blue-500 fill-blue-500/10" />
                         )}
                       </div>

@@ -363,7 +363,7 @@ export default function FinancePage() {
         data-tour="finance-balance"
         className="grid grid-cols-1 md:grid-cols-3 gap-6"
       >
-        <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden shadow-2xl shadow-zinc-200">
+        <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2">
               <Wallet size={12} /> Available Balance

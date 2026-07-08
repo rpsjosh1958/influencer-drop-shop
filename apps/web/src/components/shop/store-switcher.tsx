@@ -19,7 +19,7 @@ interface Store {
   id: string;
   name: string;
   logo?: string;
-  isVerified?: boolean;
+  plan?: string;
   onboardingStatus?: string;
 }
 
@@ -89,7 +89,7 @@ export function StoreSwitcher() {
           <StoreIcon size={20} />
         )}
         <span>{currentStore?.name || "DROP."}</span>
-        {currentStore?.isVerified && (
+        {currentStore?.plan === "growth" && (
           <BadgeCheck
             size={18}
             className="text-blue-500"
@@ -167,7 +167,7 @@ export function StoreSwitcher() {
                         >
                           {store.name}
                         </span>
-                        {store.isVerified && (
+                        {store.plan === "growth" && (
                           <BadgeCheck
                             size={14}
                             className="text-blue-500"

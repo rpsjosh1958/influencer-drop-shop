@@ -205,7 +205,7 @@ export function VendorDetailsModal({
             <div>
               <h2 className="text-xl font-bold text-white flex items-center gap-2">
                 {store.name || "Untitled Store"}
-                {store.isVerified && (
+                {store.plan === "growth" && (
                   <CheckCircle className="w-4 h-4 text-blue-500" />
                 )}
                 {store.isSuspended && (

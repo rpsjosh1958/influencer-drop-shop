@@ -150,7 +150,7 @@ export function OrderDetailsModal() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                       SOLD BY {order?.storeName || "Unknown Store"}
                     </span>
-                    {store?.isVerified && (
+                    {store?.plan === "growth" && (
                       <BadgeCheck
                         size={14}
                         className="text-blue-500 fill-blue-500 text-white"

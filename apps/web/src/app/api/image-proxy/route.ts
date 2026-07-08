@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { redirect: "manual" });
 
     if (!response.ok) {
       return new NextResponse(`Failed to fetch image: ${response.statusText}`, {
