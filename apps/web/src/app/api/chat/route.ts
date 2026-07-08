@@ -1,6 +1,6 @@
 import { OpenAIStream, StreamingTextResponse } from "ai";
 import OpenAI from "openai";
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, adminAuth } from "@/lib/firebase-admin";
 
 // Create OpenAI client
 const openai = new OpenAI({
@@ -9,17 +9,34 @@ const openai = new OpenAI({
 
 export const runtime = "nodejs";
 
-// Validate env vars for debugging
 if (!process.env.OPENAI_API_KEY) {
   console.error("Missing OPENAI_API_KEY");
 }
 
 export async function POST(req: Request) {
   try {
-    const { messages, storeId } = await req.json();
+    const { messages, storeId, idToken } = await req.json();
 
     if (!storeId || storeId === "unknown") {
       return new Response("Missing storeId", { status: 400 });
+    }
+
+    // Verify the caller is authenticated
+    if (!idToken) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    let decodedToken;
+    try {
+      decodedToken = await adminAuth.verifyIdToken(idToken);
+    } catch {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    // Verify the caller owns the storeId they're operating on
+    const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
+    const ownedStores: string[] = userDoc.data()?.ownedStores || [];
+    if (!ownedStores.includes(storeId)) {
+      return new Response("Forbidden", { status: 403 });
     }
 
     // 3. Define Tools (Native JSON Schema)

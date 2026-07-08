@@ -69,9 +69,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      // Clear middleware cookie
-      document.cookie =
-        "isAdminLoggedIn=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;";
+      await fetch("/api/auth/session", { method: "DELETE" });
       router.push("/admin");
     } catch (error) {
       console.error("Logout failed", error);

@@ -22,7 +22,9 @@ import { cn } from "@/lib/utils";
 import { SuperAdminNavBadge, PendingVendorsBadge } from "@/components/admin/nav-badge";
 import { ThemeProvider } from "next-themes";
 
-const SUPER_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "")
+// Email check here is just a UX guard — real enforcement happens server-side
+// in /api/super-admin/init which reads from the server-only SUPER_ADMIN_EMAILS env var
+const SUPER_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL_HINT || "")
   .split(",")
   .map((email) => email.trim());
 
@@ -51,11 +53,15 @@ export default function SuperAdminLayout({
       }
 
       // Initialize Super Admin Privileges (Create backend doc if missing)
-      fetch("/api/super-admin/init", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid }),
-      }).catch(console.error);
+      user.getIdToken().then((idToken) =>
+        fetch("/api/super-admin/init", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+        })
+      ).catch(console.error);
 
       setLoading(false);
     });

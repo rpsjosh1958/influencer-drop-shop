@@ -1,48 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
 
-const SUPER_ADMIN_EMAILS = (process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAILS || "")
+// Server-only env var — not exposed to client bundle
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || "")
   .split(",")
-  .map((email) => email.trim());
+  .map((email) => email.trim())
+  .filter(Boolean);
 
 export async function POST(req: NextRequest) {
   try {
-    const { uid } = await req.json();
-
-    if (!uid) {
-      return NextResponse.json({ error: "Missing UID" }, { status: 400 });
+    // Verify the caller via their ID token — don't trust a UID from the request body
+    const authHeader = req.headers.get("Authorization");
+    const idToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!idToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify user via Admin Auth
-    const user = await adminAuth.getUser(uid);
-    if (!user || !user.email) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    let decoded;
+    try {
+      decoded = await adminAuth.verifyIdToken(idToken);
+    } catch {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Security Check: Is this email allowed?
-    if (!SUPER_ADMIN_EMAILS.includes(user.email)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!decoded.email || !SUPER_ADMIN_EMAILS.includes(decoded.email)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Create the Super Admin Document
-    await adminDb.collection("super_admins").doc(uid).set(
+    await adminDb.collection("super_admins").doc(decoded.uid).set(
       {
-        email: user.email,
+        email: decoded.email,
         createdAt: new Date(),
         lastLogin: new Date(),
       },
       { merge: true }
     );
 
-    return NextResponse.json({
-      success: true,
-      message: "Super Admin Verified",
-    });
+    return NextResponse.json({ success: true, message: "Super Admin Verified" });
   } catch (error) {
     console.error("Super Admin Init Error:", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

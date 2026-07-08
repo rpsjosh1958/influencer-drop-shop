@@ -79,9 +79,14 @@ export default function AdminLogin() {
     setError("");
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // Set the cookie for middleware to see
-      document.cookie = "isAdminLoggedIn=true; path=/";
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+      const idToken = await credential.user.getIdToken();
+      const sessionRes = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+      if (!sessionRes.ok) throw new Error("Session creation failed");
       router.push("/admin/dashboard");
     } catch (err: any) {
       console.error(err);
