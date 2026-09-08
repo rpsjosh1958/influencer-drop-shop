@@ -23,7 +23,10 @@ import {
   AlertCircle,
   Download,
   Zap,
+  CalendarClock,
+  Settings2,
 } from "lucide-react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { generateFinancePDF } from "@/lib/pdf-generator";
 import { generateFinanceExcel } from "@/lib/excel-generator";
@@ -248,6 +251,13 @@ export default function FinancePage() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
+  const hasSubaccount = !!storeConfig?.payoutConfig?.subaccountCode;
+  const hasLegacyBalance = !!wallet && wallet.currentBalance > 0;
+  const payout = storeConfig?.payoutConfig;
+  const maskedAccount = payout?.accountNumber
+    ? `••••${String(payout.accountNumber).slice(-3)}`
+    : "";
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -258,26 +268,44 @@ export default function FinancePage() {
           </h1>
           <p className="text-zinc-500">Track your earnings and cash out.</p>
         </div>
-        <button
-          data-tour="finance-withdraw"
-          onClick={() => canWithdraw && setShowWithdraw(true)}
-          disabled={!wallet || wallet.currentBalance < 10 || !canWithdraw}
-          className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
-        >
-          {isSuspended ? (
-            <AlertCircle size={20} className="text-red-400" />
-          ) : (
-            <ArrowUpRight size={20} />
-          )}
-          {isSuspended ? "Withdrawals Locked" : "Withdraw Funds"}
-        </button>
+        {hasLegacyBalance && (
+          <button
+            data-tour="finance-withdraw"
+            onClick={() => canWithdraw && setShowWithdraw(true)}
+            disabled={!wallet || wallet.currentBalance < 10 || !canWithdraw}
+            className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
+          >
+            {isSuspended ? (
+              <AlertCircle size={20} className="text-red-400" />
+            ) : (
+              <ArrowUpRight size={20} />
+            )}
+            {isSuspended ? "Withdrawals Locked" : "Withdraw Pre-migration Balance"}
+          </button>
+        )}
       </div>
 
-      {!canWithdraw && (
+      {!hasSubaccount && (
+        <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-3 text-red-800">
+          <AlertCircle className="shrink-0" size={20} />
+          <div className="text-sm font-medium flex-1">
+            Your store can't accept orders yet — link a payout method to get
+            started.
+          </div>
+          <Link
+            href="/admin/settings?tab=payouts"
+            className="text-sm font-bold underline whitespace-nowrap flex items-center gap-1"
+          >
+            <Settings2 size={14} /> Set up payouts
+          </Link>
+        </div>
+      )}
+
+      {!canWithdraw && hasLegacyBalance && (
         <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-800">
           <AlertCircle className="shrink-0" size={20} />
           <div className="text-sm font-medium">
-            {isSuspended 
+            {isSuspended
               ? "Your store is suspended. Withdrawals are disabled."
               : "Withdrawals are locked until your store onboarding is fully approved."}
           </div>
@@ -366,16 +394,46 @@ export default function FinancePage() {
         <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden">
           <div className="relative z-10">
             <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2">
-              <Wallet size={12} /> Available Balance
+              <CalendarClock size={12} /> Settlement
             </p>
-            <h2 className="text-4xl font-black tracking-tight">
-              {formatCurrency(wallet.currentBalance)}
-            </h2>
+            {hasSubaccount ? (
+              <>
+                <h2 className="text-2xl font-black tracking-tight leading-tight">
+                  Auto-settles to{" "}
+                  {payout?.provider === "momo"
+                    ? payout?.bankName
+                    : payout?.bankName || "your bank"}
+                </h2>
+                <p className="text-zinc-400 text-sm mt-2 font-medium">
+                  {maskedAccount && `Account ${maskedAccount} • `}Paystack
+                  pays this out on its normal settlement schedule — no
+                  action needed.
+                </p>
+              </>
+            ) : (
+              <h2 className="text-2xl font-black tracking-tight leading-tight text-zinc-500">
+                Not set up yet
+              </h2>
+            )}
           </div>
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-zinc-800 rounded-full blur-3xl opacity-50" />
         </div>
 
-        {userPlan !== "growth" && (
+        {hasLegacyBalance && (
+          <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
+            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2">
+              <Wallet size={12} /> Pre-migration Balance
+            </p>
+            <h2 className="text-3xl font-black tracking-tight">
+              {formatCurrency(wallet.currentBalance)}
+            </h2>
+            <p className="text-[10px] text-zinc-400 mt-2 font-medium">
+              From orders before auto-settlement — withdraw manually below.
+            </p>
+          </div>
+        )}
+
+        {userPlan !== "growth" && wallet.pendingBalance > 0 && (
           <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
             <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2">Pending (T+2)</p>
             <h2 className="text-3xl font-black tracking-tight text-zinc-400">
@@ -404,7 +462,7 @@ export default function FinancePage() {
         className="bg-white border border-zinc-200 rounded-3xl p-8"
       >
         <h3 className="text-xl font-bold mb-6 text-black flex items-center gap-2">
-          <History size={20} /> Recent Transactions
+          <History size={20} /> Recent Settlements
         </h3>
 
         <div className="space-y-4">
@@ -435,7 +493,14 @@ export default function FinancePage() {
                     )}
                   </div>
                   <div>
-                    <p className="font-bold text-zinc-900">{tx.description}</p>
+                    <p className="font-bold text-zinc-900 flex items-center gap-2">
+                      {tx.description}
+                      {tx.source === "subaccount_split" && (
+                        <span className="text-[10px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                          Auto-settled
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-zinc-500">
                       {tx.createdAt?.toDate().toLocaleDateString()} •{" "}
                       {tx.status}

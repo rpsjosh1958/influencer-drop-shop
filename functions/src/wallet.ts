@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { initiateTransfer } from "./paystack";
 import { HttpsError } from "firebase-functions/v2/https";
+import { getPlatformFeeRate } from "./fees";
 
 interface WalletTransaction {
   id: string;
@@ -15,6 +16,7 @@ interface WalletTransaction {
   recipientCode?: string;
   reference?: string;
   paystackTransferCode?: string;
+  source?: "subaccount_split" | "internal_ledger";
 }
 
 export const processOrderWallet = async (
@@ -30,6 +32,67 @@ export const processOrderWallet = async (
 
   const db = admin.firestore();
   try {
+    // Orders created via the verified checkout path (initializeOrderPayment /
+    // confirmOrderPayment / the Paystack webhook) carry the REAL net amount
+    // Paystack already split to the vendor's subaccount at charge time — that
+    // money never touches our main balance, so it is recorded here purely for
+    // the vendor's earnings history and must NOT be added to
+    // currentBalance/pendingBalance (which back the manual "Withdraw Funds"
+    // flow via our own initiateTransfer). Crediting it there would let a
+    // vendor be paid twice for the same order: once by Paystack's automatic
+    // subaccount settlement, once again by us on withdrawal.
+    if (typeof orderData.vendorNetAmount === "number") {
+      const txRef = db
+        .collection("stores")
+        .doc(storeId)
+        .collection("wallet_transactions")
+        .doc();
+      const txData: WalletTransaction = {
+        id: txRef.id,
+        type: "credit",
+        amount: orderData.vendorNetAmount,
+        description: `Earnings from Order #${orderId
+          .slice(0, 8)
+          .toUpperCase()} (auto-settled via Paystack)`,
+        orderId: orderId,
+        status: "success",
+        createdAt: admin.firestore.Timestamp.now(),
+        balanceAfter: 0, // informational only — not part of the withdrawable ledger
+      };
+      await db.runTransaction(async (t) => {
+        const walletRef = db
+          .collection("stores")
+          .doc(storeId)
+          .collection("wallet")
+          .doc("main");
+        const walletDoc = await t.get(walletRef);
+        const totalEarned =
+          (walletDoc.exists ? walletDoc.data()?.totalEarned || 0 : 0) +
+          orderData.vendorNetAmount;
+        t.set(
+          walletRef,
+          {
+            totalEarned,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        t.set(txRef, {
+          ...txData,
+          source: "subaccount_split",
+        });
+      });
+      console.log(
+        `Recorded subaccount-split earnings for Order ${orderId}: Net=${orderData.vendorNetAmount}`
+      );
+      return;
+    }
+
+    // Legacy path — no verified split amount on the order (pre-migration
+    // orders, or any straggler not created via the new checkout flow).
+    // Keeps prior behavior: compute the fee internally and credit the
+    // spendable, our-balance-backed wallet the vendor withdraws via
+    // initiateWithdrawal.
     // 1. Fetch Store to check Plan
     const storeDoc = await db.collection("stores").doc(storeId).get();
     if (!storeDoc.exists) {
@@ -40,8 +103,7 @@ export const processOrderWallet = async (
     const plan = store?.plan || "starter"; // Default to starter
 
     // 2. Calculate Fees
-    // Logic: Growth = 2%, Starter = 8%
-    const rate = plan === "growth" ? 0.02 : 0.08;
+    const rate = getPlatformFeeRate(plan);
     const grossAmount = orderData.total || 0;
     const platformFee = grossAmount * rate;
     const netAmount = grossAmount - platformFee;
@@ -111,7 +173,7 @@ export const processOrderWallet = async (
         balanceAfter: currentBalance,
       };
 
-      t.set(txRef, txData);
+      t.set(txRef, { ...txData, source: "internal_ledger" });
     });
 
     console.log(
@@ -198,18 +260,32 @@ export const handleWithdrawal = async (storeId: string, amount: number) => {
       "Payout from CopDrop"
     );
 
-    // 4. Update to Success (or Pending if Paystack returns pending)
+    // 4. Stay "processing" — Paystack transfers resolve asynchronously.
+    // The paystackWebhook handler (transfer.success / transfer.failed /
+    // transfer.reversed) is the authority on final status; treating the
+    // initial API response as final would let a transfer that later fails
+    // or reverses stay marked "Successful" forever.
     await db
       .collection("stores")
       .doc(storeId)
       .collection("wallet_transactions")
       .doc(txData.txId)
       .update({
-        status: "success", // or transfer.data.status
+        status: "processing",
         reference: transfer.data.reference,
         paystackTransferCode: transfer.data.transfer_code,
-        description: "Withdrawal Successful",
+        description: "Withdrawal submitted to Paystack, awaiting confirmation",
       });
+
+    // Lightweight top-level lookup so the webhook (which only gets the
+    // Paystack reference, not the storeId) can find this transaction
+    // without a collection-group query / extra index.
+    await db.collection("transfer_refs").doc(transfer.data.reference).set({
+      storeId,
+      transactionId: txData.txId,
+      amount,
+      createdAt: admin.firestore.Timestamp.now(),
+    });
 
     return {
       success: true,
@@ -247,6 +323,71 @@ export const handleWithdrawal = async (storeId: string, amount: number) => {
       "Payout failed. Funds have been returned to your wallet."
     );
   }
+};
+
+// Called by the Paystack webhook (transfer.success / transfer.failed /
+// transfer.reversed) — the async confirmation `handleWithdrawal` no longer
+// assumes on the initial API response.
+export const resolveTransferStatus = async (
+  reference: string,
+  outcome: "success" | "failed" | "reversed"
+) => {
+  const db = admin.firestore();
+  const refDoc = await db.collection("transfer_refs").doc(reference).get();
+  if (!refDoc.exists) {
+    console.warn(`No transfer_refs entry for reference ${reference}`);
+    return;
+  }
+  const { storeId, transactionId, amount } = refDoc.data() as {
+    storeId: string;
+    transactionId: string;
+    amount: number;
+  };
+
+  const txRef = db
+    .collection("stores")
+    .doc(storeId)
+    .collection("wallet_transactions")
+    .doc(transactionId);
+
+  const txSnap = await txRef.get();
+  // Idempotency: only act if still "processing" — a replayed webhook
+  // shouldn't refund the wallet twice.
+  if (!txSnap.exists || txSnap.data()?.status !== "processing") {
+    console.log(
+      `transfer_refs ${reference}: tx already resolved or missing, skipping`
+    );
+    return;
+  }
+
+  if (outcome === "success") {
+    await txRef.update({
+      status: "success",
+      description: "Withdrawal Successful",
+    });
+    return;
+  }
+
+  // failed or reversed — refund the wallet, same as the synchronous-failure
+  // path in handleWithdrawal.
+  const walletRef = db
+    .collection("stores")
+    .doc(storeId)
+    .collection("wallet")
+    .doc("main");
+
+  await db.runTransaction(async (t) => {
+    const walletDoc = await t.get(walletRef);
+    const currentBalance = walletDoc.data()?.currentBalance || 0;
+    t.update(walletRef, {
+      currentBalance: currentBalance + amount,
+      totalWithdrawn: admin.firestore.FieldValue.increment(-amount),
+    });
+    t.update(txRef, {
+      status: "failed",
+      description: `Withdrawal ${outcome} — funds returned to your wallet.`,
+    });
+  });
 };
 
 export const releasePendingFunds = async (storeId: string) => {

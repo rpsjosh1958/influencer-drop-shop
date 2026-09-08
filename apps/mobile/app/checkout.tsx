@@ -27,16 +27,15 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SlideToPay, SlideToPayRef } from "@/components/ui/slide-to-pay";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
 import {
   doc,
   getDoc,
-  addDoc,
-  collection,
   serverTimestamp,
   runTransaction,
   increment,
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { useStore } from "@/context/store-context";
 import { formatCurrency } from "@/lib/format";
 import { onAuthStateChanged } from "firebase/auth";
@@ -222,38 +221,11 @@ export default function CheckoutScreen() {
     try {
       if (!storeId) throw new Error("No store context");
 
-      const orderData = {
-        items: cart.map((item) => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          imageUrl: item.image,
-          selectedVariant: item.variant || null,
-        })),
-        total,
-        shipping: {
-          fullName: name,
-          email: email,
-          phone: phone,
-          address: `${address}, ${city}`,
-          country: "Ghana",
-          city,
-          street: address,
-          zip: "",
-        },
-        status: "paid",
-        paymentRef: res.reference,
-        createdAt: serverTimestamp(),
-        userId: user?.uid || "guest",
-        customerEmail: user?.email || email,
-        customerName: name,
-        customerNote, // Added customer note
-        storeId, // Tag with storeId
-        storeName: store?.name || "Unknown Store",
-      };
-
-      await addDoc(collection(db, "stores", storeId, "orders"), orderData);
+      // Never trust the popup's onSuccess alone — confirm server-side
+      // (verifies against Paystack and only then creates the order) before
+      // telling the customer anything succeeded.
+      const confirmOrderPayment = httpsCallable(functions, "confirmOrderPayment");
+      await confirmOrderPayment({ reference: res.reference });
 
       clearCart();
       setLoading(false);
@@ -270,11 +242,12 @@ export default function CheckoutScreen() {
         },
       });
     } catch (error) {
-      console.error("Order save error", error);
+      console.error("Order confirmation error", error);
       showAlert({
         title: "Order Error",
         message:
-          "Payment successful but failed to save order. Contact support.",
+          "We couldn't confirm your payment. If you were charged, contact support with your reference: " +
+          (res?.reference || "unknown"),
         type: "error",
       });
       setLoading(false);
@@ -308,10 +281,43 @@ export default function CheckoutScreen() {
 
     setLoading(true);
     const stockReserved = await reserveStock();
-    if (stockReserved) {
+    if (!stockReserved) {
+      sliderRef.current?.reset();
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const initializeOrderPayment = httpsCallable(
+        functions,
+        "initializeOrderPayment",
+      );
+      const { data }: any = await initializeOrderPayment({
+        storeId,
+        items: cart.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+          imageUrl: item.image,
+          selectedVariant: item.variant || null,
+        })),
+        shipping: {
+          fullName: name,
+          email,
+          phone,
+          address: `${address}, ${city}`,
+          country: "Ghana",
+          city,
+          street: address,
+          zip: "",
+        },
+        customerNote,
+        guestEmail: email,
+      });
+
       popup.checkout({
-        amount: total,
+        amount: data.amount / 100, // server returns pesewas; this SDK takes GHS
         email,
+        reference: data.reference,
         metadata: {
           name,
           mobile: phone,
@@ -319,9 +325,18 @@ export default function CheckoutScreen() {
         onSuccess: handleSuccess,
         onCancel: handleCancel,
       });
-    } else {
+    } catch (error: any) {
+      console.error("Order initialization error", error);
+      await restoreStock();
       sliderRef.current?.reset();
       setLoading(false);
+      showAlert({
+        title: "Checkout Error",
+        message:
+          error?.message ||
+          "Couldn't start checkout for this store. Please try again.",
+        type: "error",
+      });
     }
   };
 

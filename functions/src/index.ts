@@ -7,13 +7,24 @@ import * as logger from "firebase-functions/logger";
 import { Expo, ExpoPushMessage } from "expo-server-sdk";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
-import { resolveAccount, createRecipient, listBanks } from "./paystack";
+import * as crypto from "crypto";
+import {
+  resolveAccount,
+  createRecipient,
+  listBanks,
+  createSubaccount,
+  updateSubaccount,
+  verifyTransaction,
+  initializeTransaction,
+} from "./paystack";
 import {
   processOrderWallet,
   handleWithdrawal,
   releasePendingFunds,
 } from "./wallet";
 import { checkSubscriptionExpiry } from "./subscriptions";
+import { createOrderFromVerifiedPayment } from "./orders";
+import { getPlatformFeePercentage } from "./fees";
 
 admin.initializeApp();
 
@@ -319,6 +330,23 @@ export const onStoreUpdated = onDocumentUpdated(
       });
 
       await releasePendingFunds(storeId);
+    }
+
+    // Keep the store's Paystack Subaccount fee split in sync with whatever
+    // its plan is now — covers upgrades, downgrades, and expiry-driven
+    // downgrades alike (all of which land here via the plan fan-out),
+    // unlike the block above which only handled the starter->growth case.
+    if (before.plan !== after.plan && after.payoutConfig?.subaccountCode) {
+      try {
+        await updateSubaccount(after.payoutConfig.subaccountCode, {
+          percentage_charge: getPlatformFeePercentage(after.plan),
+        });
+      } catch (err) {
+        logger.error(
+          `Failed to sync subaccount fee for store ${storeId} after plan change`,
+          err
+        );
+      }
     }
   }
 );
@@ -743,6 +771,65 @@ export const createTransferRecipient = onCall(async (request) => {
   });
 });
 
+// Replaces the client's old two-step "createTransferRecipient then
+// updateDoc" flow: creates both the Paystack transfer recipient AND a
+// Paystack Subaccount (so checkout can split payments to this vendor
+// automatically), and writes payoutConfig server-side — a store only
+// becomes sellable once this has run (see initializeOrderPayment's
+// subaccountCode check).
+export const linkPayoutMethod = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+  const { storeId, type, name, accountNumber, bankCode, bankName } =
+    request.data;
+  if (!storeId || !type || !name || !accountNumber || !bankCode) {
+    throw new HttpsError("invalid-argument", "Missing payout details");
+  }
+
+  const storeRef = admin.firestore().collection("stores").doc(storeId);
+  const storeDoc = await storeRef.get();
+  const storeData = storeDoc.data();
+  if (!storeDoc.exists || storeData?.ownerId !== request.auth.uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Not authorized to configure payouts for this store"
+    );
+  }
+
+  const recipient = await createRecipient({
+    type,
+    name,
+    account_number: accountNumber,
+    bank_code: bankCode,
+  });
+
+  const plan = storeData?.plan || "starter";
+  const subaccount = await createSubaccount({
+    business_name: storeData?.name || name,
+    bank_code: bankCode,
+    account_number: accountNumber,
+    percentage_charge: getPlatformFeePercentage(plan),
+  });
+
+  const payoutConfig = {
+    provider: type === "mobile_money" ? "momo" : "bank",
+    bankCode,
+    bankName: bankName || "",
+    accountNumber,
+    accountName: name,
+    recipientCode: recipient.recipient_code,
+    subaccountCode: subaccount.subaccount_code,
+  };
+
+  await storeRef.update({ payoutConfig });
+
+  return {
+    recipientCode: recipient.recipient_code,
+    subaccountCode: subaccount.subaccount_code,
+  };
+});
+
 export const initiateWithdrawal = onCall(async (request) => {
   const { amount, storeId } = request.data;
   const auth = request.auth;
@@ -789,6 +876,155 @@ export const initiateWithdrawal = onCall(async (request) => {
   return await handleWithdrawal(storeId, amount);
 });
 
+// --- VERIFIED CHECKOUT ---
+
+// Step 1 of checkout: recomputes the order total server-side from real
+// product data (never trusts a client-supplied total), requires the store
+// to have completed payout setup (a Subaccount), and starts a Paystack
+// transaction split to that subaccount. Callable by guests (no auth
+// requirement) since guest checkout is supported.
+export const initializeOrderPayment = onCall(async (request) => {
+  const { storeId, items, shipping, customerNote, guestEmail } =
+    request.data;
+
+  if (
+    !storeId ||
+    !Array.isArray(items) ||
+    items.length === 0 ||
+    !shipping
+  ) {
+    throw new HttpsError("invalid-argument", "Missing order details");
+  }
+
+  const db = admin.firestore();
+  const storeDoc = await db.collection("stores").doc(storeId).get();
+  if (!storeDoc.exists) {
+    throw new HttpsError("not-found", "Store not found");
+  }
+  const store = storeDoc.data()!;
+
+  const subaccountCode = store.payoutConfig?.subaccountCode;
+  if (!subaccountCode) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This store hasn't finished payout setup yet and can't accept payments."
+    );
+  }
+
+  let totalGHS = 0;
+  const verifiedItems: any[] = [];
+  for (const item of items) {
+    const productSnap = await db
+      .collection("stores")
+      .doc(storeId)
+      .collection("products")
+      .doc(item.id)
+      .get();
+    if (!productSnap.exists) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Product ${item.id} no longer exists`
+      );
+    }
+    const product = productSnap.data()!;
+    let price = product.price;
+    if (item.selectedVariant?.id && Array.isArray(product.variants)) {
+      const variant = product.variants.find(
+        (v: any) => v.id === item.selectedVariant.id
+      );
+      if (variant?.price !== undefined) price = variant.price;
+    }
+    const quantity = Number(item.quantity) || 0;
+    if (quantity <= 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Invalid quantity for ${item.id}`
+      );
+    }
+    totalGHS += price * quantity;
+    verifiedItems.push({
+      id: item.id,
+      name: product.name,
+      price,
+      quantity,
+      imageUrl: item.imageUrl || product.images?.[0] || null,
+      selectedVariant: item.selectedVariant || null,
+    });
+  }
+
+  const expectedAmountPesewas = Math.round(totalGHS * 100);
+  const reference = `drop_${crypto.randomBytes(12).toString("hex")}`;
+  const email = request.auth?.token?.email || guestEmail;
+  if (!email) {
+    throw new HttpsError(
+      "invalid-argument",
+      "An email is required to receive a payment receipt"
+    );
+  }
+
+  await db
+    .collection("payment_intents")
+    .doc(reference)
+    .set({
+      storeId,
+      items: verifiedItems,
+      shipping,
+      customerNote: customerNote || "",
+      userId: request.auth?.uid || "guest",
+      customerEmail: email,
+      customerName: shipping.fullName || "",
+      storeName: store.name || "Unknown Store",
+      expectedAmountPesewas,
+      status: "pending",
+      createdAt: admin.firestore.Timestamp.now(),
+    });
+
+  const tx = await initializeTransaction({
+    email,
+    amount: expectedAmountPesewas,
+    reference,
+    subaccount: subaccountCode,
+  });
+
+  return {
+    reference,
+    accessCode: tx.access_code,
+    authorizationUrl: tx.authorization_url,
+    amount: expectedAmountPesewas,
+  };
+});
+
+// Step 2 of checkout: called right after the Paystack popup's onSuccess
+// (mobile/web have no redirect callback to hang a webhook off of). Verifies
+// the payment server-side before creating the order — this is the fallback
+// confirmation path; paystackWebhook's charge.success handler is the
+// primary/authoritative one. Both call the same idempotent helper, so
+// whichever fires first wins and the other is a safe no-op.
+export const confirmOrderPayment = onCall(async (request) => {
+  const { reference } = request.data;
+  if (!reference) {
+    throw new HttpsError("invalid-argument", "Missing reference");
+  }
+
+  const verified = await verifyTransaction(reference);
+  const result = await createOrderFromVerifiedPayment({
+    reference: verified.reference,
+    status: verified.status,
+    amount: verified.amount,
+    split: verified.split,
+  });
+
+  if (!result.created && !result.storeId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Payment could not be verified"
+    );
+  }
+
+  return { success: true, storeId: result.storeId };
+});
+
+export { paystackWebhook } from "./webhooks";
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
 export { checkSubscriptionExpiry };
 export { sendPasswordReset } from "./auth";

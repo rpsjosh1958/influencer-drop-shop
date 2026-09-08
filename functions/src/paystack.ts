@@ -97,3 +97,88 @@ export const initiateTransfer = async (
     );
   }
 };
+
+export const createSubaccount = async (data: {
+  business_name: string;
+  bank_code: string;
+  account_number: string;
+  percentage_charge: number;
+}) => {
+  try {
+    const response = await paystack.post("/subaccount", {
+      business_name: data.business_name,
+      settlement_bank: data.bank_code,
+      account_number: data.account_number,
+      percentage_charge: data.percentage_charge,
+    });
+    return response.data.data;
+  } catch (error: any) {
+    console.error(
+      "Paystack API Error (Create Subaccount):",
+      error.response?.data || error.message
+    );
+    throw new functions.https.HttpsError(
+      "internal",
+      error.response?.data?.message || "Could not create subaccount"
+    );
+  }
+};
+
+export const updateSubaccount = async (
+  code: string,
+  data: { percentage_charge?: number; active?: boolean }
+) => {
+  try {
+    const response = await paystack.put(`/subaccount/${code}`, data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error(
+      "Paystack API Error (Update Subaccount):",
+      error.response?.data || error.message
+    );
+    throw new functions.https.HttpsError(
+      "internal",
+      error.response?.data?.message || "Could not update subaccount"
+    );
+  }
+};
+
+export const verifyTransaction = async (reference: string) => {
+  try {
+    const response = await paystack.get(
+      `/transaction/verify/${encodeURIComponent(reference)}`
+    );
+    return response.data.data;
+  } catch (error: any) {
+    console.error(
+      "Paystack API Error (Verify Transaction):",
+      error.response?.data || error.message
+    );
+    throw new functions.https.HttpsError(
+      "internal",
+      error.response?.data?.message || "Could not verify transaction"
+    );
+  }
+};
+
+export const initializeTransaction = async (data: {
+  email: string;
+  amount: number; // kobo/pesewas
+  reference: string;
+  subaccount?: string;
+  metadata?: Record<string, unknown>;
+}) => {
+  try {
+    const response = await paystack.post("/transaction/initialize", data);
+    return response.data.data;
+  } catch (error: any) {
+    console.error(
+      "Paystack API Error (Initialize Transaction):",
+      error.response?.data || error.message
+    );
+    throw new functions.https.HttpsError(
+      "internal",
+      error.response?.data?.message || "Could not initialize transaction"
+    );
+  }
+};

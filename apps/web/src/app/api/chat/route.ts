@@ -688,11 +688,15 @@ export async function POST(req: Request) {
           } else if (fnName === "addCategory") {
             const name = (fnArgs as any).name;
             const slug = name.toLowerCase().replace(/\s+/g, "-");
-            await adminDb.collection("categories").add({
-              name,
-              slug,
-              createdAt: new Date(),
-            });
+            await adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("categories")
+              .add({
+                name,
+                slug,
+                createdAt: new Date(),
+              });
             result = `Category created: ${name} (/${slug})`;
           } else if (fnName === "updateOrderStatus") {
             const status = (fnArgs as any).status;

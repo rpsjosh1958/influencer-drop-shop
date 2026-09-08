@@ -415,20 +415,21 @@ export default function StoreSettingsPage() {
     if (!payoutState.isVerified) return;
     setLoading(true);
     try {
-      // 1. Create Recipient
-      const createRecipientFn = httpsCallable(
-        functions,
-        "createTransferRecipient"
-      );
-      const recipient: any = await createRecipientFn({
+      // Creates the Paystack transfer recipient AND a Subaccount (so
+      // checkout can split payments to this vendor automatically), and
+      // writes payoutConfig server-side — all in one call.
+      const linkPayoutMethodFn = httpsCallable(functions, "linkPayoutMethod");
+      const result: any = await linkPayoutMethodFn({
+        storeId,
         type: payoutState.provider === "momo" ? "mobile_money" : "nuban",
         name: payoutState.verifiedName,
         accountNumber: payoutState.accountNumber,
         bankCode: payoutState.bankCode,
+        bankName:
+          MOMO_NETWORKS.find((n) => n.code === payoutState.bankCode)?.name ||
+          "Bank",
       });
 
-      const recipientCode = recipient.data.recipient_code;
-      // 2. Save to Firestore
       const payoutConfig = {
         provider: payoutState.provider,
         bankCode: payoutState.bankCode,
@@ -437,15 +438,12 @@ export default function StoreSettingsPage() {
           "Bank",
         accountNumber: payoutState.accountNumber,
         accountName: payoutState.verifiedName,
-        recipientCode, // Critical for transfers
+        recipientCode: result.data.recipientCode,
+        subaccountCode: result.data.subaccountCode,
       };
 
-      await updateDoc(doc(db, "stores", storeId!), {
-        payoutConfig,
-      });
-
-      setSuccess("Payout Method Verified & Saved!");
-      // Update local config
+      setSuccess("Payout Method Verified & Saved! Your store can now accept orders.");
+      // Update local config (linkPayoutMethod already wrote it to Firestore)
       setConfig((prev: any) => ({ ...prev, payoutConfig }));
       // Reset form state slightly to showing saved state logic handled in render
     } catch (err: any) {

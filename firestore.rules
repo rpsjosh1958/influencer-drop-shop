@@ -80,9 +80,13 @@ service cloud.firestore {
       
       // -- Orders --
       match /orders/{orderId} {
-        // Anyone can place an order (Public Checkout)
-        allow create: if true;
-        
+        // Real buyer orders are created server-side only, by the Cloud
+        // Functions verified-checkout flow (initializeOrderPayment /
+        // confirmOrderPayment / the Paystack webhook), which use the Admin
+        // SDK and bypass these rules entirely. The only client write left
+        // here is a vendor manually logging their own order (cash/DM sale).
+        allow create: if isParentStoreOwner();
+
         // Store Owner OR The Customer who placed it can read OR Super Admin
         allow read: if isParentStoreOwner() || 
                      (isAuthenticated() && resource.data.userId == request.auth.uid) ||

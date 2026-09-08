@@ -5,15 +5,12 @@ import { useStore } from "@/components/shop/store-provider";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePaystackPayment } from "react-paystack";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { onAuthStateChanged, User } from "firebase/auth";
 import {
-  collection,
-  addDoc,
-  serverTimestamp,
   doc,
   runTransaction,
-  writeBatch,
   increment,
   getDoc,
 } from "firebase/firestore";
@@ -129,11 +126,12 @@ export default function CheckoutPage() {
     }
   };
 
-  // Paystack Config
+  // Paystack Config — email/amount/reference are overridden per-call with
+  // server-issued values from initializeOrderPayment (see handlePaymentStart);
+  // this hook config only needs the static publicKey/currency.
   const config = {
-    reference: new Date().getTime().toString(),
     email: user?.email || email,
-    amount: total * 100, // Paystack expects kobo (GH cents)
+    amount: total * 100,
     publicKey:
       process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
       "pk_test_a0a57464670081d486241b2123ba3f42193b2a0c",
@@ -280,48 +278,20 @@ export default function CheckoutPage() {
   const handlePaystackSuccess = async (reference: any) => {
     setLoading(true);
     try {
-      const storeId = Array.isArray(params?.storeId)
-        ? params.storeId[0]
-        : (params?.storeId as string) || "default-store";
-
-      // Create Order in Firestore (Stock ALREADY deducted by reserveStock)
-      // Sanitize cart to remove undefined values and ensure clean JSON snapshot
-      const safeItems = JSON.parse(JSON.stringify(cart));
-
-      const orderData = {
-        items: safeItems,
-        total,
-        shipping: {
-          fullName: name,
-          email: email,
-          phone: phone,
-          address: `${street}, ${city}, ${country} ${zip}`,
-          country,
-          city,
-          street,
-          zip,
-        },
-        status: "paid", // or 'processing'
-        paymentRef: reference,
-        createdAt: serverTimestamp(),
-        userId: user?.uid || "guest",
-        customerEmail: user?.email || email,
-        customerName: name,
-        customerNote, // Added
-        storeId: store?.id,
-        storeName: store?.name || "Unknown Store",
-      };
-
-      await addDoc(collection(db, "stores", storeId, "orders"), orderData);
+      // Never trust the client-side popup's success alone — confirm
+      // server-side (verifies against Paystack and only then creates the
+      // order) before showing the success screen.
+      const confirmOrderPayment = httpsCallable(functions, "confirmOrderPayment");
+      const ref =
+        typeof reference === "string" ? reference : reference?.reference;
+      await confirmOrderPayment({ reference: ref });
 
       clearCart();
       setShowSuccess(true);
     } catch (error) {
-      console.error("Error saving order:", error);
-      // If saving order fails (very rare), we should probably refund or alert admin.
-      // For now, alerting user.
+      console.error("Error confirming order:", error);
       alert(
-        "Payment successful but order saving failed. Please contact support.",
+        "We couldn't confirm your payment. If you were charged, please contact support with your reference.",
       );
     } finally {
       setLoading(false);
@@ -338,6 +308,10 @@ export default function CheckoutPage() {
     e.preventDefault();
     setLoading(true);
 
+    const storeId = Array.isArray(params?.storeId)
+      ? params.storeId[0]
+      : (params?.storeId as string) || "default-store";
+
     // 1. Reserve Stock
     const reserved = await reserveStock();
     if (!reserved) {
@@ -345,11 +319,55 @@ export default function CheckoutPage() {
       return;
     }
 
-    // 2. Open Payment Modal
-    initializePayment({
-      onSuccess: handlePaystackSuccess,
-      onClose: handlePaystackClose,
-    });
+    // 2. Recompute the total server-side and start a split payment to the
+    // vendor's Paystack Subaccount — never trust the client's own `total`.
+    try {
+      const initializeOrderPayment = httpsCallable(
+        functions,
+        "initializeOrderPayment",
+      );
+      const safeItems = JSON.parse(JSON.stringify(cart));
+      const { data }: any = await initializeOrderPayment({
+        storeId,
+        items: safeItems.map((item: any) => ({
+          id: item.id,
+          quantity: item.quantity,
+          imageUrl: item.image,
+          selectedVariant: item.selectedVariant || null,
+        })),
+        shipping: {
+          fullName: name,
+          email,
+          phone,
+          address: `${street}, ${city}, ${country} ${zip}`,
+          country,
+          city,
+          street,
+          zip,
+        },
+        customerNote,
+        guestEmail: email,
+      });
+
+      // 3. Open Payment Modal with the server-issued reference/amount
+      initializePayment({
+        config: {
+          reference: data.reference,
+          email,
+          amount: data.amount, // pesewas, from the server
+        },
+        onSuccess: handlePaystackSuccess,
+        onClose: handlePaystackClose,
+      });
+    } catch (error: any) {
+      console.error("Order initialization error", error);
+      await restoreStock();
+      setLoading(false);
+      alert(
+        error?.message ||
+          "Couldn't start checkout for this store. Please try again.",
+      );
+    }
   };
 
   if (loading || !mounted)
