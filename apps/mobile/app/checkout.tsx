@@ -55,6 +55,15 @@ export default function CheckoutScreen() {
   const [customerNote, setCustomerNote] = useState("");
   const [user, setUser] = useState<any>(null);
 
+  // Empty cart and not mid-checkout (e.g. back-navigated here directly, or
+  // the cart got cleared some other way) — nothing to check out, bail back
+  // to the shop rather than showing a blank/broken checkout screen.
+  useEffect(() => {
+    if (cart.length === 0 && !loading && !initializing) {
+      router.replace("/(tabs)");
+    }
+  }, [cart.length, loading, initializing]);
+
   useMountEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u: any) => {
       setUser(u);
@@ -234,11 +243,6 @@ export default function CheckoutScreen() {
         <ActivityIndicator size="large" color="black" />
       </View>
     );
-  }
-
-  // If empty cart and not processing, redirect back
-  if (cart.length === 0 && !loading) {
-    // Optional: Redirect if needed, but handled by success modal usually.
   }
 
   return (

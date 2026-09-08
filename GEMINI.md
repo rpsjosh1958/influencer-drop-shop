@@ -76,7 +76,7 @@ Multi-repo/Monorepo structure containing mobile, web, and serverless backend com
 ## Subscription & Plan Logic
 
 - **New Vendors:** Automatically enrolled in a **30-Day Free Trial** of the **Growth Plan** via `onStoreCreated` Firebase Function.
-- **Expiry:** `checkSubscriptionExpiry` runs every 24 hours. It downgrades stores with `planExpiresAt < now` to the `starter` plan and removes the `isVerified` status.
+- **Expiry:** `checkSubscriptionExpiry` runs every hour. It downgrades stores with `planExpiresAt < now` to the `starter` plan and removes the `isVerified` status.
 - **Admin UI:** The Settings > Billing tab displays the remaining days for the Growth plan.
 - **Security Rules:** (TODO) Future reinforcement of `firestore.rules` to strictly block service/hybrid features for `starter` plan users.
 
