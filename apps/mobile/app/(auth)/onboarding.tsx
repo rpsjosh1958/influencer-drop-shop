@@ -43,6 +43,7 @@ interface Store {
   name: string;
   logo?: string;
   isVerified?: boolean;
+  isSuspended?: boolean;
 }
 
 export default function Onboarding() {
@@ -69,10 +70,13 @@ export default function Onboarding() {
             where("plan", "==", "growth"),
           );
           const snapshot = await getDocs(q);
-          const storeData = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          })) as Store[];
+          // Suspension doesn't flip status away from "live" (it's a separate
+          // admin override), so it has to be filtered out here rather than
+          // in the query itself — avoids a new composite index for one
+          // `!=` field.
+          const storeData = snapshot.docs
+            .map((doc) => ({ id: doc.id, ...doc.data() }) as Store)
+            .filter((s) => !s.isSuspended);
           setStores(storeData);
         } catch (error) {
           console.error("Onboarding: Failed to fetch stores", error);

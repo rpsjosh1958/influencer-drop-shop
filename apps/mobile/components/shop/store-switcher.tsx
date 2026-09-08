@@ -33,6 +33,7 @@ interface Store {
   name: string;
   logo?: string;
   isVerified?: boolean;
+  isSuspended?: boolean;
 }
 
 export function StoreSwitcher() {
@@ -49,10 +50,12 @@ export function StoreSwitcher() {
         where("plan", "==", "growth")
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Store[];
+      // Suspension doesn't flip status away from "live" (it's a separate
+      // admin override), so it has to be filtered out here rather than in
+      // the query itself — avoids a new composite index for one `!=` field.
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }) as Store)
+        .filter((s) => !s.isSuspended);
     },
     enabled: isOpen,
     staleTime: 1000 * 60 * 5, // 5 minutes

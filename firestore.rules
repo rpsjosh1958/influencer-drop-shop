@@ -77,6 +77,24 @@ service cloud.firestore {
         isStoreOwner() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId'])
         && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
+        // onboardingStatus was previously untouched by the blocklist above —
+        // an owner could self-write straight to "approved", bypassing admin
+        // review entirely. The one legitimate owner-side transition is
+        // resubmitting after "needs_more_info" back to "pending" (the
+        // settings page does exactly this); everything else (self-approving,
+        // un-rejecting, etc.) requires the super admin.
+        && (
+          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['onboardingStatus']) ||
+          (resource.data.onboardingStatus == 'needs_more_info' && request.resource.data.onboardingStatus == 'pending')
+        )
+        // Can't flip status to "live" while not yet approved — otherwise an
+        // owner could bypass review and still surface in the mobile app's
+        // growth+live discovery query (store-switcher.tsx/onboarding.tsx),
+        // which doesn't separately check onboardingStatus.
+        && (
+          request.resource.data.status != 'live' ||
+          resource.data.get('onboardingStatus', 'approved') == 'approved'
+        )
       );
 
       allow delete: if isStoreOwner() || isSuperAdmin();
