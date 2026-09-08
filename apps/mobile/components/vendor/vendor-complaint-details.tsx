@@ -19,6 +19,7 @@ import {
 } from "lucide-react-native";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Complaint } from "@/types";
 
 interface VendorComplaintDetailsProps {
   visible: boolean;
@@ -33,7 +34,7 @@ export function VendorComplaintDetails({
   complaintId,
   storeId,
 }: VendorComplaintDetailsProps) {
-  const [complaint, setComplaint] = useState<any>(null);
+  const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function VendorComplaintDetails({
       const docRef = doc(db, "stores", storeId, "complaints", complaintId);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
-        setComplaint({ id: snap.id, ...snap.data() });
+        setComplaint({ ...(snap.data() as Complaint), id: snap.id });
       }
     } catch (error) {
       console.error("Failed to fetch complaint", error);

@@ -31,13 +31,14 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { useState, useEffect, useMemo } from "react";
+import type { Booking } from "@/types";
 // ... imports
 
 export default function VendorBookings() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { store, bookings: allBookings, refreshStore } = useVendor();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [showFullCalendar, setShowFullCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -61,15 +62,15 @@ export default function VendorBookings() {
   // Filter bookings for selected date (Calendar View)
   const calendarViewBookings = useMemo(() => {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
-    const items = allBookings.filter((b: any) => b.date === dateStr);
-    return items.sort((a: any, b: any) =>
+    const items = allBookings.filter((b) => b.date === dateStr);
+    return items.sort((a, b) =>
       a.startTime.localeCompare(b.startTime)
     );
   }, [allBookings, selectedDate]);
 
   // All Bookings Sorted (List View)
   const listViewBookings = useMemo(() => {
-    return [...allBookings].sort((a: any, b: any) => {
+    return [...allBookings].sort((a, b) => {
       const dateA = a.date + a.startTime;
       const dateB = b.date + b.startTime;
       return dateB.localeCompare(dateA); // Newest first
@@ -79,7 +80,7 @@ export default function VendorBookings() {
   // Check if a date has bookings
   const hasBookings = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return allBookings.some((b: any) => b.date === dateStr);
+    return allBookings.some((b) => b.date === dateStr);
   };
 
   // Full Calendar Days
@@ -89,7 +90,7 @@ export default function VendorBookings() {
     return eachDayOfInterval({ start, end });
   }, [currentMonth]);
 
-  const BookingCard = ({ booking }: { booking: any }) => (
+  const BookingCard = ({ booking }: { booking: Booking }) => (
     <Pressable
       onPress={() => setSelectedBooking(booking)}
       className="flex-row mb-4 bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm active:scale-[0.98] transition-all"

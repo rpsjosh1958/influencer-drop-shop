@@ -14,7 +14,7 @@ import { useStore } from "@/context/store-context";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ReviewForm } from "./review-form";
-import { Order } from "../../types";
+import { Order, type FirestoreTimestamp } from "../../types";
 import { formatCurrency } from "@/lib/format";
 
 interface OrderDetailsModalProps {
@@ -49,7 +49,7 @@ export function OrderDetailsModal({
 
   if (!order) return null;
 
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: FirestoreTimestamp | undefined) => {
     if (!timestamp) return "";
     return new Date(timestamp.seconds * 1000).toLocaleDateString("en-GB", {
       day: "numeric",
@@ -204,7 +204,7 @@ export function OrderDetailsModal({
                 Items ({order.items.length})
               </H1>
               <View className="space-y-4">
-                {order.items.map((item: any, i: number) => (
+                {order.items.map((item, i) => (
                   <View key={i} className="flex-row gap-4 mb-3">
                     <Image
                       source={{

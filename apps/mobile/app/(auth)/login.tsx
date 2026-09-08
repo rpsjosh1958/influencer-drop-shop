@@ -10,6 +10,7 @@ import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ArrowLeft, ExternalLink } from "lucide-react-native";
+import { getErrorMessage, getErrorCode } from "@/lib/errors";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -51,23 +52,22 @@ export default function Login() {
         // Allow root listener or default flow
         // router.replace("/(tabs)");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.log("Login error:", err);
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        // Use issues or errors, safe cast, and default to empty array to prevent crash
-        const issues = (err as any).errors || (err as any).issues || [];
-        issues.forEach((e: any) => {
+        err.issues.forEach((e) => {
           if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
         });
         setErrors(fieldErrors);
       } else {
         // Firebase Errors
-        const message = err.message || "Login failed";
+        const message = getErrorMessage(err) || "Login failed";
+        const code = getErrorCode(err);
         if (
-          err.code === "auth/invalid-credential" ||
-          err.code === "auth/user-not-found" ||
-          err.code === "auth/wrong-password"
+          code === "auth/invalid-credential" ||
+          code === "auth/user-not-found" ||
+          code === "auth/wrong-password"
         ) {
           alert("Invalid email or password");
         } else {

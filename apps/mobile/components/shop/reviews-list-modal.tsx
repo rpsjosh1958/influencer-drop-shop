@@ -13,13 +13,14 @@ import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { FirestoreTimestamp } from "@/types";
 
 interface Review {
   id: string;
   customerName: string;
   rating: number;
   comment?: string;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
   reply?: string;
   isAnonymous?: boolean;
 }
@@ -71,7 +72,7 @@ export function ReviewsListModal({
     }
   };
 
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: FirestoreTimestamp | undefined) => {
     if (!timestamp) return "";
     return new Date(timestamp.seconds * 1000).toLocaleDateString("en-US", {
       month: "short",

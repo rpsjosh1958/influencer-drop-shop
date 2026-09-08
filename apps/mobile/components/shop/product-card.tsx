@@ -3,6 +3,7 @@ import { MotiView, MotiImage } from "moti";
 import { P, H2 } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
 import { formatCurrency } from "@/lib/format";
+import type { ProductVariant } from "@/types";
 
 export type Product = {
   id: string;
@@ -13,10 +14,13 @@ export type Product = {
   description?: string;
   stock?: number;
   hasVariants?: boolean;
-  variants?: any[];
+  variants?: ProductVariant[];
   options?: { id: string; name: string; values: string[] }[];
   category?: string;
   storeId?: string;
+  // Some card lists (search results) mix in service items alongside
+  // products — real field, see global-search.tsx's "Service Tag" check.
+  type?: string;
 };
 
 interface ProductCardProps {

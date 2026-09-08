@@ -9,23 +9,24 @@ import { Filter, Menu, Package, Search, Plus } from "lucide-react-native";
 import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";
 import { formatCurrency } from "@/lib/format";
 import { ManualOrderModal } from "@/components/vendor/manual-order-modal";
+import type { Order } from "@/types";
 
 export default function VendorOrders() {
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const { orders, loading, refreshStore, products, store } = useVendor();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showManualOrder, setShowManualOrder] = useState(false);
 
   const filteredOrders = useMemo(() => {
     if (filter === "all") return orders;
     if (filter === "active") {
       return orders.filter(
-        (o: any) => !["completed", "cancelled", "delivered"].includes(o.status)
+        (o) => !["completed", "cancelled", "delivered"].includes(o.status)
       );
     }
     if (filter === "completed") {
-      return orders.filter((o: any) =>
+      return orders.filter((o) =>
         ["completed", "delivered", "cancelled"].includes(o.status)
       );
     }
@@ -180,7 +181,7 @@ export default function VendorOrders() {
       <ManualOrderModal
         visible={showManualOrder}
         onClose={() => setShowManualOrder(false)}
-        products={products as any}
+        products={products}
         storeId={store?.id || ""}
         storeName={store?.name || "Store"}
       />

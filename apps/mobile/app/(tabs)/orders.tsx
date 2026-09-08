@@ -34,18 +34,24 @@ import { useStore } from "@/context/store-context";
 import { useQuery } from "@tanstack/react-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { formatCurrency } from "@/lib/format";
+import type { Order, Booking } from "@/types";
+import type { User } from "firebase/auth";
+
+type OrderActivity = Order & { type: "order"; storeName?: string };
+type BookingActivity = Booking & { type: "booking"; storeName?: string };
+type Activity = OrderActivity | BookingActivity;
 
 export default function OrdersScreen() {
   const router = useRouter();
   const { storeId } = useStore();
   const params = useLocalSearchParams();
-  const [user, setUser] = useState<any>(auth.currentUser);
+  const [user, setUser] = useState<User | null>(auth.currentUser);
 
   const [detailsVisible, setDetailsVisible] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<OrderActivity | null>(null);
 
   const [bookingDetailsVisible, setBookingDetailsVisible] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedBooking, setSelectedBooking] = useState<BookingActivity | null>(null);
 
   useMountEffect(() => {
     return onAuthStateChanged(auth, (u) => {
@@ -53,11 +59,11 @@ export default function OrdersScreen() {
     });
   });
 
-  const { data: activities = [] as any[], isLoading: activitiesLoading, refetch, isRefetching } = useQuery({
+  const { data: activities = [], isLoading: activitiesLoading, refetch, isRefetching } = useQuery({
     queryKey: ["activities", user?.uid],
-    queryFn: async () => {
+    queryFn: async (): Promise<Activity[]> => {
       if (!user) return [];
-      
+
       // 1. Fetch Orders
       const orderQ = query(
         collectionGroup(db, "orders"),
@@ -65,10 +71,10 @@ export default function OrdersScreen() {
         orderBy("createdAt", "desc")
       );
       const orderSnap = await getDocs(orderQ);
-      const orderData = orderSnap.docs.map((doc) => ({
+      const orderData: OrderActivity[] = orderSnap.docs.map((doc) => ({
+        ...(doc.data() as Order),
         id: doc.id,
-        ...doc.data(),
-        type: "order",
+        type: "order" as const,
         storeId: doc.data().storeId || doc.ref.parent.parent?.id,
       }));
 
@@ -79,15 +85,15 @@ export default function OrdersScreen() {
         orderBy("createdAt", "desc")
       );
       const bookingSnap = await getDocs(bookingQ);
-      const bookingData = bookingSnap.docs.map((doc) => ({
+      const bookingData: BookingActivity[] = bookingSnap.docs.map((doc) => ({
+        ...(doc.data() as Booking),
         id: doc.id,
-        ...doc.data(),
-        type: "booking",
+        type: "booking" as const,
         storeId: doc.data().storeId || doc.ref.parent.parent?.id,
       }));
 
       // 3. Combine and Sort
-      return [...orderData, ...bookingData].sort((a: any, b: any) => {
+      return [...orderData, ...bookingData].sort((a, b) => {
         const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : 0;
         const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : 0;
         return dateB - dateA;
@@ -100,7 +106,7 @@ export default function OrdersScreen() {
   useMemo(() => {
     if (params.orderId && activities.length > 0 && !detailsVisible && !selectedOrder) {
       const target = activities.find(
-        (o) => o.id === params.orderId && o.type === "order"
+        (o): o is OrderActivity => o.id === params.orderId && o.type === "order"
       );
       if (target) {
         setSelectedOrder(target);
@@ -119,7 +125,7 @@ export default function OrdersScreen() {
       !selectedBooking
     ) {
       const target = activities.find(
-        (a) => a.id === params.bookingId && a.type === "booking"
+        (a): a is BookingActivity => a.id === params.bookingId && a.type === "booking"
       );
       if (target) {
         setSelectedBooking(target);
@@ -133,12 +139,12 @@ export default function OrdersScreen() {
     await refetch();
   };
 
-  const openOrderDetails = (order: any) => {
+  const openOrderDetails = (order: OrderActivity) => {
     setSelectedOrder(order);
     setDetailsVisible(true);
   };
 
-  const openBookingDetails = (booking: any) => {
+  const openBookingDetails = (booking: BookingActivity) => {
     setSelectedBooking(booking);
     setBookingDetailsVisible(true);
   };

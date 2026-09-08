@@ -1,7 +1,8 @@
+import type { ComponentType } from "react";
 import { View, ScrollView, Pressable, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import {
   LogOut,
   ArrowLeft,
@@ -18,7 +19,7 @@ import * as Linking from "expo-linking";
 
 export default function VendorSettings() {
   const handleExit = () => {
-    router.replace("/(tabs)/profile" as any);
+    router.replace("/(tabs)/profile" as Href);
   };
 
   const handleLogout = async () => {
@@ -49,13 +50,13 @@ export default function VendorSettings() {
         <SettingsItem
           icon={Store}
           label="Edit Store Profile"
-          onPress={() => router.push("/(vendor)/edit-store" as any)}
+          onPress={() => router.push("/(vendor)/edit-store" as Href)}
           showChevron
         />
         <SettingsItem
           icon={User}
           label="Profile Settings"
-          onPress={() => router.push("/(vendor)/profile-settings" as any)}
+          onPress={() => router.push("/(vendor)/profile-settings" as Href)}
           showChevron
         />
 
@@ -97,7 +98,13 @@ function SettingsItem({
   onPress,
   danger,
   showChevron,
-}: any) {
+}: {
+  icon: ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  onPress: () => void;
+  danger?: boolean;
+  showChevron?: boolean;
+}) {
   return (
     <Pressable
       onPress={onPress}

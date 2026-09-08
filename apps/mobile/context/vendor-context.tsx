@@ -16,10 +16,18 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type {
+  Order,
+  Product,
+  Booking,
+  Complaint,
+  ServiceItem,
+  FirestoreTimestamp,
+} from "@/types";
 
 interface Metrics {
   revenue: number;
@@ -33,20 +41,27 @@ interface OwnedStore {
   name: string;
   plan: string;
   status: string;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
   isLocked: boolean;
+  logo?: string;
+  type?: "product" | "service" | "hybrid";
+  features?: {
+    hasProducts: boolean;
+    hasServices: boolean;
+    hasPreorders: boolean;
+  };
 }
 
 interface VendorContextType {
-  store: any | null;
+  store: OwnedStore | null;
   ownedStores: OwnedStore[];
   userPlan: string;
   activeStoreId: string | null;
-  orders: any[];
-  bookings: any[];
-  complaints: any[];
-  products: any[];
-  services: any[];
+  orders: Order[];
+  bookings: Booking[];
+  complaints: Complaint[];
+  products: Product[];
+  services: ServiceItem[];
   metrics: Metrics;
   badgeCounts: {
     orders: number;
@@ -57,7 +72,7 @@ interface VendorContextType {
   isLocked: boolean;
   switchStore: (id: string) => Promise<void>;
   toggleStoreStatus: () => Promise<void>;
-  refreshStore: () => Promise<any>;
+  refreshStore: () => Promise<boolean>;
 }
 
 const VendorContext = createContext<VendorContextType | undefined>(undefined);
@@ -65,7 +80,7 @@ const VendorContext = createContext<VendorContextType | undefined>(undefined);
 const ACTIVE_STORE_STORAGE_KEY = "@vendor_active_store_id";
 
 export function VendorProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -101,10 +116,10 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const { data: stores = [], isLoading: storesLoading } = useQuery({
     queryKey: ["vendor-owned-stores", ownedStoreIds],
     queryFn: async () => {
-      if (!ownedStoreIds.length) return [];
-      
+      if (!ownedStoreIds.length || !user) return [];
+
       const q = query(
-        collection(db, "stores"), 
+        collection(db, "stores"),
         where("ownerId", "==", user.uid)
       );
       const snapshot = await getDocs(q);
@@ -156,7 +171,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       if (!effectiveStoreId) return [];
       const q = query(collection(db, "stores", effectiveStoreId, "orders"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })) as Order[];
     },
     enabled: !!effectiveStoreId && !isLocked,
   });
@@ -167,7 +182,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       if (!effectiveStoreId) return [];
       const q = query(collection(db, "stores", effectiveStoreId, "products"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })) as Product[];
     },
     enabled: !!effectiveStoreId && !isLocked,
   });
@@ -178,7 +193,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       if (!effectiveStoreId) return [];
       const q = query(collection(db, "stores", effectiveStoreId, "bookings"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })) as Booking[];
     },
     enabled: !!effectiveStoreId && !isLocked,
   });
@@ -189,7 +204,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       if (!effectiveStoreId) return [];
       const q = query(collection(db, "stores", effectiveStoreId, "complaints"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })) as Complaint[];
     },
     enabled: !!effectiveStoreId && !isLocked,
   });
@@ -200,7 +215,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       if (!effectiveStoreId) return [];
       const q = query(collection(db, "stores", effectiveStoreId, "services"), orderBy("createdAt", "desc"));
       const snap = await getDocs(q);
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() })) as ServiceItem[];
     },
     enabled: !!effectiveStoreId && !isLocked,
   });
@@ -256,7 +271,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     let revenue = 0;
     let activeCount = 0;
 
-    orders.forEach((order: any) => {
+    orders.forEach((order) => {
       const isPaid = ["paid", "processing", "packaged", "sent-out", "shipped", "delivered", "completed"].includes(order.status);
       if (isPaid) revenue += order.total || 0;
 
@@ -264,7 +279,7 @@ export function VendorProvider({ children }: { children: ReactNode }) {
       if (isActive) activeCount++;
     });
 
-    const lowStockCount = products.filter((p: any) => p.stock > 0 && p.stock <= 5).length;
+    const lowStockCount = products.filter((p) => p.stock > 0 && p.stock <= 5).length;
 
     return {
       revenue,
@@ -275,9 +290,9 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   }, [orders, products]);
 
   const badgeCounts = useMemo(() => ({
-    orders: orders.filter((o: any) => ["paid", "processing", "packaged"].includes(o.status)).length,
-    bookings: bookings.filter((b: any) => b.status === "pending").length,
-    complaints: complaints.filter((c: any) => ["unread", "open"].includes(c.status)).length,
+    orders: orders.filter((o) => ["paid", "processing", "packaged"].includes(o.status)).length,
+    bookings: bookings.filter((b) => b.status === "pending").length,
+    complaints: complaints.filter((c) => ["unread", "open"].includes(c.status)).length,
   }), [orders, bookings, complaints]);
 
   return (

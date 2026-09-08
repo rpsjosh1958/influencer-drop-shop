@@ -6,7 +6,7 @@ import {
   ReactNode,
   useRef,
 } from "react";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
@@ -23,7 +23,8 @@ import {
   limit,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
+import type { FirestoreTimestamp } from "@/types";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -36,19 +37,33 @@ Notifications.setNotificationHandler({
 
 export interface Notification {
   id: string;
-// ... (rest of the interface)
   type:
     | "order_update"
     | "drop"
     | "info"
     | "broadcast"
     | "booking_confirmed"
-    | "booking_cancelled_admin";
+    | "booking_cancelled_admin"
+    | "store_order_received"
+    | "store_booking_received"
+    | "payout_success"
+    | "vendor_order"
+    | "vendor_booking"
+    | "vendor_complaint";
   title: string;
   message: string;
   read: boolean;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
   orderId?: string; // Optional reference
+  userId?: string; // "all" for broadcasts
+  data?: {
+    id?: string;
+    storeId?: string;
+    screen?: string;
+    orderId?: string;
+    bookingId?: string;
+    date?: string;
+  };
 }
 
 interface NotificationContextType {
@@ -58,7 +73,7 @@ interface NotificationContextType {
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   latestNotification: Notification | null; // For Banner
-  refetch: () => Promise<any>;
+  refetch: () => Promise<void>;
   mode: "customer" | "vendor";
   setMode: (mode: "customer" | "vendor") => void;
 }
@@ -68,14 +83,18 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 );
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [latestNotification, setLatestNotification] =
     useState<Notification | null>(null);
 
-  const notificationListener = useRef<any>(null);
-  const responseListener = useRef<any>(null);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(
+    null
+  );
+  const responseListener = useRef<Notifications.EventSubscription | null>(
+    null
+  );
 
   const [mode, setMode] = useState<"customer" | "vendor">("customer");
 
@@ -100,13 +119,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         console.log("Notification Tapped:", data);
 
         if (data?.screen) {
-          router.push(data.screen as any);
+          router.push(data.screen as Href);
         } else if (data?.type === "vendor_order") {
-          router.push("/(vendor)/orders" as any);
+          router.push("/(vendor)/orders" as Href);
         } else if (data?.type === "vendor_booking") {
-          router.push("/(vendor)/bookings" as any);
+          router.push("/(vendor)/bookings" as Href);
         } else if (data?.type === "vendor_complaint") {
-          router.push("/(vendor)/(tabs)" as any);
+          router.push("/(vendor)/(tabs)" as Href);
         }
     });
 
@@ -255,8 +274,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       const notif = notifications.find((n) => n.id === id);
       const isBroadcast =
-        notif &&
-        (notif.type === "broadcast" || (notif as any).userId === "all");
+        notif && (notif.type === "broadcast" || notif.userId === "all");
 
       if (isBroadcast) {
         // Store locally
@@ -288,8 +306,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     // Process local broadcasts
     notifications
       .filter(
-        (n) =>
-          !n.read && (n.type === "broadcast" || (n as any).userId === "all")
+        (n) => !n.read && (n.type === "broadcast" || n.userId === "all")
       )
       .forEach((n) => broadcastIds.push(n.id));
 
@@ -303,7 +320,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     // Process server notifications
     notifications.forEach(async (n) => {
-      if (!n.read && n.type !== "broadcast" && (n as any).userId !== "all") {
+      if (!n.read && n.type !== "broadcast" && n.userId !== "all") {
         await updateDoc(doc(db, "notifications", n.id), { read: true });
       }
     });
@@ -315,7 +332,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const refetch = async () => {
-    return new Promise((resolve) => setTimeout(resolve, 500));
+    return new Promise<void>((resolve) => setTimeout(resolve, 500));
   };
 
   return (

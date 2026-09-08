@@ -38,6 +38,7 @@ import { VendorStoreSwitcher } from "@/components/vendor/vendor-store-switcher";
 import { useRouter } from "expo-router";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
+import type { Order, Booking } from "@/types";
 
 const { width } = Dimensions.get("window");
 
@@ -53,8 +54,8 @@ export default function VendorDashboard() {
     refreshStore 
   } = useVendor();
   const [toggling, setToggling] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [showSwitcher, setShowSwitcher] = useState(false);
@@ -79,7 +80,7 @@ export default function VendorDashboard() {
   const insights = useMemo(() => {
     const prodMap: Record<string, number> = {};
     orders.forEach(o => {
-        o.items?.forEach((item: any) => {
+        o.items?.forEach((item) => {
             prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
         });
     });
@@ -147,8 +148,8 @@ export default function VendorDashboard() {
   // Merge & Sort Activity
   const liveActivity = useMemo(() => {
     const combined = [
-      ...orders.map((o) => ({ ...o, _type: "order" })),
-      ...bookings.map((b) => ({ ...b, _type: "booking" })),
+      ...orders.map((o) => ({ ...o, _type: "order" as const })),
+      ...bookings.map((b) => ({ ...b, _type: "booking" as const })),
     ];
     return combined
       .sort((a, b) => {
@@ -362,7 +363,8 @@ export default function VendorDashboard() {
                         key={`${item._type}-${item.id}`}
                         onPress={() => {
                           if (isLocked) return;
-                          isOrder ? setSelectedOrder(item) : setSelectedBooking(item);
+                          if (item._type === "order") setSelectedOrder(item);
+                          else setSelectedBooking(item);
                         }}
                         className="bg-white p-4 mb-4 rounded-2xl border border-zinc-100 flex-row items-center justify-between active:scale-[0.98] transition-all shadow-sm"
                       >
@@ -375,11 +377,11 @@ export default function VendorDashboard() {
                           </View>
                           <View className="flex-1">
                             <H1 className="text-sm font-black" numberOfLines={1}>
-                              {isOrder ? item.customerName : item.userName || "Customer"}
+                              {item.customerName || "Customer"}
                             </H1>
                             <View className="flex-row items-center gap-1.5">
                               <P className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                                {isOrder ? `Order #${item.id.slice(-5).toUpperCase()}` : item.serviceName}
+                                {item._type === "order" ? `Order #${item.id.slice(-5).toUpperCase()}` : item.serviceName}
                               </P>
                               <P className="text-xs text-zinc-300 font-black">•</P>
                               <P className="text-[10px] text-zinc-400 font-medium">

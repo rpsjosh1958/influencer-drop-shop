@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 // @ts-ignore
-import { usePaystack } from "react-native-paystack-webview";
+import { usePaystack, PaystackProps } from "react-native-paystack-webview";
 import {
   View,
   ScrollView,
@@ -32,9 +32,11 @@ import { doc, getDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { useStore } from "@/context/store-context";
 import { formatCurrency } from "@/lib/format";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import type { Address } from "@/types";
+import { getErrorMessage } from "@/lib/errors";
 
 // ... inside component
 export default function CheckoutScreen() {
@@ -53,7 +55,7 @@ export default function CheckoutScreen() {
   const [address, setAddress] = useState("");
   const [initializing, setInitializing] = useState(true);
   const [customerNote, setCustomerNote] = useState("");
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   // Empty cart and not mid-checkout (e.g. back-navigated here directly, or
   // the cart got cleared some other way) — nothing to check out, bail back
@@ -65,7 +67,7 @@ export default function CheckoutScreen() {
   }, [cart.length, loading, initializing]);
 
   useMountEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u: any) => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
         // 1. Basic Auth Info
@@ -82,8 +84,8 @@ export default function CheckoutScreen() {
 
             // Prefill address if available
             const addresses = data.addresses || [];
-            const defaultAddress =
-              addresses.find((a: any) => a.isDefault) || addresses[0];
+            const defaultAddress: Address | undefined =
+              addresses.find((a: Address) => a.isDefault) || addresses[0];
 
             if (defaultAddress) {
               if (defaultAddress.city) setCity(defaultAddress.city);
@@ -108,7 +110,7 @@ export default function CheckoutScreen() {
   // variant purchase was silently rejected.
   const pendingReferenceRef = React.useRef<string | null>(null);
 
-  const handleSuccess = async (res: any) => {
+  const handleSuccess = async (res: PaystackProps.PaystackTransactionResponse) => {
     try {
       if (!storeId) throw new Error("No store context");
 
@@ -180,11 +182,11 @@ export default function CheckoutScreen() {
     setLoading(true);
 
     try {
-      const initializeOrderPayment = httpsCallable(
-        functions,
-        "initializeOrderPayment",
-      );
-      const { data }: any = await initializeOrderPayment({
+      const initializeOrderPayment = httpsCallable<
+        Record<string, unknown>,
+        { reference: string; amount: number; access_code?: string }
+      >(functions, "initializeOrderPayment");
+      const { data } = await initializeOrderPayment({
         storeId,
         items: cart.map((item) => ({
           id: item.id,
@@ -221,7 +223,7 @@ export default function CheckoutScreen() {
         onSuccess: handleSuccess,
         onCancel: handleCancel,
       });
-    } catch (error: any) {
+    } catch (error) {
       // initializeOrderPayment already releases any reservation it made
       // before throwing (e.g. Paystack init failed) — nothing to release here.
       console.error("Order initialization error", error);
@@ -230,7 +232,7 @@ export default function CheckoutScreen() {
       showAlert({
         title: "Checkout Error",
         message:
-          error?.message ||
+          getErrorMessage(error) ||
           "Couldn't start checkout for this store. Please try again.",
         type: "error",
       });

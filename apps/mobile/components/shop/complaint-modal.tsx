@@ -17,12 +17,13 @@ import { X, Send, AlertCircle, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { User as FirebaseUser } from "firebase/auth";
 
 interface ComplaintModalProps {
   visible: boolean;
   onClose: () => void;
   storeId: string;
-  user?: any;
+  user?: FirebaseUser | null;
   forcedTarget?: "store" | "platform";
 }
 

@@ -258,6 +258,7 @@ export default function ProductFormScreen() {
   };
 
   const uploadImage = async (uri: string) => {
+    if (!store) return;
     setUploading(true);
     try {
       const response = await fetch(uri);
@@ -280,6 +281,7 @@ export default function ProductFormScreen() {
 
   // --- SAVE ---
   const handleSave = async () => {
+    if (!store) return;
     if (!name.trim() || !price) {
       Alert.alert("Missing Info", "Name and Price are required.");
       return;

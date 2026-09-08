@@ -8,17 +8,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Package, Clock, Plus, Menu } from "lucide-react-native";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { ServiceDetailsModal } from "@/components/vendor/service-details-modal";
 import { formatCurrency } from "@/lib/format";
-
-interface ServiceItem {
-  id: string;
-  name: string;
-  duration: number;
-  price: number;
-  // Add other fields as needed
-}
+import type { Product, ServiceItem } from "@/types";
 
 export default function VendorInventory() {
   const { store, products, loading, refreshStore } = useVendor();
@@ -64,7 +57,7 @@ export default function VendorInventory() {
 
   const handleAdd = () => {
     if (activeTab === "products") {
-      router.push("/(vendor)/product-form" as any);
+      router.push("/(vendor)/product-form" as Href);
     } else {
       Alert.alert(
         "Services",
@@ -73,7 +66,7 @@ export default function VendorInventory() {
     }
   };
 
-  const handleProductPress = (product: any) => {
+  const handleProductPress = (product: Product) => {
     if (store?.status === "open") {
       Alert.alert(
         "Store is Open",
@@ -84,10 +77,10 @@ export default function VendorInventory() {
     router.push({
       pathname: "/(vendor)/product-form",
       params: { id: product.id },
-    } as any);
+    } as Href);
   };
 
-  const handleServicePress = (service: any) => {
+  const handleServicePress = (service: ServiceItem) => {
     setSelectedService(service);
   };
 

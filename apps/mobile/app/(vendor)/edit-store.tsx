@@ -58,11 +58,12 @@ export default function EditStoreScreen() {
   };
 
   const uploadImage = async (uri: string) => {
+    if (!store) return;
     setUploading(true);
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
-      
+
       const filename = `stores/${store.id}/logo_${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
       
@@ -79,6 +80,7 @@ export default function EditStoreScreen() {
   };
 
   const handleSave = async () => {
+    if (!store) return;
     if (!name.trim()) {
       Alert.alert("Error", "Store name is required");
       return;

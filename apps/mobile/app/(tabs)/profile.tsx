@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ComponentType } from "react";
 import {
   View,
   ScrollView,
@@ -10,6 +10,7 @@ import {
   ActionSheetIOS,
   Platform,
   TouchableOpacity,
+  type AlertButton,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -22,6 +23,7 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  type User as FirebaseUser,
 } from "firebase/auth";
 import {
   doc,
@@ -34,8 +36,10 @@ import {
   getDocs,
   limit,
 } from "firebase/firestore";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import * as Linking from "expo-linking";
+import type { Address } from "@/types";
+import { getErrorMessage, getErrorCode } from "@/lib/errors";
 import {
   User,
   MapPin,
@@ -59,7 +63,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 
 export default function ProfileScreen() {
-  const [user, setUser] = useState<any>(auth.currentUser);
+  const [user, setUser] = useState<FirebaseUser | null>(auth.currentUser);
   const [activeSection, setActiveSection] = useState<
     "menu" | "personal" | "addresses" | "security"
   >("menu");
@@ -70,7 +74,7 @@ export default function ProfileScreen() {
   // Form States
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
 
   // Security State
   const [oldPassword, setOldPassword] = useState("");
@@ -265,18 +269,18 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleEditAddress = (addr: any) => {
+  const handleEditAddress = (addr: Address) => {
     setNewAddr({
       country: addr.country,
       city: addr.city,
       street: addr.street,
       zip: addr.zip || "",
     });
-    setEditingAddressId(addr.id);
+    setEditingAddressId(addr.id ?? null);
     setAddingAddress(true);
   };
 
-  const handleRemoveAddress = async (addr: any) => {
+  const handleRemoveAddress = async (addr: Address) => {
     if (!user) return;
     showAlert({
       title: "Remove Address",
@@ -304,7 +308,7 @@ export default function ProfileScreen() {
     });
   };
 
-  const showAddressOptions = (addr: any) => {
+  const showAddressOptions = (addr: Address) => {
     const options = ["Edit", "Remove", "Cancel"];
     if (!addr.isDefault) {
       options.unshift("Set as Default");
@@ -322,7 +326,7 @@ export default function ProfileScreen() {
         },
         (buttonIndex) => {
           const selectedOption = options[buttonIndex];
-          if (selectedOption === "Set as Default") {
+          if (selectedOption === "Set as Default" && addr.id) {
             handleSetDefaultAddress(addr.id);
           } else if (selectedOption === "Edit") {
             handleEditAddress(addr);
@@ -333,30 +337,31 @@ export default function ProfileScreen() {
       );
     } else {
       // Android / Other Alert fallback
+      const alertButtons: (AlertButton | null)[] = [
+        !addr.isDefault && addr.id
+          ? {
+              text: "Set Default",
+              onPress: () => handleSetDefaultAddress(addr.id!),
+            }
+          : null,
+        { text: "Edit", onPress: () => handleEditAddress(addr) },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: () => handleRemoveAddress(addr),
+        },
+        { text: "Cancel", style: "cancel" },
+      ];
       Alert.alert(
         "Address Options",
         `options for ${addr.street}`,
-        [
-          !addr.isDefault
-            ? {
-                text: "Set Default",
-                onPress: () => handleSetDefaultAddress(addr.id),
-              }
-            : (null as any),
-          { text: "Edit", onPress: () => handleEditAddress(addr) },
-          {
-            text: "Remove",
-            style: "destructive",
-            onPress: () => handleRemoveAddress(addr),
-          },
-          { text: "Cancel", style: "cancel" },
-        ].filter(Boolean),
+        alertButtons.filter((b): b is AlertButton => b !== null),
       );
     }
   };
 
   const changePassword = async () => {
-    if (!user || !newPassword || !oldPassword) {
+    if (!user || !user.email || !newPassword || !oldPassword) {
       return showAlert({
         title: "Missing Information",
         message: "Please enter current and new passwords.",
@@ -377,10 +382,11 @@ export default function ProfileScreen() {
       });
       setNewPassword("");
       setOldPassword("");
-    } catch (e: any) {
+    } catch (e) {
+      const code = getErrorCode(e);
       if (
-        e.code === "auth/wrong-password" ||
-        e.code === "auth/invalid-credential"
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential"
       ) {
         showAlert({
           title: "Incorrect Password",
@@ -388,7 +394,7 @@ export default function ProfileScreen() {
             "The current password you entered is incorrect. Please try again.",
           type: "error",
         });
-      } else if (e.code === "auth/requires-recent-login") {
+      } else if (code === "auth/requires-recent-login") {
         showAlert({
           title: "Security Check",
           message: "Please re-login to change password.",
@@ -399,7 +405,7 @@ export default function ProfileScreen() {
       } else {
         showAlert({
           title: "Error",
-          message: e.message,
+          message: getErrorMessage(e),
           type: "error",
         });
       }
@@ -422,7 +428,7 @@ export default function ProfileScreen() {
 
       if (!snapshot.empty) {
         // 2. IS VENDOR -> Redirect to Admin
-        router.replace("/(vendor)/(tabs)/dashboard" as any);
+        router.replace("/(vendor)/(tabs)/dashboard" as Href);
       } else {
         // 3. NOT VENDOR -> Prompt to Create
         Alert.alert(
@@ -589,7 +595,7 @@ export default function ProfileScreen() {
                   <MenuItem
                     icon={CreditCard}
                     label="My Orders"
-                    onPress={() => router.push("/(tabs)/orders" as any)}
+                    onPress={() => router.push("/(tabs)/orders" as Href)}
                   />
                   <MenuItem
                     icon={AlertCircle}
@@ -647,7 +653,7 @@ export default function ProfileScreen() {
                       onChange={(t: string) => setPhone(t)}
                       placeholder="+233..."
                     />
-                    <InputGroup label="Email" value={user.email} disabled />
+                    <InputGroup label="Email" value={user.email ?? ""} disabled />
 
                     <SaveButton onPress={updatePersonalInfo} loading={saving} />
                   </View>
@@ -856,7 +862,15 @@ export default function ProfileScreen() {
   );
 }
 
-function MenuItem({ icon: Icon, label, onPress }: any) {
+function MenuItem({
+  icon: Icon,
+  label,
+  onPress,
+}: {
+  icon: ComponentType<{ size?: number; color?: string }>;
+  label: string;
+  onPress: () => void;
+}) {
   return (
     <Pressable
       onPress={onPress}
@@ -878,7 +892,14 @@ function InputGroup({
   placeholder,
   disabled,
   secure,
-}: any) {
+}: {
+  label: string;
+  value: string;
+  onChange?: (text: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+  secure?: boolean;
+}) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
@@ -915,7 +936,15 @@ function InputGroup({
   );
 }
 
-function SaveButton({ onPress, loading, label = "Save Changes" }: any) {
+function SaveButton({
+  onPress,
+  loading,
+  label = "Save Changes",
+}: {
+  onPress: () => void;
+  loading?: boolean;
+  label?: string;
+}) {
   return (
     <Pressable
       onPress={onPress}

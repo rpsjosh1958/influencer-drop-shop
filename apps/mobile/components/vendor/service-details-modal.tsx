@@ -2,11 +2,12 @@ import { View, Modal, Pressable, ScrollView } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { X, Clock } from "lucide-react-native";
 import { formatCurrency } from "@/lib/format";
+import type { ServiceItem } from "@/types";
 
 interface ServiceDetailsModalProps {
   visible: boolean;
   onClose: () => void;
-  service: any;
+  service: ServiceItem | null;
 }
 
 export function ServiceDetailsModal({

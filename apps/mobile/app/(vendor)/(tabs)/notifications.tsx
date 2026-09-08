@@ -1,9 +1,12 @@
 import { View, ScrollView, RefreshControl, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { useNotifications } from "@/context/notification-context";
+import {
+  useNotifications,
+  type Notification,
+} from "@/context/notification-context";
 import { Bell } from "lucide-react-native";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import { useState } from "react";
 import { VendorComplaintDetails } from "@/components/vendor/vendor-complaint-details";
 
@@ -14,7 +17,7 @@ export default function VendorNotifications() {
     storeId: string;
   } | null>(null);
 
-  const handlePress = async (n: any) => {
+  const handlePress = async (n: Notification) => {
     if (!n.read) {
       await markAsRead(n.id);
     }
@@ -26,14 +29,14 @@ export default function VendorNotifications() {
         setSelectedComplaint({ id: n.data.id, storeId: n.data.storeId });
       }
     } else if (n.data?.screen) {
-      router.push(n.data.screen as any);
+      router.push(n.data.screen as Href);
     } else {
       // Fallback or Type-based routing
       if (n.type === "vendor_order") {
         router.push({
           pathname: "/(vendor)/orders",
           params: { orderId: n.data?.orderId || n.data?.id },
-        } as any);
+        } as Href);
       } else if (n.type === "vendor_booking") {
         router.push({
           pathname: "/(vendor)/bookings",
@@ -41,7 +44,7 @@ export default function VendorNotifications() {
             bookingId: n.data?.bookingId || n.data?.id,
             date: n.data?.date,
           },
-        } as any);
+        } as Href);
       }
     }
   };

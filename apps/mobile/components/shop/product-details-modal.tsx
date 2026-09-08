@@ -5,12 +5,14 @@ import {
   Dimensions,
   Pressable,
   FlatList,
+  type ViewToken,
 } from "react-native";
 import { MotiView, MotiImage } from "moti";
 import { H1, P } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import { X, Check, BadgeCheck } from "lucide-react-native";
 import { Product } from "./product-card";
+import type { ProductVariant } from "@/types";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { formatCurrency } from "@/lib/format";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -22,7 +24,7 @@ interface ProductDetailsModalProps {
   isVisible: boolean;
   onClose: () => void;
   product: Product | null;
-  onAddToCart: (product: Product, variant?: any) => void;
+  onAddToCart: (product: Product, variant?: ProductVariant) => void;
 }
 
 export function ProductDetailsModal({
@@ -37,7 +39,7 @@ export function ProductDetailsModal({
 
   // Dynamic Selections
   const [selections, setSelections] = useState<Record<string, string>>({});
-  const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
 
   // Reset on open
   useEffect(() => {
@@ -61,10 +63,10 @@ export function ProductDetailsModal({
     if (product.hasVariants && product.variants) {
       const options: { id: string; name: string; values: string[] }[] = [];
       const colors = Array.from(
-        new Set(product.variants.map((v: any) => v.color).filter(Boolean))
+        new Set(product.variants.map((v: ProductVariant) => v.color).filter(Boolean))
       ) as string[];
       const sizes = Array.from(
-        new Set(product.variants.map((v: any) => v.size).filter(Boolean))
+        new Set(product.variants.map((v: ProductVariant) => v.size).filter(Boolean))
       ) as string[];
 
       if (colors.length)
@@ -85,7 +87,7 @@ export function ProductDetailsModal({
     const isComplete = requiredOptions.every((opt) => selections[opt.name]);
 
     if (isComplete) {
-      const match = product.variants.find((v: any) => {
+      const match = product.variants.find((v: ProductVariant) => {
         // Modern check
         if (v.options) {
           return Object.entries(selections).every(
@@ -127,7 +129,7 @@ export function ProductDetailsModal({
 
     const targetMatcher = { ...relevantSelections, [optionName]: value };
 
-    return product.variants.some((v: any) => {
+    return product.variants.some((v: ProductVariant) => {
       if (v.stock <= 0) return false;
       const vOptions = v.options || {
         ...(v.color && { Color: v.color }),
@@ -162,11 +164,13 @@ export function ProductDetailsModal({
      return isVariantAvailable(optionName, value, selections);
   };
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
-    if (viewableItems && viewableItems.length > 0) {
-      setCurrentImageIndex(viewableItems[0].index || 0);
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken<string>[] }) => {
+      if (viewableItems && viewableItems.length > 0) {
+        setCurrentImageIndex(viewableItems[0].index || 0);
+      }
     }
-  }).current;
+  ).current;
 
   // Stable config
   const viewabilityConfig = useRef({
@@ -189,7 +193,7 @@ export function ProductDetailsModal({
 
   const handleAddToCart = () => {
     if (product.hasVariants && !selectedVariant) return;
-    onAddToCart(product, selectedVariant);
+    onAddToCart(product, selectedVariant ?? undefined);
     onClose();
   };
 
@@ -301,7 +305,7 @@ export function ProductDetailsModal({
                         let colorCode = null;
                         if (isColor && product.variants) {
                           const v = product.variants.find(
-                            (v: any) =>
+                            (v: ProductVariant) =>
                               v.options?.[option.name] === value ||
                               v.color === value
                           );

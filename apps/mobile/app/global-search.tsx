@@ -316,7 +316,7 @@ export default function GlobalSearchScreen() {
                 />
 
                 {/* Service Tag */}
-                {(product as any).type === "service" && (
+                {product.type === "service" && (
                   <View className="absolute top-2 left-2 bg-zinc-100 px-2 py-1 rounded-md">
                     <P className="text-[8px] font-black tracking-widest text-zinc-500 uppercase">
                       SERVICE

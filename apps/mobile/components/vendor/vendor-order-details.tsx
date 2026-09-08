@@ -28,9 +28,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
+import type { Order, FirestoreTimestamp } from "@/types";
 
 interface VendorOrderDetailsProps {
-  order: any | null;
+  order: Order | null;
   visible: boolean;
   onClose: () => void;
   onUpdate: () => void;
@@ -47,7 +48,7 @@ export function VendorOrderDetails({
 
   if (!order) return null;
 
-  const formatDate = (timestamp: any) => {
+  const formatDate = (timestamp: FirestoreTimestamp | undefined) => {
     if (!timestamp) return "";
     return new Date(timestamp.seconds * 1000).toLocaleDateString("en-GB", {
       day: "numeric",
@@ -304,7 +305,7 @@ export function VendorOrderDetails({
                 Items ({order.items.length})
               </H1>
               <View className="space-y-4">
-                {order.items.map((item: any, i: number) => (
+                {order.items.map((item, i) => (
                   <View key={i} className="flex-row gap-4 mb-3">
                     <Image
                       source={{

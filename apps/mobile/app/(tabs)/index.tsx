@@ -74,6 +74,11 @@ import { ReviewsListModal } from "@/components/shop/reviews-list-modal";
 import { ComplaintModal } from "@/components/shop/complaint-modal";
 import { ServiceCard, ServiceItem } from "@/components/shop/service-card";
 import { BookingModal } from "@/components/shop/booking-modal";
+// booking-modal.tsx's `service` prop is typed against apps/web/src/types's
+// ServiceItem (a cross-app relative import, pre-existing) — structurally
+// close to but not identical to this file's own ServiceItem (from
+// @/components/shop/service-card), so a cast is still needed here.
+import type { ServiceItem as WebServiceItem } from "../../../web/src/types";
 import { Star } from "lucide-react-native";
 
 interface Category {
@@ -203,7 +208,10 @@ export default function ShopHome() {
   // Main Display Filtering
   const displayedItems = useMemo<{
     type: "unified";
-    items: any[];
+    items: (
+      | (Product & { type: "product" })
+      | (ServiceItem & { type: "service" })
+    )[];
     products?: never;
     services?: never;
   } | {
@@ -452,10 +460,10 @@ export default function ShopHome() {
               </View>
 
               <View className="flex-row gap-2 mb-6">
-                {["all", "unread", "read"].map((f) => (
+                {(["all", "unread", "read"] as const).map((f) => (
                   <Pressable
                     key={f}
-                    onPress={() => setNotifFilter(f as any)}
+                    onPress={() => setNotifFilter(f)}
                     className={`px-4 py-2 rounded-full border ${
                       notifFilter === f
                         ? "bg-white border-white"
@@ -1247,7 +1255,7 @@ export default function ShopHome() {
 
       {selectedService && (
         <BookingModal
-          service={selectedService as any}
+          service={selectedService as unknown as WebServiceItem}
           isVisible={!!selectedService}
           onClose={() => setSelectedService(null)}
         />

@@ -21,6 +21,7 @@ import { Country, City } from "country-state-city";
 import { SelectionModal } from "@/components/ui/selection-modal";
 import { ChevronRight } from "lucide-react-native";
 import clsx from "clsx";
+import { getErrorMessage } from "@/lib/errors";
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name is too short"),
@@ -111,16 +112,21 @@ export default function Signup() {
 
       console.log("Signup success:", user.uid);
       // Router replacement is handled by root layout listener usually, but forcing here works too
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        // Cast to any to bypass strict checks, valid at runtime
-        (err as any).errors.forEach((e: any) => {
+        // NOTE: `.errors` doesn't exist at runtime on this zod version's
+        // ZodError (verified against node_modules/zod/v4/classic/errors.js —
+        // no such getter is defined), so the previous `(err as any).errors`
+        // was always undefined and this whole branch threw on every real
+        // validation failure. `.issues` is the real field — matches the
+        // identical Zod-error branch in login.tsx.
+        err.issues.forEach((e) => {
           if (e.path[0]) fieldErrors[e.path[0] as string] = e.message;
         });
         setErrors(fieldErrors);
       } else {
-        alert(err.message || "Signup failed");
+        alert(getErrorMessage(err) || "Signup failed");
       }
     } finally {
       setLoading(false);

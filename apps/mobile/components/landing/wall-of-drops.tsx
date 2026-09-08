@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Dimensions, Image } from "react-native";
+import { View, Dimensions, Image, type ImageSourcePropType } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -54,7 +54,7 @@ function InfiniteColumn({
   delay = 0,
   reverse = false,
 }: {
-  images: any[];
+  images: ImageSourcePropType[];
   duration: number;
   delay?: number;
   reverse?: boolean;

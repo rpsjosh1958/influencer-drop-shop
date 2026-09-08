@@ -23,6 +23,7 @@ import {
   doc,
 } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
+import { getErrorMessage } from "@/lib/errors";
 
 interface ProductVariant {
   id: string;
@@ -149,7 +150,7 @@ export function ManualOrderModal({
 
           if (item.variant) {
             const variants = productData.variants || [];
-            const variant = variants.find((v: any) => v.id === item.variant!.id);
+            const variant = variants.find((v: ProductVariant) => v.id === item.variant!.id);
             if (!variant) throw new Error(`Variant ${item.variant.name} no longer exists.`);
             if (variant.stock < item.quantity) {
               throw new Error(`Not enough stock for ${item.product.name} (${item.variant.name}). Only ${variant.stock} left.`);
@@ -166,7 +167,7 @@ export function ManualOrderModal({
         for (const { ref, snapshot, item } of productReads) {
           const productData = snapshot.data()!;
           if (item.variant) {
-            const updatedVariants = (productData.variants || []).map((v: any) =>
+            const updatedVariants = (productData.variants || []).map((v: ProductVariant) =>
               v.id === item.variant!.id ? { ...v, stock: v.stock - item.quantity } : v
             );
             const newTotalStock = (productData.stock ?? 0) - item.quantity;
@@ -220,9 +221,9 @@ export function ManualOrderModal({
       setCustomerEmail("");
       setCustomerPhone("");
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Manual order error:", error);
-      Alert.alert("Order Failed", error.message || "Something went wrong.");
+      Alert.alert("Order Failed", getErrorMessage(error) || "Something went wrong.");
     } finally {
       setIsSubmitting(false);
     }

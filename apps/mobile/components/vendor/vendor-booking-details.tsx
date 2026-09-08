@@ -31,9 +31,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
+import type { Booking } from "@/types";
 
 interface VendorBookingDetailsProps {
-  booking: any | null;
+  booking: Booking | null;
   visible: boolean;
   onClose: () => void;
   onUpdate: () => void;

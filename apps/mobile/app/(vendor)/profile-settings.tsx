@@ -6,6 +6,7 @@ import {
   ScrollView,
   Pressable,
 } from "react-native";
+import type { ReactNode } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { useState, useEffect } from "react";
@@ -20,8 +21,25 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
+interface VendorUserData {
+  vendorType?: "company" | "individual";
+  fullName?: string;
+  phone?: string;
+  email?: string;
+  contactPerson?: {
+    name?: string;
+    position?: string;
+    email?: string;
+    phone?: string;
+  };
+  identity?: {
+    ghanaCard?: string;
+    companyDoc?: string;
+  };
+}
+
 export default function ProfileSettingsScreen() {
-  const [userData, setUserData] = useState<any>(null);
+  const [userData, setUserData] = useState<VendorUserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +51,15 @@ export default function ProfileSettingsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  const Field = ({ label, value, icon }: any) => (
+  const Field = ({
+    label,
+    value,
+    icon,
+  }: {
+    label: string;
+    value?: string | null;
+    icon?: ReactNode;
+  }) => (
     <View className="mb-4">
       <P className="text-xs font-bold text-zinc-400 uppercase mb-2">{label}</P>
       <View className="flex-row items-center bg-zinc-100 border border-zinc-200 rounded-xl p-4">
@@ -123,7 +149,10 @@ export default function ProfileSettingsScreen() {
           {/* Document Link */}
           {userData?.identity?.companyDoc && (
             <Pressable
-              onPress={() => Linking.openURL(userData.identity.companyDoc)}
+              onPress={() => {
+                const url = userData?.identity?.companyDoc;
+                if (url) Linking.openURL(url);
+              }}
               className="mt-6 flex-row items-center justify-center gap-2 p-4 bg-zinc-50 rounded-xl border border-zinc-200"
             >
               <P className="font-bold underline">View Registration Document</P>

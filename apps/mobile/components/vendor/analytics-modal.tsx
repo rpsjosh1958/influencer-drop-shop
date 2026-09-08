@@ -33,11 +33,19 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
 
   const formatMoney = (amount: number) => formatCurrency(amount);
 
-  const parseDate = (createdAt: any) => {
+  const parseDate = (
+    createdAt:
+      | { toDate?: () => Date; seconds?: number }
+      | string
+      | number
+      | undefined
+  ) => {
     if (!createdAt) return new Date();
-    if (createdAt.toDate) return createdAt.toDate();
-    if (createdAt.seconds) return new Date(createdAt.seconds * 1000);
-    return new Date(createdAt);
+    if (typeof createdAt === "object" && createdAt.toDate)
+      return createdAt.toDate();
+    if (typeof createdAt === "object" && createdAt.seconds)
+      return new Date(createdAt.seconds * 1000);
+    return new Date(createdAt as string | number);
   };
 
   const filteredData = useMemo(() => {
@@ -64,7 +72,12 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
   }, [orders, bookings, range]);
 
   const chartData = useMemo(() => {
-    const data: any[] = [];
+    const data: {
+      value: number;
+      label: string;
+      dataPointText: string;
+      frontColor: string;
+    }[] = [];
     const now = new Date();
 
     if (range === "week" || range === "month") {
@@ -115,7 +128,7 @@ export function AnalyticsModal({ visible, onClose }: AnalyticsModalProps) {
     
     const prodMap: Record<string, number> = {};
     filteredData.orders.forEach(o => {
-        o.items?.forEach((item: any) => {
+        o.items?.forEach((item) => {
             prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
         });
     });

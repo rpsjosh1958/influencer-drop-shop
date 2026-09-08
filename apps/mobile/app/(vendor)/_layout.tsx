@@ -15,6 +15,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DrawerContentScrollView,
   DrawerItemList,
+  type DrawerContentComponentProps,
 } from "@react-navigation/drawer";
 import { View, Text } from "react-native";
 import { P } from "@/components/ui/text";
@@ -28,7 +29,7 @@ export default function VendorLayoutWrapper() {
   );
 }
 
-function CustomDrawerContent(props: any) {
+function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { store } = useVendor();
   const version = Constants.expoConfig?.version || "1.0.0";
   const isGrowth = store?.plan === "growth";
@@ -122,15 +123,14 @@ function VendorLayout() {
             fontSize: 15,
           },
           drawerItemStyle: baseDrawerItemStyle,
-          drawerIcon: ({ color, size, focused }) =>
-            (
-              <View className="mr-[-8]">
-                {/* We use the icon logic in screens, utilizing the props passed here implicitly via screen Options or component?
-                   Actually drawerIcon prop in Screen options receives color/size.
-                   The spacer is handled by labelStyle marginLeft or view wrapper.
-                */}
-              </View>
-            ) as any,
+          drawerIcon: () => (
+            <View className="mr-[-8]">
+              {/* We use the icon logic in screens, utilizing the props passed here implicitly via screen Options or component?
+                 Actually drawerIcon prop in Screen options receives color/size.
+                 The spacer is handled by labelStyle marginLeft or view wrapper.
+              */}
+            </View>
+          ),
         }}
       >
         <Drawer.Screen

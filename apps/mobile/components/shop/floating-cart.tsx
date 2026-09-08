@@ -30,13 +30,13 @@ import {
   LogIn,
 } from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";
-import { useCart } from "@/context/cart-context";
+import { useCart, type CartItem } from "@/context/cart-context";
 import { useAlert } from "@/context/alert-context";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { formatCurrency } from "@/lib/format";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -47,7 +47,17 @@ const BUTTON_SIZE = 60;
 const BUTTON_BOTTOM = 36;
 const BUTTON_RIGHT = 24;
 
-function CartItemRow({ item, index, onUpdate, onRemove }: any) {
+function CartItemRow({
+  item,
+  index,
+  onUpdate,
+  onRemove,
+}: {
+  item: CartItem;
+  index: number;
+  onUpdate: (item: CartItem, delta: number) => void;
+  onRemove: (item: CartItem) => void;
+}) {
   const translateX = useSharedValue(0);
   const contextX = useSharedValue(0);
 
@@ -180,7 +190,7 @@ export function FloatingCart() {
   const { cart, updateQuantity, removeFromCart, total, clearCart } = useCart();
   const { showAlert } = useAlert();
   const [isOpen, setIsOpen] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
@@ -217,7 +227,7 @@ export function FloatingCart() {
     }
   };
 
-  const handleRemove = (item: any) => {
+  const handleRemove = (item: CartItem) => {
     showAlert({
       title: "Remove Item?",
       message: `Are you sure you want to remove ${item.name} from your bag?`,
@@ -355,7 +365,7 @@ export function FloatingCart() {
                     key={`${item.id}-${item.variant?.id || "base"}`}
                     item={item}
                     index={i}
-                    onUpdate={(item: any, delta: number) => {
+                    onUpdate={(item: CartItem, delta: number) => {
                       if (delta < 0 && item.quantity === 1) {
                         handleRemove(item);
                       } else {

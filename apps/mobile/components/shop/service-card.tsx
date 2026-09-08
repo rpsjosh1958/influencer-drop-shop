@@ -4,6 +4,7 @@ import { P, H2 } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
 import { Ionicons } from "@expo/vector-icons";
 import { formatCurrency } from "@/lib/format";
+import type { FirestoreTimestamp } from "@/types";
 
 export type ServiceItem = {
   id: string;
@@ -17,7 +18,7 @@ export type ServiceItem = {
   category?: string;
   storeId: string;
   isActive: boolean;
-  createdAt: any;
+  createdAt: FirestoreTimestamp;
 };
 
 interface ServiceCardProps {

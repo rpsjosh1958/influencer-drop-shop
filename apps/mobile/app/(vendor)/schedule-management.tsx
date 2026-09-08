@@ -68,6 +68,7 @@ export default function ScheduleManagementScreen() {
   }, [store?.id]);
 
   const handleSave = async () => {
+    if (!store) return;
     const hours = parseInt(cancellationHours);
     if (isNaN(hours) || hours < 0) {
       Alert.alert("Error", "Please enter a valid number of hours");

@@ -3,6 +3,8 @@ import { View, Pressable } from "react-native";
 import { MotiView, MotiText } from "moti";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { ComponentProps } from "react";
 
 const TAB_Config = [
   { name: "index", label: "Home", icon: "home" },
@@ -10,7 +12,7 @@ const TAB_Config = [
   { name: "profile", label: "Profile", icon: "person" },
 ];
 
-function TabBar({ state, descriptors, navigation }: any) {
+function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
 
   return (
@@ -30,7 +32,7 @@ function TabBar({ state, descriptors, navigation }: any) {
         elevation: 10,
       }}
     >
-      {state.routes.map((route: any, index: number) => {
+      {state.routes.map((route, index: number) => {
         const { options } = descriptors[route.key];
         const isFocused = state.index === index;
         const config =
@@ -40,6 +42,7 @@ function TabBar({ state, descriptors, navigation }: any) {
           const event = navigation.emit({
             type: "tabPress",
             target: route.key,
+            canPreventDefault: true,
           });
           if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name);
@@ -62,9 +65,11 @@ function TabBar({ state, descriptors, navigation }: any) {
             >
               <Ionicons
                 name={
-                  isFocused
-                    ? (config.icon as any)
-                    : (`${config.icon}-outline` as any)
+                  (isFocused
+                    ? config.icon
+                    : `${config.icon}-outline`) as ComponentProps<
+                    typeof Ionicons
+                  >["name"]
                 }
                 size={24}
                 color={isFocused ? "black" : "#a1a1aa"}
