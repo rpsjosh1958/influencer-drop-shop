@@ -25,6 +25,8 @@ import {
 import { checkSubscriptionExpiry } from "./subscriptions";
 import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
+import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
+import { BILLING_PLANS } from "./billing";
 
 admin.initializeApp();
 
@@ -1036,6 +1038,88 @@ export const confirmOrderPayment = onCall(async (request) => {
   }
 
   return { success: true, storeId: result.storeId };
+});
+
+// --- SUBSCRIPTION BILLING (verified, server-side — mirrors the checkout flow) ---
+
+// Step 1: recomputes the price server-side from BILLING_PLANS (never trusts
+// a client-supplied amount), uses the authenticated user's real email (not
+// a hardcoded placeholder), and starts a plain (non-split — this money goes
+// to the platform, not a vendor) Paystack transaction.
+export const initializeSubscriptionPayment = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+  const { billingCycle } = request.data;
+  const plan = BILLING_PLANS[billingCycle];
+  if (!plan) {
+    throw new HttpsError("invalid-argument", "Invalid billing cycle");
+  }
+
+  const email = request.auth.token.email;
+  if (!email) {
+    throw new HttpsError(
+      "invalid-argument",
+      "An email is required to receive a payment receipt"
+    );
+  }
+
+  const expectedAmountPesewas = Math.round(plan.price * 100);
+  const reference = `sub_${crypto.randomBytes(12).toString("hex")}`;
+
+  await admin
+    .firestore()
+    .collection("subscription_intents")
+    .doc(reference)
+    .set({
+      userId: request.auth.uid,
+      billingCycle,
+      expectedAmountPesewas,
+      status: "pending",
+      createdAt: admin.firestore.Timestamp.now(),
+    });
+
+  const tx = await initializeTransaction({
+    email,
+    amount: expectedAmountPesewas,
+    reference,
+  });
+
+  return {
+    reference,
+    accessCode: tx.access_code,
+    amount: expectedAmountPesewas,
+  };
+});
+
+// Step 2: called right after the Paystack popup's onSuccess, same
+// fast-feedback-fallback role as confirmOrderPayment — paystackWebhook's
+// charge.success handler is the primary/authoritative path, both call the
+// same idempotent helper.
+export const confirmSubscriptionPayment = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+  const { reference } = request.data;
+  if (!reference) {
+    throw new HttpsError("invalid-argument", "Missing reference");
+  }
+
+  const verified = await verifyTransaction(reference);
+  const result = await applySubscriptionPaymentIfVerified({
+    reference: verified.reference,
+    status: verified.status,
+    amount: verified.amount,
+  });
+
+  if (!result.applied && !result.alreadyConsumed) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Payment could not be verified"
+    );
+  }
+
+  return { success: true };
 });
 
 export { paystackWebhook } from "./webhooks";

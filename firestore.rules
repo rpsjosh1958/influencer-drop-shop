@@ -29,7 +29,15 @@ service cloud.firestore {
     // Contains Phone, Ghana Card, Email. STRICT ACCESS.
     match /users/{userId} {
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow write: if isOwner(userId);
+      allow create: if isOwner(userId);
+      // Plan/billing fields are server-side only (set by verified payment
+      // Cloud Functions or the trial/expiry triggers) — a client write here
+      // would let a user grant themselves the Growth plan for free.
+      allow update: if isOwner(userId) &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(
+          ['plan', 'planExpiresAt', 'planStartedAt', 'isTrial', 'hasUsedTrial', 'billingCycle']
+        );
+      allow delete: if isOwner(userId);
     }
     
     // --- System Logs ---

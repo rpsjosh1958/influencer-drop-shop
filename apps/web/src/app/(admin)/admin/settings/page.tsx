@@ -110,10 +110,14 @@ export default function StoreSettingsPage() {
   >("monthly");
 
   const BILLING_PLANS = {
-    monthly: { label: "Monthly", price: 250, days: 30 },
-    quarterly: { label: "Quarterly (3 Months)", price: 700, days: 90 }, // Discounted from 750
-    annual: { label: "Annual (12 Months)", price: 2500, days: 365 }, // Discounted from 3000
+    monthly: { label: "Monthly", price: 250, days: 30, months: 1 },
+    quarterly: { label: "Quarterly (3 Months)", price: 700, days: 90, months: 3 }, // Discounted from 750
+    annual: { label: "Annual (12 Months)", price: 2500, days: 365, months: 12 }, // Discounted from 3000
   };
+  const monthlyPrice = BILLING_PLANS.monthly.price;
+  const currentPlanSavings =
+    monthlyPrice * BILLING_PLANS[billingCycle].months -
+    BILLING_PLANS[billingCycle].price;
 
   // State
   const [config, setConfig] = useState<any>({
@@ -309,46 +313,40 @@ export default function StoreSettingsPage() {
   };
 
   // --- PAYSTACK INTEGRATION ---
-  const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_KEY || "";
+  // Same env var checkout uses — was previously a separate, likely-unset
+  // NEXT_PUBLIC_PAYSTACK_KEY, which is the most likely reason the upgrade
+  // button silently did nothing in production.
+  const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY || "";
 
+  // Config amount/email/reference are overridden per-call with server-issued
+  // values from initializeSubscriptionPayment (see handleUpgrade) — this
+  // hook config only needs the static publicKey/currency.
   const paystackConfig = {
-    reference: new Date().getTime().toString(),
-    email: "vendor@copdrop.io", // Idealy fetch logged in user email
-    amount: BILLING_PLANS[billingCycle].price * 100, // Dynamic Amount
+    email: auth.currentUser?.email || "",
+    amount: BILLING_PLANS[billingCycle].price * 100,
     publicKey: PAYSTACK_KEY,
     currency: "GHS",
   };
 
   const onSuccess = async (reference: any) => {
-    // On success, upgrade the account-level plan
-    const planDetails = BILLING_PLANS[billingCycle];
     setLoading(true);
     try {
-      const now = new Date();
-      const expiresAt = new Date();
-      expiresAt.setDate(now.getDate() + planDetails.days);
-
-      // CRITICAL: Update the USER document (Centralized Subscription)
-      await updateDoc(doc(db, "users", auth.currentUser!.uid), {
-        plan: "growth",
-        isTrial: false,
-        planStartedAt: now,
-        planExpiresAt: expiresAt,
-        billingCycle: billingCycle,
-      });
-
-      // Also update current store immediately for UI feedback 
-      // (The sync trigger will eventually update all others)
-      await updateDoc(doc(db, "stores", storeId!), {
-        plan: "growth",
-        isVerified: onboardingStatus === "approved",
-        planExpiresAt: expiresAt,
-      });
+      // Never trust the popup's onSuccess alone — confirm server-side
+      // (verifies against Paystack and only then upgrades the account).
+      const confirmSubscriptionPayment = httpsCallable(
+        functions,
+        "confirmSubscriptionPayment",
+      );
+      const ref =
+        typeof reference === "string" ? reference : reference?.reference;
+      await confirmSubscriptionPayment({ reference: ref });
 
       setSuccess("Upgrade Successful! Your entire account is now on the Growth Plan.");
     } catch (err) {
       console.error("Upgrade failed", err);
-      alert("Payment successful but upgrade failed. Contact support.");
+      alert(
+        "We couldn't confirm your payment. If you were charged, please contact support with your reference.",
+      );
     } finally {
       setLoading(false);
     }
@@ -360,8 +358,40 @@ export default function StoreSettingsPage() {
 
   const initializePayment = usePaystackPayment(paystackConfig);
 
-  const handleUpgrade = () => {
-    initializePayment({ onSuccess, onClose });
+  const handleUpgrade = async () => {
+    if (!auth.currentUser?.email) {
+      alert("Please make sure your account has an email set before upgrading.");
+      return;
+    }
+    setLoading(true);
+    try {
+      // Recomputes the price server-side from BILLING_PLANS — never trusts
+      // a client-supplied amount.
+      const initializeSubscriptionPayment = httpsCallable(
+        functions,
+        "initializeSubscriptionPayment",
+      );
+      const { data }: any = await initializeSubscriptionPayment({
+        billingCycle,
+      });
+
+      initializePayment({
+        config: {
+          reference: data.reference,
+          email: auth.currentUser.email,
+          amount: data.amount, // pesewas, from the server
+        },
+        onSuccess,
+        onClose,
+      });
+    } catch (err: any) {
+      console.error("Subscription initialization error", err);
+      alert(
+        err?.message || "Couldn't start checkout. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   // --- PAYOUTS LOGIC ---
@@ -1343,8 +1373,13 @@ export default function StoreSettingsPage() {
                                 <h3 className="text-2xl font-black text-zinc-900">
                                   {userPlan === "growth" ? "Extend Subscription" : "Upgrade to Growth"}
                                 </h3>
-                                <p className="font-medium text-zinc-500">
+                                <p className="font-medium text-zinc-500 flex items-center gap-2">
                                   {formatCurrency(BILLING_PLANS[billingCycle].price)}
+                                  {currentPlanSavings > 0 && (
+                                    <span className="text-[10px] font-black uppercase bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                                      Save {formatCurrency(currentPlanSavings)}
+                                    </span>
+                                  )}
                                 </p>
                                 <p className="text-xs text-zinc-400 mt-1">
                                   Billed {BILLING_PLANS[billingCycle].label}

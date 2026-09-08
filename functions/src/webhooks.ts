@@ -2,6 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as crypto from "crypto";
 import { createOrderFromVerifiedPayment } from "./orders";
+import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
 import { resolveTransferStatus } from "./wallet";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
@@ -39,12 +40,23 @@ export const paystackWebhook = onRequest(async (req, res) => {
     switch (event?.event) {
       case "charge.success": {
         const data = event.data;
-        await createOrderFromVerifiedPayment({
-          reference: data.reference,
-          status: data.status,
-          amount: data.amount,
-          fees_split: data.fees_split,
-        });
+        // Two different things share this event: vendor sales (reference
+        // prefixed drop_, split to a Subaccount) and platform subscription
+        // payments (prefixed sub_, no split — goes to the main balance).
+        if (typeof data.reference === "string" && data.reference.startsWith("sub_")) {
+          await applySubscriptionPaymentIfVerified({
+            reference: data.reference,
+            status: data.status,
+            amount: data.amount,
+          });
+        } else {
+          await createOrderFromVerifiedPayment({
+            reference: data.reference,
+            status: data.status,
+            amount: data.amount,
+            fees_split: data.fees_split,
+          });
+        }
         break;
       }
       case "transfer.success":
