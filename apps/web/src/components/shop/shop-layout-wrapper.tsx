@@ -14,9 +14,11 @@ import {
   Ghost,
   Bell,
   Search,
+  ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, usePathname, useParams } from "next/navigation";
+import { useStore } from "./store-provider";
 import { CartProvider } from "./cart-provider";
 import { CartDrawer } from "./cart-drawer";
 import { OrdersDropdown } from "./orders-dropdown";
@@ -39,6 +41,13 @@ import { StoreLoader } from "./store-loader";
 export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isLive, setIsLive] = useState<boolean | null>(null);
   const [user, setUser] = useState<FirebaseUser | null | undefined>(undefined); // undefined = loading
+  const { store } = useStore();
+  // Not blocked by StoreProvider (rejected/suspended are), but not approved
+  // yet either — browsable with a banner, checkout stays disabled server-side
+  // (initializeOrderPayment) regardless of what this client shows.
+  const isPendingVerification =
+    store?.onboardingStatus === "pending" ||
+    store?.onboardingStatus === "needs_more_info";
 
   // UI States
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
@@ -154,10 +163,8 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
         <NotificationToast />
 
         {/* Closed State Overlay */}
-
-        {/* Closed State Overlay */}
         <AnimatePresence mode="wait">
-          {!isLive && !isAuthPage && (
+          {!isLive && !isAuthPage && !isPendingVerification && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -282,8 +289,17 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
         />
 
         {/* Active Shop Content */}
-        {(isLive || isAuthPage) && (
+        {(isLive || isAuthPage || isPendingVerification) && (
           <CartProvider>
+            {isPendingVerification && !isAuthPage && (
+              <div className="sticky top-0 z-40 bg-blue-600 text-white text-sm font-bold text-center py-2 px-4 flex items-center justify-center gap-2">
+                <ShieldCheck size={16} className="shrink-0" />
+                <span>
+                  This store is being verified. You can browse now — checkout
+                  opens once verification is complete.
+                </span>
+              </div>
+            )}
             {children}
             <CartDrawer />
             <AddedToCartToast />

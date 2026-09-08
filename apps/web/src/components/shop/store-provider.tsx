@@ -170,12 +170,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const isApproved = !store.onboardingStatus || store.onboardingStatus === "approved";
-
-  if (!isApproved) {
+  // Rejected is a final decision, not "please wait" — stays fully blocked,
+  // with its own message distinct from the pending/needs_more_info case
+  // below (which is now browsable, not blocked — see ShopLayoutWrapper).
+  if (store.onboardingStatus === "rejected") {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-4 text-center">
-        <div className="w-16 h-16 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mb-6">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="32"
@@ -188,13 +189,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             strokeLinejoin="round"
           >
             <circle cx="12" cy="12" r="10" />
-            <line x1="12" x2="12" y1="8" y2="12" />
-            <line x1="12" x2="12.01" y1="16" y2="16" />
+            <line x1="15" x2="9" y1="9" y2="15" />
+            <line x1="9" x2="15" y1="9" y2="15" />
           </svg>
         </div>
-        <h1 className="text-3xl font-black mb-2">Store Under Review</h1>
+        <h1 className="text-3xl font-black mb-2">Store Unavailable</h1>
         <p className="text-zinc-500 max-w-md">
-          This store is currently being reviewed by our compliance team. Please check back later.
+          This store's application was not approved and is no longer active.
         </p>
       </div>
     );

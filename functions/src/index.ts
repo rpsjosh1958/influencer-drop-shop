@@ -944,6 +944,23 @@ export const initializeOrderPayment = onCall(async (request) => {
   }
   const store = storeDoc.data()!;
 
+  // Suspension and onboarding approval were previously enforced only by the
+  // storefront's client-side UI (StoreProvider) — a real gap, since nothing
+  // stopped a direct callable invocation from completing a real payment on
+  // a suspended or not-yet-approved store regardless of what the UI showed.
+  if (store.isSuspended) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This store is currently unavailable."
+    );
+  }
+  if (store.onboardingStatus && store.onboardingStatus !== "approved") {
+    throw new HttpsError(
+      "failed-precondition",
+      "This store is not yet approved to accept orders."
+    );
+  }
+
   const subaccountCode = store.payoutConfig?.subaccountCode;
   if (!subaccountCode) {
     throw new HttpsError(
