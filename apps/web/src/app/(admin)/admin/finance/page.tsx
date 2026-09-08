@@ -38,6 +38,7 @@ export default function FinancePage() {
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [monthEarned, setMonthEarned] = useState(0);
 
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -166,9 +167,12 @@ export default function FinancePage() {
       },
     );
 
-    // 2. Recent Transactions
+    // 2. Recent Settlements — credits only. Without this filter, failed
+    // payout attempts (from the now-removed withdrawal feature, or any
+    // future manual adjustment) drown out actual earnings in this list.
     const q = query(
       collection(db, "stores", storeId, "wallet_transactions"),
+      where("type", "==", "credit"),
       orderBy("createdAt", "desc"),
       limit(10),
     );
@@ -176,9 +180,28 @@ export default function FinancePage() {
       setTransactions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
+    // 3. This month's earnings — a more immediate, actionable number than
+    // lifetime Total Earned, since there's no "current balance" anymore.
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const qMonth = query(
+      collection(db, "stores", storeId, "wallet_transactions"),
+      where("type", "==", "credit"),
+      where("createdAt", ">=", monthStart),
+    );
+    const unsubMonth = onSnapshot(qMonth, (snapshot) => {
+      const sum = snapshot.docs.reduce(
+        (total, d) => total + (d.data().amount || 0),
+        0,
+      );
+      setMonthEarned(sum);
+    });
+
     return () => {
       unsubWallet();
       unsubTx();
+      unsubMonth();
     };
   }, [storeId]);
 
@@ -383,6 +406,16 @@ export default function FinancePage() {
             </p>
           </div>
         )}
+
+        <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
+          <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2">This Month</p>
+          <h2 className="text-3xl font-black tracking-tight text-green-600">
+            {formatCurrency(monthEarned)}
+          </h2>
+          <p className="text-[10px] text-zinc-400 mt-2 font-medium">
+            Earned since the 1st, auto-settling via Paystack.
+          </p>
+        </div>
 
         <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
           <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2">Total Earned</p>

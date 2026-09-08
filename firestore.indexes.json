@@ -7,6 +7,14 @@
         { "fieldPath": "plan", "order": "ASCENDING" },
         { "fieldPath": "planExpiresAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "wallet_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

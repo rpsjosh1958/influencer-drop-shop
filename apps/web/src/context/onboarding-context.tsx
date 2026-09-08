@@ -227,10 +227,10 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   // 7. Finance
   {
-    target: "finance-withdraw",
-    title: "Withdraw Funds",
+    target: "finance-payout-method",
+    title: "Payout Method",
     content:
-      "Cash out your available balance directly to your linked Mobile Money account. Minimum withdrawal is GHS 10.",
+      "Your earnings settle automatically to this account via Paystack — no need to click withdraw. Tap here anytime to see or change where it goes.",
     path: "/admin/finance",
     placement: "bottom",
     category: "finance",
@@ -246,18 +246,18 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     target: "finance-balance",
-    title: "Your Wallet",
+    title: "Your Earnings",
     content:
-      "Three key numbers: Available Balance (withdrawable now), Pending (clearing in 48h on Starter plan), and Total Earned all time. If you see two don't fret, the Pending is for the Growth plan.",
+      "Settlement shows where your money is headed and how. This Month and Total Earned track what you've made recently and over the store's lifetime — no manual withdrawal needed, it's already on its way.",
     path: "/admin/finance",
     placement: "bottom",
     category: "finance",
   },
   {
     target: "finance-transactions",
-    title: "Transaction History",
+    title: "Recent Settlements",
     content:
-      "Every order credit and withdrawal appears here so you always know exactly where your money came from.",
+      "Every sale that's been verified and auto-settled appears here, so you always know exactly where your money came from.",
     path: "/admin/finance",
     placement: "top",
     offsetY: -20,
