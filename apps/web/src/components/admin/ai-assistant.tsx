@@ -17,6 +17,20 @@ export function AiAssistant() {
   const [token, setToken] = useState<string | null>(null);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isIdle, setIsIdle] = useState(false);
+
+  // Fade the closed launcher button after a few seconds of no interaction,
+  // so it's less obtrusive over page content — lighter-weight than an
+  // explicit hide/show toggle, and it's still there (and fully clickable)
+  // at reduced opacity, never fully gone.
+  useEffect(() => {
+    if (isOpen || isHovered) {
+      setIsIdle(false);
+      return;
+    }
+    const timer = setTimeout(() => setIsIdle(true), 4000);
+    return () => clearTimeout(timer);
+  }, [isOpen, isHovered]);
 
   // Promo State
   const [promoProduct, setPromoProduct] = useState<Product | null>(null);
@@ -351,11 +365,14 @@ export function AiAssistant() {
           whileTap={{ scale: 0.95 }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
+          onTouchStart={() => setIsHovered(true)}
           onClick={() => {
             setIsOpen(!isOpen);
             if (!isOpen) setShowTooltip(false);
           }}
-          className="fixed bottom-6 right-6 w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl flex items-center justify-center z-[90] hover:shadow-purple-500/25 transition-shadow"
+          className={`fixed bottom-6 right-6 w-14 h-14 bg-black dark:bg-white text-white dark:text-black rounded-full shadow-2xl flex items-center justify-center z-[90] hover:shadow-purple-500/25 transition-[box-shadow,opacity] duration-500 ${
+            isIdle ? "opacity-40" : "opacity-100"
+          }`}
         >
           {isOpen ? <X size={24} /> : <Sparkles size={24} />}
         </motion.button>
