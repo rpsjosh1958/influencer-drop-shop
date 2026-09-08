@@ -268,7 +268,7 @@ export default function FinancePage() {
           </h1>
           <p className="text-zinc-500">Track your earnings and cash out.</p>
         </div>
-        {hasLegacyBalance && (
+        {hasLegacyBalance ? (
           <button
             data-tour="finance-withdraw"
             onClick={() => canWithdraw && setShowWithdraw(true)}
@@ -282,7 +282,29 @@ export default function FinancePage() {
             )}
             {isSuspended ? "Withdrawals Locked" : "Withdraw Pre-migration Balance"}
           </button>
-        )}
+        ) : hasSubaccount ? (
+          <Link
+            href="/admin/settings?tab=payouts"
+            data-tour="finance-payout-method"
+            className="bg-white border border-zinc-200 px-5 py-3 rounded-xl font-bold hover:border-zinc-300 transition-colors flex items-center gap-3 group"
+          >
+            <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center">
+              <Wallet size={14} className="text-zinc-600" />
+            </div>
+            <div className="text-left">
+              <p className="text-xs text-zinc-400 font-medium leading-none mb-1">
+                Payout method
+              </p>
+              <p className="text-sm text-zinc-900 leading-none">
+                {payout?.bankName || "Not set"}
+                {maskedAccount && ` ${maskedAccount}`}
+              </p>
+            </div>
+            <span className="text-xs font-bold text-zinc-400 group-hover:text-zinc-900 transition-colors ml-1">
+              Change
+            </span>
+          </Link>
+        ) : null}
       </div>
 
       {!hasSubaccount && (
