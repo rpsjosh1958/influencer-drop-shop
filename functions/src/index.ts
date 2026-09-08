@@ -484,6 +484,66 @@ export const onOrderCreated = onDocumentCreated(
 );
 
 /*
+ * TRIGGER: When an order's status changes
+ * ACTION: Notify the customer
+ *
+ * Never existed as a working feature before — the customer previously only
+ * ever saw an updated status by reopening the app (a plain Firestore read),
+ * no push notification was ever sent. Guest checkouts (userId: "guest")
+ * can't be notified — there's no account/push token to reach.
+ */
+export const onOrderStatusUpdated = onDocumentUpdated(
+  "stores/{storeId}/orders/{orderId}",
+  async (event) => {
+    const snapshot = event.data;
+    if (!snapshot) return;
+
+    const before = snapshot.before.data();
+    const after = snapshot.after.data();
+    const storeId = event.params.storeId;
+    const orderId = event.params.orderId;
+
+    if (before.status === after.status) return;
+    if (!after.userId || after.userId === "guest") return;
+
+    try {
+      const storeDoc = await admin
+        .firestore()
+        .collection("stores")
+        .doc(storeId)
+        .get();
+      const storeName = storeDoc.data()?.name || "the store";
+
+      let title = "Order Update";
+      let body = `Your order from ${storeName} is now "${after.status}".`;
+
+      switch (after.status) {
+        case "packaged":
+          title = "Order Packaged 📦";
+          body = `Your order from ${storeName} has been packaged and will ship soon.`;
+          break;
+        case "sent-out":
+          title = "Order Shipped 🚚";
+          body = `Your order from ${storeName} is on its way!`;
+          break;
+        case "delivered":
+          title = "Order Delivered ✅";
+          body = `Your order from ${storeName} has been delivered. Enjoy!`;
+          break;
+      }
+
+      await sendNotificationToUser(after.userId, title, body, "customer_order", {
+        screen: "/(tabs)/orders",
+        id: orderId,
+        storeId,
+      });
+    } catch (err) {
+      logger.error("Failed to send order status notification", err);
+    }
+  }
+);
+
+/*
  * TRIGGER: When a Booking is created
  * ACTION: Notify Vendor & Customer
  */
