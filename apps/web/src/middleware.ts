@@ -6,14 +6,24 @@ const SESSION_SECRET = new TextEncoder().encode(
   process.env.SESSION_SECRET || "fallback-secret-change-in-production"
 );
 
-async function isValidSession(request: NextRequest): Promise<boolean> {
+// Same server-only allowlist /api/super-admin/init enforces — checking it
+// here too closes the "brief admin-shell flash before client-side redirect"
+// gap for a non-super-admin hitting /super-admin/* directly. Firestore
+// rules were always the real data backstop; this is defense-in-depth on
+// top of that, not a replacement for it.
+const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim())
+  .filter(Boolean);
+
+async function getSessionEmail(request: NextRequest): Promise<string | null> {
   const token = request.cookies.get("__drop_session")?.value;
-  if (!token) return false;
+  if (!token) return null;
   try {
-    await jwtVerify(token, SESSION_SECRET);
-    return true;
+    const { payload } = await jwtVerify(token, SESSION_SECRET);
+    return typeof payload.email === "string" ? payload.email : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -25,11 +35,15 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/super-admin") && pathname !== "/super-admin/login";
 
   if (isAdminRoute || isSuperAdminRoute) {
-    const valid = await isValidSession(request);
-    if (!valid) {
+    const email = await getSessionEmail(request);
+    if (email === null) {
       const loginUrl = new URL("/admin", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
+    }
+
+    if (isSuperAdminRoute && !SUPER_ADMIN_EMAILS.includes(email)) {
+      return NextResponse.redirect(new URL("/admin/dashboard", request.url));
     }
   }
 
