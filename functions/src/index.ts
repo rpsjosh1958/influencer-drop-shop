@@ -621,10 +621,40 @@ export const onBookingStatusUpdated = onDocumentUpdated(
         .doc(storeId)
         .get();
       const store = storeDoc.data();
-      if (!store || !after.customerEmail) return;
+      if (!store) return;
 
-      // Push to Customer (Optional: if they have app)
-      // await sendPushToUser(after.customerId, "Booking Update", `Status: ${after.status}`, { type: "customer_booking", id: bookingId });
+      // Push to customer — skip guest bookings, no account/token to notify.
+      if (after.customerId && after.customerId !== "guest") {
+        let title = "Booking Update";
+        let body = `Your booking with ${store.name || "the store"} is now "${after.status}".`;
+
+        switch (after.status) {
+          case "confirmed":
+            title = "Booking Confirmed! 🎉";
+            body = `Your appointment for ${after.serviceName || "your service"} with ${store.name || "the store"} has been confirmed.`;
+            break;
+          case "completed":
+            title = `Thanks for visiting ${store.name || "us"}!`;
+            body = "We hope you enjoyed your service! Thanks for booking with us.";
+            break;
+          case "cancelled":
+            title = "Booking Cancelled";
+            body = `Your appointment for ${after.serviceName || "your service"} has been cancelled. Contact the store if this was a mistake.`;
+            break;
+          case "no-show":
+            title = "Missed Appointment";
+            body = `You were marked as a no-show for your appointment with ${store.name || "the store"}.`;
+            break;
+        }
+
+        await sendNotificationToUser(
+          after.customerId,
+          title,
+          body,
+          "customer_booking",
+          { screen: "/(tabs)/orders", id: event.params.bookingId, storeId }
+        );
+      }
 
       // const resend = new Resend(process.env.RESEND_API_KEY);
       // let subject = `Update on your booking with ${store.name}`;
