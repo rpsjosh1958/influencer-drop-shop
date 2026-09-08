@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import * as logger from "firebase-functions/logger";
+import { getErrorCode, getErrorMessage } from "./errors";
 
 export const sendPasswordReset = onCall(async (request) => {
   const { email, userType, storeId, origin } = request.data; // userType: 'vendor' | 'customer'
@@ -65,13 +66,13 @@ export const sendPasswordReset = onCall(async (request) => {
     }
 
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
     logger.error("Password reset failed", err);
     // Return success to prevent email enumeration if user not found?
     // User enumeration is a risk, but for now we might want detailed errors for debugging.
-    if (err.code === "auth/user-not-found") {
+    if (getErrorCode(err) === "auth/user-not-found") {
       throw new HttpsError("not-found", "No user found with this email.");
     }
-    throw new HttpsError("internal", err.message);
+    throw new HttpsError("internal", getErrorMessage(err));
   }
 });

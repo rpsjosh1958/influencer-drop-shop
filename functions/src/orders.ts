@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
+import { getErrorCode, getErrorMessage } from "./errors";
 
 interface PaymentIntentData {
   storeId: string;
@@ -86,10 +87,10 @@ export const createOrderFromVerifiedPayment = async (
       storeName: intent.storeName,
       ...(vendorNetAmount !== undefined ? { vendorNetAmount } : {}),
     });
-  } catch (err: any) {
+  } catch (err) {
     // ALREADY_EXISTS (gRPC code 6) — webhook and confirmOrderPayment raced;
     // whichever got here first wins. Expected, not an error.
-    if (err?.code === 6 || String(err?.message).includes("ALREADY_EXISTS")) {
+    if (getErrorCode(err) === 6 || getErrorMessage(err).includes("ALREADY_EXISTS")) {
       logger.info(
         `Order ${charge.reference} already created, idempotent no-op`
       );

@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as functions from "firebase-functions";
+import { getAxiosErrorData, getAxiosErrorApiMessage } from "./errors";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
@@ -20,14 +21,11 @@ export const resolveAccount = async (
       `/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`
     );
     return response.data.data;
-  } catch (error: any) {
-    console.error(
-      "Paystack API Error (Resolve):",
-      error.response?.data || error.message
-    );
+  } catch (error) {
+    console.error("Paystack API Error (Resolve):", getAxiosErrorData(error));
     throw new functions.https.HttpsError(
       "invalid-argument",
-      error.response?.data?.message || "Could not resolve account details"
+      getAxiosErrorApiMessage(error, "Could not resolve account details")
     );
   }
 };
@@ -36,11 +34,8 @@ export const listBanks = async () => {
   try {
     const response = await paystack.get("/bank?currency=GHS");
     return response.data.data;
-  } catch (error: any) {
-    console.error(
-      "Paystack API Error (List Banks):",
-      error.response?.data || error.message
-    );
+  } catch (error) {
+    console.error("Paystack API Error (List Banks):", getAxiosErrorData(error));
     throw new functions.https.HttpsError("internal", "Could not fetch banks");
   }
 };
@@ -59,14 +54,14 @@ export const createSubaccount = async (data: {
       percentage_charge: data.percentage_charge,
     });
     return response.data.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error(
       "Paystack API Error (Create Subaccount):",
-      error.response?.data || error.message
+      getAxiosErrorData(error)
     );
     throw new functions.https.HttpsError(
       "internal",
-      error.response?.data?.message || "Could not create subaccount"
+      getAxiosErrorApiMessage(error, "Could not create subaccount")
     );
   }
 };
@@ -83,14 +78,14 @@ export const updateSubaccount = async (
   try {
     const response = await paystack.put(`/subaccount/${code}`, data);
     return response.data.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error(
       "Paystack API Error (Update Subaccount):",
-      error.response?.data || error.message
+      getAxiosErrorData(error)
     );
     throw new functions.https.HttpsError(
       "internal",
-      error.response?.data?.message || "Could not update subaccount"
+      getAxiosErrorApiMessage(error, "Could not update subaccount")
     );
   }
 };
@@ -101,14 +96,14 @@ export const verifyTransaction = async (reference: string) => {
       `/transaction/verify/${encodeURIComponent(reference)}`
     );
     return response.data.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error(
       "Paystack API Error (Verify Transaction):",
-      error.response?.data || error.message
+      getAxiosErrorData(error)
     );
     throw new functions.https.HttpsError(
       "internal",
-      error.response?.data?.message || "Could not verify transaction"
+      getAxiosErrorApiMessage(error, "Could not verify transaction")
     );
   }
 };
@@ -123,14 +118,14 @@ export const initializeTransaction = async (data: {
   try {
     const response = await paystack.post("/transaction/initialize", data);
     return response.data.data;
-  } catch (error: any) {
+  } catch (error) {
     console.error(
       "Paystack API Error (Initialize Transaction):",
-      error.response?.data || error.message
+      getAxiosErrorData(error)
     );
     throw new functions.https.HttpsError(
       "internal",
-      error.response?.data?.message || "Could not initialize transaction"
+      getAxiosErrorApiMessage(error, "Could not initialize transaction")
     );
   }
 };

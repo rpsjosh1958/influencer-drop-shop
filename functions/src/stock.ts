@@ -16,6 +16,13 @@ interface VerifiedItem {
   selectedVariant: { id: string; name?: string } | null;
 }
 
+interface ProductVariantDoc {
+  id: string;
+  name?: string;
+  stock?: number;
+  price?: number;
+}
+
 // Validates availability, computes real prices, and atomically decrements
 // stock (top-level and/or the matching variant) — all within one Firestore
 // transaction, so either every item reserves or none do. Replaces the old
@@ -42,8 +49,10 @@ export const reserveStockAndPrice = async (
 
     let totalGHS = 0;
     const verifiedItems: VerifiedItem[] = [];
-    const updates: { ref: FirebaseFirestore.DocumentReference; data: any }[] =
-      [];
+    const updates: {
+      ref: FirebaseFirestore.DocumentReference;
+      data: Record<string, unknown>;
+    }[] = [];
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
@@ -64,11 +73,11 @@ export const reserveStockAndPrice = async (
       }
 
       let price = product.price;
-      let updateData: any;
+      let updateData: Record<string, unknown>;
 
       if (item.selectedVariant?.id && Array.isArray(product.variants)) {
         const variant = product.variants.find(
-          (v: any) => v.id === item.selectedVariant!.id
+          (v: ProductVariantDoc) => v.id === item.selectedVariant!.id
         );
         if (!variant) {
           throw new HttpsError(
@@ -86,9 +95,9 @@ export const reserveStockAndPrice = async (
         }
         if (variant.price !== undefined) price = variant.price;
 
-        const updatedVariants = product.variants.map((v: any) =>
+        const updatedVariants = product.variants.map((v: ProductVariantDoc) =>
           v.id === item.selectedVariant!.id
-            ? { ...v, stock: v.stock - quantity }
+            ? { ...v, stock: (v.stock ?? 0) - quantity }
             : v
         );
         updateData = {
@@ -153,7 +162,7 @@ export const releaseStock = async (
       const product = snap.data()!;
 
       if (item.selectedVariant?.id && Array.isArray(product.variants)) {
-        const updatedVariants = product.variants.map((v: any) =>
+        const updatedVariants = product.variants.map((v: ProductVariantDoc) =>
           v.id === item.selectedVariant!.id
             ? { ...v, stock: (v.stock ?? 0) + item.quantity }
             : v

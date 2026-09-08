@@ -357,7 +357,7 @@ async function sendNotificationToUser(
   title: string,
   body: string,
   type: string,
-  data: any
+  data: Record<string, unknown>
 ) {
   try {
     // 1. Save to Firestore
@@ -397,7 +397,7 @@ async function sendNotificationToUser(
 
     // Safety check for Expo SDK instance, assuming global 'expo' const or init here
     const expoClient = new Expo();
-    await expoClient.sendPushNotificationsAsync(messages as any);
+    await expoClient.sendPushNotificationsAsync(messages);
   } catch (error) {
     logger.error(`Failed to send notification to ${userId}`, error);
   }

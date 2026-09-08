@@ -15,9 +15,16 @@ interface WalletTransaction {
   source?: "subaccount_split" | "internal_ledger";
 }
 
+interface OrderWalletData {
+  paymentMethod?: string;
+  status?: string;
+  vendorNetAmount?: number;
+  total?: number;
+}
+
 export const processOrderWallet = async (
   orderId: string,
-  orderData: any, // Typed as any for flexibility with Firestore data
+  orderData: OrderWalletData,
   storeId: string
 ) => {
   // Skip wallet processing for manually added orders (cash, DM, etc)
@@ -36,6 +43,7 @@ export const processOrderWallet = async (
     // (currentBalance/pendingBalance only back the legacy internal-ledger
     // path below, from before subaccounts existed).
     if (typeof orderData.vendorNetAmount === "number") {
+      const vendorNetAmount = orderData.vendorNetAmount;
       const txRef = db
         .collection("stores")
         .doc(storeId)
@@ -53,7 +61,7 @@ export const processOrderWallet = async (
           : 0;
         const totalEarned =
           (walletDoc.exists ? walletDoc.data()?.totalEarned || 0 : 0) +
-          orderData.vendorNetAmount;
+          vendorNetAmount;
         t.set(
           walletRef,
           {
@@ -65,7 +73,7 @@ export const processOrderWallet = async (
         const txData: WalletTransaction = {
           id: txRef.id,
           type: "credit",
-          amount: orderData.vendorNetAmount,
+          amount: vendorNetAmount,
           description: `Earnings from Order #${orderId
             .slice(0, 8)
             .toUpperCase()} (auto-settled via Paystack)`,
@@ -81,7 +89,7 @@ export const processOrderWallet = async (
         });
       });
       console.log(
-        `Recorded subaccount-split earnings for Order ${orderId}: Net=${orderData.vendorNetAmount}`
+        `Recorded subaccount-split earnings for Order ${orderId}: Net=${vendorNetAmount}`
       );
       return;
     }
