@@ -532,9 +532,12 @@ export const onOrderStatusUpdated = onDocumentUpdated(
           break;
       }
 
-      await sendNotificationToUser(after.userId, title, body, "customer_order", {
+      // type/data field names match what the web notification dropdown and
+      // toast already expect (order_update / data.orderId) — mobile only
+      // uses data.screen, so this is compatible with both.
+      await sendNotificationToUser(after.userId, title, body, "order_update", {
         screen: `/(tabs)/orders?orderId=${orderId}`,
-        id: orderId,
+        orderId,
         storeId,
       });
     } catch (err) {
@@ -647,14 +650,16 @@ export const onBookingStatusUpdated = onDocumentUpdated(
             break;
         }
 
+        // type/data field names match what the web notification dropdown
+        // and toast expect for bookings (booking_update / data.bookingId).
         await sendNotificationToUser(
           after.customerId,
           title,
           body,
-          "customer_booking",
+          "booking_update",
           {
             screen: `/(tabs)/orders?bookingId=${event.params.bookingId}`,
-            id: event.params.bookingId,
+            bookingId: event.params.bookingId,
             storeId,
           }
         );

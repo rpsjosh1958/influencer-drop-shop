@@ -31,17 +31,24 @@ export function NotificationToast() {
     }
   }, [visible]);
 
-  const { openOrderDetails } = useShopUI();
+  const { openOrderDetails, openBookingDetails } = useShopUI();
 
   const handleClick = () => {
     if (!currentNotif) return;
     markAsRead(currentNotif.id);
     setVisible(false);
 
-    // If order type, open modal
+    // If order/booking type, open the matching modal
     const orderId = currentNotif.data?.orderId || currentNotif.orderId;
+    const bookingId = currentNotif.data?.bookingId;
     if (currentNotif.type === "order_update" && orderId) {
-      openOrderDetails(orderId);
+      openOrderDetails(orderId, currentNotif.data?.storeId);
+    } else if (
+      currentNotif.type === "booking_update" &&
+      bookingId &&
+      currentNotif.data?.storeId
+    ) {
+      openBookingDetails(bookingId, currentNotif.data.storeId);
     }
   };
 

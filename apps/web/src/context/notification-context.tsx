@@ -22,7 +22,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 
 export interface Notification {
   id: string;
-  type: "order_update" | "drop" | "info" | "broadcast";
+  type: "order_update" | "booking_update" | "drop" | "info" | "broadcast";
   title: string;
   message: string;
   read: boolean;
@@ -30,6 +30,8 @@ export interface Notification {
   orderId?: string;
   data?: {
     orderId?: string;
+    bookingId?: string;
+    storeId?: string;
     [key: string]: any;
   };
 }

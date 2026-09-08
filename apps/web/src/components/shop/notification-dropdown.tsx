@@ -17,7 +17,7 @@ export function NotificationDropdown({
   onClose,
 }: NotificationDropdownProps) {
   const { notifications, markAsRead, loading } = useNotifications();
-  const { openOrderDetails } = useShopUI();
+  const { openOrderDetails, openBookingDetails } = useShopUI();
 
   useBodyScrollLock(isOpen);
 
@@ -75,9 +75,13 @@ export function NotificationDropdown({
                     onClick={() => {
                       if (!item.read) markAsRead(item.id);
                       const orderId = item.data?.orderId || item.orderId;
+                      const bookingId = item.data?.bookingId;
                       if (item.type === "order_update" && orderId) {
                         onClose();
-                        openOrderDetails(orderId);
+                        openOrderDetails(orderId, item.data?.storeId);
+                      } else if (item.type === "booking_update" && bookingId && item.data?.storeId) {
+                        onClose();
+                        openBookingDetails(bookingId, item.data.storeId);
                       }
                     }}
                     className={`w-full text-left p-3 rounded-xl flex gap-3 transition-all ${
