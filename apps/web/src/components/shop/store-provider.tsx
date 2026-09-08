@@ -61,7 +61,7 @@ export interface StoreConfig {
     bankCode: string;
     accountNumber: string;
     accountName: string;
-    recipientCode: string;
+    subaccountCode?: string;
     provider: "momo" | "bank";
     network?: string;
   };

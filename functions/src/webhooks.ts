@@ -3,14 +3,11 @@ import * as logger from "firebase-functions/logger";
 import * as crypto from "crypto";
 import { createOrderFromVerifiedPayment } from "./orders";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
-import { resolveTransferStatus } from "./wallet";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
 
-// Single Paystack webhook endpoint for both payment confirmation
-// (charge.success — the primary, authoritative path for order creation)
-// and transfer status resolution (transfer.success/failed/reversed, since
-// Paystack transfers resolve asynchronously after the initial API call).
+// Single Paystack webhook endpoint for payment confirmation — the primary,
+// authoritative path for order/subscription confirmation (charge.success).
 export const paystackWebhook = onRequest(async (req, res) => {
   const signature = req.headers["x-paystack-signature"] as string | undefined;
   // Firebase Functions preserves the raw request body on `rawBody`
@@ -59,15 +56,6 @@ export const paystackWebhook = onRequest(async (req, res) => {
         }
         break;
       }
-      case "transfer.success":
-        await resolveTransferStatus(event.data.reference, "success");
-        break;
-      case "transfer.failed":
-        await resolveTransferStatus(event.data.reference, "failed");
-        break;
-      case "transfer.reversed":
-        await resolveTransferStatus(event.data.reference, "reversed");
-        break;
       default:
         // Unhandled event type — ack without action.
         break;

@@ -10,18 +10,13 @@ import { Resend } from "resend";
 import * as crypto from "crypto";
 import {
   resolveAccount,
-  createRecipient,
   listBanks,
   createSubaccount,
   updateSubaccount,
   verifyTransaction,
   initializeTransaction,
 } from "./paystack";
-import {
-  processOrderWallet,
-  handleWithdrawal,
-  releasePendingFunds,
-} from "./wallet";
+import { processOrderWallet, releasePendingFunds } from "./wallet";
 import { checkSubscriptionExpiry } from "./subscriptions";
 import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
@@ -759,26 +754,13 @@ export const verifyBankAccount = onCall(async (request) => {
   return await resolveAccount(accountNumber, bankCode);
 });
 
-export const createTransferRecipient = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "User must be logged in");
-  }
-  const { type, name, accountNumber, bankCode } = request.data;
-  // type should be "nuban" or "mobile_money"
-  return await createRecipient({
-    type,
-    name,
-    account_number: accountNumber,
-    bank_code: bankCode,
-  });
-});
-
-// Replaces the client's old two-step "createTransferRecipient then
-// updateDoc" flow: creates both the Paystack transfer recipient AND a
-// Paystack Subaccount (so checkout can split payments to this vendor
-// automatically), and writes payoutConfig server-side — a store only
-// becomes sellable once this has run (see initializeOrderPayment's
-// subaccountCode check).
+// Creates (or updates in place, if the store already has one — e.g. a
+// vendor changing their payout number) a Paystack Subaccount, so checkout
+// can split payments to this vendor automatically, and writes payoutConfig
+// server-side. A store only becomes sellable once this has run (see
+// initializeOrderPayment's subaccountCode check). Vendor payouts settle
+// automatically via the Subaccount from here — there's no separate
+// recipient/manual-transfer step anymore.
 export const linkPayoutMethod = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in");
@@ -798,13 +780,6 @@ export const linkPayoutMethod = onCall(async (request) => {
       "Not authorized to configure payouts for this store"
     );
   }
-
-  const recipient = await createRecipient({
-    type,
-    name,
-    account_number: accountNumber,
-    bank_code: bankCode,
-  });
 
   const plan = storeData?.plan || "starter";
   const existingSubaccountCode = storeData?.payoutConfig?.subaccountCode;
@@ -834,62 +809,12 @@ export const linkPayoutMethod = onCall(async (request) => {
     bankName: bankName || "",
     accountNumber,
     accountName: name,
-    recipientCode: recipient.recipient_code,
     subaccountCode,
   };
 
   await storeRef.update({ payoutConfig });
 
-  return {
-    recipientCode: recipient.recipient_code,
-    subaccountCode,
-  };
-});
-
-export const initiateWithdrawal = onCall(async (request) => {
-  const { amount, storeId } = request.data;
-  const auth = request.auth;
-
-  if (!auth) {
-    throw new HttpsError("unauthenticated", "User must be logged in");
-  }
-
-  if (!storeId || !amount) {
-    throw new HttpsError("invalid-argument", "Missing storeId or amount");
-  }
-
-  // Verify Ownership
-  const storeDoc = await admin
-    .firestore()
-    .collection("stores")
-    .doc(storeId)
-    .get();
-
-  const storeData = storeDoc.data();
-  if (!storeDoc.exists || storeData?.ownerId !== auth.uid) {
-    throw new HttpsError(
-      "permission-denied",
-      "Not authorized to withdraw from this store"
-    );
-  }
-
-  // 2. Guard by Onboarding Status & Suspension
-  const isApproved = !storeData.onboardingStatus || storeData.onboardingStatus === "approved";
-  if (!isApproved) {
-    throw new HttpsError(
-      "failed-precondition",
-      "Your store must be approved before you can withdraw funds."
-    );
-  }
-
-  if (storeData.isSuspended) {
-    throw new HttpsError(
-      "permission-denied",
-      "Withdrawals are disabled for suspended stores. Please contact support."
-    );
-  }
-
-  return await handleWithdrawal(storeId, amount);
+  return { subaccountCode };
 });
 
 // --- VERIFIED CHECKOUT ---

@@ -140,7 +140,7 @@ export interface StoreConfig {
     bankCode?: string;
     accountNumber?: string;
     accountName?: string;
-    recipientCode?: string;
+    subaccountCode?: string;
   };
   socials?: {
     instagram?: string;

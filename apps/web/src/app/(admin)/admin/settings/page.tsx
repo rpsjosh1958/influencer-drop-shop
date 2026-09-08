@@ -468,7 +468,6 @@ export default function StoreSettingsPage() {
           "Bank",
         accountNumber: payoutState.accountNumber,
         accountName: payoutState.verifiedName,
-        recipientCode: result.data.recipientCode,
         subaccountCode: result.data.subaccountCode,
       };
 
@@ -1454,7 +1453,7 @@ export default function StoreSettingsPage() {
                     * Supported: MTN MoMo, Vodafone Cash, AirtelTigo.
                   </p>
 
-                  {config.payoutConfig?.recipientCode ? (
+                  {config.payoutConfig?.subaccountCode ? (
                     <div className="bg-green-50 border border-green-200 p-6 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
