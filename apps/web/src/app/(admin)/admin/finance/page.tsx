@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import {
   doc,
   onSnapshot,
@@ -14,7 +14,6 @@ import {
   getDocs,
   getDoc,
 } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
 import {
   Loader2,
   ArrowUpRight,
@@ -27,33 +26,19 @@ import {
   Settings2,
 } from "lucide-react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
 import { generateFinancePDF } from "@/lib/pdf-generator";
 import { generateFinanceExcel } from "@/lib/excel-generator";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { formatCurrency } from "@/lib/utils";
-import { Portal } from "@/components/ui/portal";
 
 export default function FinancePage() {
-  const { 
-    storeId, 
-    userPlan, 
-    loading: storeLoading,
-    onboardingStatus,
-    isSuspended
-  } = useAdminStore();
-
-  const canWithdraw = onboardingStatus === "approved" && !isSuspended;
+  const { storeId, userPlan, loading: storeLoading } = useAdminStore();
 
   // Wallet State
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Withdrawal State
-  const [showWithdraw, setShowWithdraw] = useState(false);
-  const [amount, setAmount] = useState("");
-  const [processing, setProcessing] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -197,34 +182,6 @@ export default function FinancePage() {
     };
   }, [storeId]);
 
-  const handleWithdraw = async () => {
-    if (!amount || isNaN(parseFloat(amount))) return;
-    setProcessing(true);
-    setMessage(null);
-
-    try {
-      const withdrawFn = httpsCallable(functions, "initiateWithdrawal");
-      const result: any = await withdrawFn({
-        storeId,
-        amount: parseFloat(amount),
-      });
-
-      if (result.data.success) {
-        setMessage({
-          type: "success",
-          text: "Withdrawal Initiated! Funds are on the way.",
-        });
-        setShowWithdraw(false);
-        setAmount("");
-      }
-    } catch (err: any) {
-      console.error(err);
-      setMessage({ type: "error", text: err.message || "Withdrawal failed." });
-    } finally {
-      setProcessing(false);
-    }
-  };
-
   if (storeLoading || loading) {
     return (
       <div className="h-96 flex items-center justify-center">
@@ -252,7 +209,6 @@ export default function FinancePage() {
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   const hasSubaccount = !!storeConfig?.payoutConfig?.subaccountCode;
-  const hasLegacyBalance = !!wallet && wallet.currentBalance > 0;
   const payout = storeConfig?.payoutConfig;
   const maskedAccount = payout?.accountNumber
     ? `••••${String(payout.accountNumber).slice(-3)}`
@@ -266,23 +222,9 @@ export default function FinancePage() {
             Finance & Payouts
             <HelpTrigger category="finance" />
           </h1>
-          <p className="text-zinc-500">Track your earnings and cash out.</p>
+          <p className="text-zinc-500">Track your earnings.</p>
         </div>
-        {hasLegacyBalance ? (
-          <button
-            data-tour="finance-withdraw"
-            onClick={() => canWithdraw && setShowWithdraw(true)}
-            disabled={!wallet || wallet.currentBalance < 10 || !canWithdraw}
-            className="bg-black text-white px-6 py-3 rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2 shadow-lg"
-          >
-            {isSuspended ? (
-              <AlertCircle size={20} className="text-red-400" />
-            ) : (
-              <ArrowUpRight size={20} />
-            )}
-            {isSuspended ? "Withdrawals Locked" : "Withdraw Pre-migration Balance"}
-          </button>
-        ) : hasSubaccount ? (
+        {hasSubaccount ? (
           <Link
             href="/admin/settings?tab=payouts"
             data-tour="finance-payout-method"
@@ -320,17 +262,6 @@ export default function FinancePage() {
           >
             <Settings2 size={14} /> Set up payouts
           </Link>
-        </div>
-      )}
-
-      {!canWithdraw && hasLegacyBalance && (
-        <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-3 text-amber-800">
-          <AlertCircle className="shrink-0" size={20} />
-          <div className="text-sm font-medium">
-            {isSuspended
-              ? "Your store is suspended. Withdrawals are disabled."
-              : "Withdrawals are locked until your store onboarding is fully approved."}
-          </div>
         </div>
       )}
 
@@ -441,20 +372,6 @@ export default function FinancePage() {
           <div className="absolute -right-10 -bottom-10 w-40 h-40 bg-zinc-800 rounded-full blur-3xl opacity-50" />
         </div>
 
-        {hasLegacyBalance && (
-          <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
-            <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2">
-              <Wallet size={12} /> Pre-migration Balance
-            </p>
-            <h2 className="text-3xl font-black tracking-tight">
-              {formatCurrency(wallet.currentBalance)}
-            </h2>
-            <p className="text-[10px] text-zinc-400 mt-2 font-medium">
-              From orders before auto-settlement — withdraw manually below.
-            </p>
-          </div>
-        )}
-
         {userPlan !== "growth" && wallet.pendingBalance > 0 && (
           <div className="bg-white border border-zinc-200 p-8 rounded-3xl group hover:border-zinc-300 transition-colors">
             <p className="text-zinc-500 font-bold uppercase tracking-widest text-[10px] mb-2">Pending (T+2)</p>
@@ -542,77 +459,6 @@ export default function FinancePage() {
           )}
         </div>
       </div>
-
-      {/* Withdraw Modal */}
-      <Portal>
-      <AnimatePresence>
-        {showWithdraw && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md p-8 rounded-3xl shadow-2xl space-y-6"
-            >
-              <div>
-                <h2 className="text-2xl text-black font-bold">Cash Out</h2>
-                <p className="text-zinc-500">Enter amount to withdraw.</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-bold block mb-2">
-                    Amount (GHS)
-                  </label>
-                  <input
-                    type="number"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full text-3xl font-bold text-black p-4 bg-zinc-50 rounded-2xl border border-zinc-200 outline-none focus:ring-2 focus:ring-black"
-                  />
-                  <p className="text-right text-xs font-bold text-zinc-400 mt-2">
-                    Max: {formatCurrency(wallet.currentBalance)}
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex gap-3 text-blue-800 text-sm">
-                  <AlertCircle className="shrink-0" size={20} />
-                  <p>
-                    Transfers are processed instantly via Paystack. Charges may
-                    apply.
-                  </p>
-                </div>
-
-                <div className="flex gap-4 pt-4">
-                  <button
-                    onClick={() => setShowWithdraw(false)}
-                    className="flex-1 py-4 font-bold text-zinc-500 hover:bg-zinc-100 rounded-xl"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleWithdraw}
-                    disabled={
-                      processing ||
-                      !amount ||
-                      parseFloat(amount) > wallet.currentBalance
-                    }
-                    className="flex-1 py-4 bg-black text-white rounded-xl font-bold hover:scale-105 transition-transform disabled:opacity-50"
-                  >
-                    {processing ? (
-                      <Loader2 className="animate-spin mx-auto" />
-                    ) : (
-                      "Confirm"
-                    )}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      </Portal>
     </div>
   );
 }
