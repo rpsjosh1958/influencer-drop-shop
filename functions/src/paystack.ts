@@ -126,7 +126,12 @@ export const createSubaccount = async (data: {
 
 export const updateSubaccount = async (
   code: string,
-  data: { percentage_charge?: number; active?: boolean }
+  data: {
+    percentage_charge?: number;
+    active?: boolean;
+    bank_code?: string;
+    account_number?: string;
+  }
 ) => {
   try {
     const response = await paystack.put(`/subaccount/${code}`, data);

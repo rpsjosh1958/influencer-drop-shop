@@ -805,12 +805,26 @@ export const linkPayoutMethod = onCall(async (request) => {
   });
 
   const plan = storeData?.plan || "starter";
-  const subaccount = await createSubaccount({
-    business_name: storeData?.name || name,
-    bank_code: bankCode,
-    account_number: accountNumber,
-    percentage_charge: getPlatformFeePercentage(plan),
-  });
+  const existingSubaccountCode = storeData?.payoutConfig?.subaccountCode;
+
+  // Update in place if this store already has a subaccount (changing payout
+  // method), rather than creating a new one and orphaning the old one.
+  const subaccountCode = existingSubaccountCode
+    ? (
+        await updateSubaccount(existingSubaccountCode, {
+          bank_code: bankCode,
+          account_number: accountNumber,
+          percentage_charge: getPlatformFeePercentage(plan),
+        })
+      ).subaccount_code || existingSubaccountCode
+    : (
+        await createSubaccount({
+          business_name: storeData?.name || name,
+          bank_code: bankCode,
+          account_number: accountNumber,
+          percentage_charge: getPlatformFeePercentage(plan),
+        })
+      ).subaccount_code;
 
   const payoutConfig = {
     provider: type === "mobile_money" ? "momo" : "bank",
@@ -819,14 +833,14 @@ export const linkPayoutMethod = onCall(async (request) => {
     accountNumber,
     accountName: name,
     recipientCode: recipient.recipient_code,
-    subaccountCode: subaccount.subaccount_code,
+    subaccountCode,
   };
 
   await storeRef.update({ payoutConfig });
 
   return {
     recipientCode: recipient.recipient_code,
-    subaccountCode: subaccount.subaccount_code,
+    subaccountCode,
   };
 });
 
