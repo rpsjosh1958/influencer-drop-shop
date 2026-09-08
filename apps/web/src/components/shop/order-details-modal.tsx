@@ -18,7 +18,8 @@ import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { useParams } from "next/navigation";
 import { useStore } from "./store-provider";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
+import type { FirestoreTimestampLike } from "@/types";
 
 interface OrderItem {
   id: string;
@@ -47,7 +48,7 @@ interface Order {
     | "sent-out"
     | "delivered"
     | "completed";
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
   items: OrderItem[];
   shippingAddress: {
     city: string;
@@ -56,6 +57,10 @@ interface Order {
     zip: string;
   };
   hasReview?: boolean;
+  // Set via the full Firestore order doc spread below — not otherwise read
+  // in this file, but real on the runtime object and needed by ReviewForm.
+  userId?: string;
+  customerName?: string;
 }
 
 import { ReviewForm } from "./review-form";
@@ -315,7 +320,7 @@ export function OrderDetailsModal() {
                         <div className="flex justify-between">
                           <span className="text-zinc-500">Ordered</span>
                           <span className="font-medium">
-                            {order.createdAt?.toDate().toLocaleDateString()}
+                            {toJsDate(order.createdAt)?.toLocaleDateString()}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -353,7 +358,7 @@ export function OrderDetailsModal() {
                     order.status === "completed") &&
                     !order.hasReview && (
                       <ReviewForm
-                        order={order as any}
+                        order={order}
                         storeId={selectedStoreId || (params.storeId as string)}
                         onReviewSubmitted={() =>
                           setOrder((prev) =>

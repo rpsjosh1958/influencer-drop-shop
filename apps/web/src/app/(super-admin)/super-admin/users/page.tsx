@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, limit, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { User, Mail } from "lucide-react";
+import type { FirestoreTimestampLike } from "@/types";
+import { toJsDate } from "@/lib/utils";
 
 interface UserProfile {
   id: string;
   email: string;
   name?: string;
   phone?: string;
-  createdAt?: any;
+  createdAt?: FirestoreTimestampLike;
 }
 
 export default function UsersPage() {
@@ -89,11 +91,7 @@ export default function UsersPage() {
                   </div>
                 </td>
                 <td className="p-4 text-sm text-zinc-500">
-                  {user.createdAt?.seconds
-                    ? new Date(
-                        user.createdAt.seconds * 1000
-                      ).toLocaleDateString()
-                    : "Unknown"}
+                  {toJsDate(user.createdAt)?.toLocaleDateString() || "Unknown"}
                 </td>
               </tr>
             ))}

@@ -37,12 +37,12 @@ export function StoreSwitcher() {
     queryFn: async () => {
       const q = query(collection(db, "stores"), where("status", "==", "live"));
       const snapshot = await getDocs(q);
-      return snapshot.docs
-        .map((doc) => ({
+      return (
+        snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
-        }))
-        .filter((s: any) => !s.onboardingStatus || s.onboardingStatus === "approved") as Store[];
+        })) as Store[]
+      ).filter((s) => !s.onboardingStatus || s.onboardingStatus === "approved");
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
   });

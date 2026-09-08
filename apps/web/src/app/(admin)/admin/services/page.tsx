@@ -34,6 +34,18 @@ import { Portal } from "@/components/ui/portal";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { formatCurrency } from "@/lib/utils";
 
+interface ServiceFormPayload {
+  name: string;
+  description: string;
+  price: number;
+  duration: number;
+  bufferTime: number;
+  images: string[];
+  isActive: boolean;
+  storeId: string;
+  imageUrl: string;
+}
+
 export default function ServicesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
   const queryClient = useQueryClient();
@@ -71,7 +83,7 @@ export default function ServicesPage() {
 
   // 3. Mutations
   const saveMutation = useMutation({
-    mutationFn: async (payload: any) => {
+    mutationFn: async (payload: ServiceFormPayload) => {
       if (!storeId) return;
       if (editingService) {
         await updateDoc(

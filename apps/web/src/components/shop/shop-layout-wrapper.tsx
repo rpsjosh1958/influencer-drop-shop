@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
 import {
   Loader2,
   Lock,
@@ -38,7 +38,7 @@ import { StoreLoader } from "./store-loader";
 
 export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isLive, setIsLive] = useState<boolean | null>(null);
-  const [user, setUser] = useState<any>(undefined); // undefined = loading
+  const [user, setUser] = useState<FirebaseUser | null | undefined>(undefined); // undefined = loading
 
   // UI States
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);

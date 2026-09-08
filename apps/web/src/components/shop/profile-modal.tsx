@@ -21,6 +21,7 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  User as FirebaseUser,
 } from "firebase/auth";
 import {
   doc,
@@ -43,12 +44,13 @@ interface Address {
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: any;
+  user: FirebaseUser | null;
 }
 
 import { Country, City } from "country-state-city";
 import { Combobox } from "@/components/ui/combobox";
 import { PasswordInput } from "@/components/ui/password-input";
+import { getErrorCode, getErrorMessage } from "@/lib/errors";
 
 // Helper to get formatted options
 const countryOptions = Country.getAllCountries().map((country) => ({
@@ -134,6 +136,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setLoading(true);
     setMessage("");
     setError("");
@@ -168,6 +171,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
 
   const handleSaveAddress = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     setLoading(true);
     setError("");
     try {
@@ -226,6 +230,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
   };
 
   const handleSetDefaultAddress = async (addrId: string) => {
+    if (!user) return;
     setLoading(true);
     try {
       const updatedAddresses = addresses.map((addr) => ({
@@ -252,6 +257,7 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
 
   const handleRemoveAddress = async (addr: Address) => {
     if (!confirm("Are you sure you want to remove this address?")) return;
+    if (!user) return;
     try {
       await setDoc(
         doc(db, "users", user.uid),
@@ -288,19 +294,20 @@ export function ProfileModal({ isOpen, onClose, user }: ProfileModalProps) {
       setMessage("Password changed successfully.");
       setNewPassword("");
       setOldPassword("");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
+      const code = getErrorCode(err);
       if (
-        err.code === "auth/wrong-password" ||
-        err.code === "auth/invalid-credential"
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential"
       ) {
         setError(
           "The current password you entered is incorrect. Please try again."
         );
-      } else if (err.code === "auth/requires-recent-login") {
+      } else if (code === "auth/requires-recent-login") {
         setError("Please log out and log in again to change password.");
       } else {
-        setError("Failed to change password: " + err.message);
+        setError("Failed to change password: " + getErrorMessage(err));
       }
     } finally {
       setLoading(false);

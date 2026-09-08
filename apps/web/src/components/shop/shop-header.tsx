@@ -14,9 +14,14 @@ import { HeaderSearch } from "./header-search";
 import { StoreSwitcher } from "./store-switcher";
 import { NotificationDropdown } from "./notification-dropdown";
 import { useNotifications } from "@/context/notification-context";
+import type { User as FirebaseUser } from "firebase/auth";
+import type { useRouter } from "next/navigation";
+import type { Product, ProductVariant } from "@/types";
+
+type AppRouter = ReturnType<typeof useRouter>;
 
 interface ShopHeaderProps {
-  user: any;
+  user: FirebaseUser | null;
   storeId: string;
   bgColor: string;
   primaryColor: string;
@@ -31,9 +36,9 @@ interface ShopHeaderProps {
   setIsProfileOpen: (val: boolean) => void;
   setIsCartOpen: (val: boolean) => void;
   handleLogout: () => void;
-  addToCart: (item: any) => void;
+  addToCart: (product: Product, variant?: ProductVariant) => void;
   cartCount: number;
-  router: any;
+  router: AppRouter;
 }
 
 export function ShopHeader({

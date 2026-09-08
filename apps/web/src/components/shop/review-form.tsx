@@ -10,10 +10,12 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Order } from "@/types";
 
 interface ReviewFormProps {
-  order: Order;
+  // Only id/userId/customerName are actually read here — kept narrow
+  // rather than the full shared Order type so any caller's own Order-ish
+  // local type (they don't all match exactly) can be passed directly.
+  order: { id: string; userId?: string; customerName?: string };
   storeId: string;
   onReviewSubmitted: () => void;
 }

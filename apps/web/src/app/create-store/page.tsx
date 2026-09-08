@@ -15,6 +15,7 @@ import {
   onAuthStateChanged,
   createUserWithEmailAndPassword,
   updateProfile,
+  User as FirebaseUser,
 } from "firebase/auth";
 import {
   Loader2,
@@ -50,9 +51,19 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { StoreSuccessModal } from "@/components/onboarding/store-success-modal";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { getErrorMessage, getErrorCode } from "@/lib/errors";
+import type { LucideIcon } from "lucide-react";
 
 // --- Sub-components for the floating icons ---
-const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: any) => (
+interface FloatingIconProps {
+  icon: LucideIcon;
+  delay: number;
+  x: string;
+  y: string;
+  size?: number;
+}
+
+const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: FloatingIconProps) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.5 }}
     animate={{ 
@@ -77,7 +88,7 @@ const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: any) => (
 
 export default function CreateStoreWizard() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -195,7 +206,7 @@ export default function CreateStoreWizard() {
         signInWithEmailAndPassword(auth, formData.email, formData.password),
       );
       setStep(2);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setError("Invalid email or password.");
     } finally {
@@ -224,8 +235,8 @@ export default function CreateStoreWizard() {
             formData.password,
           );
           uid = credential.user.uid;
-        } catch (authErr: any) {
-          if (authErr.code === "auth/email-already-in-use") {
+        } catch (authErr) {
+          if (getErrorCode(authErr) === "auth/email-already-in-use") {
             setIsLoginMode(true);
             throw new Error(
               "Looks like you already have an account! Please login to add a new store.",
@@ -255,7 +266,24 @@ export default function CreateStoreWizard() {
 
       // 4. Save User Data
       if (uid) {
-        const userData: any = {
+        const userData: {
+          fullName: string;
+          phone: string;
+          email: string;
+          createdAt: ReturnType<typeof serverTimestamp>;
+          vendorType: typeof vendorType;
+          identity: {
+            verified: boolean;
+            ghanaCard?: string;
+            companyDoc?: string;
+          };
+          contactPerson?: {
+            name: string;
+            position: string;
+            phone: string;
+            email: string;
+          };
+        } = {
           fullName: formData.fullName,
           phone: formData.phone,
           email: formData.email,
@@ -282,9 +310,9 @@ export default function CreateStoreWizard() {
       }
 
       setStep(2);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to create account.");
+      setError(getErrorMessage(err) || "Failed to create account.");
     } finally {
       setLoading(false);
     }
@@ -325,6 +353,11 @@ export default function CreateStoreWizard() {
         type: storeType,
         features,
         ownerId: auth.currentUser.uid,
+        // "closed" isn't one of StoreConfig's status literals
+        // ("live"|"maintenance"|"unpaid") — same pre-existing mismatch
+        // flagged in vendor-details-modal.tsx. Functionally harmless today
+        // (every read site only checks `=== "live"`), but worth a real
+        // look at what "closed" is supposed to mean before tightening.
         status: "closed",
         onboardingStatus: "pending",
         isVerified: false,
@@ -350,9 +383,9 @@ export default function CreateStoreWizard() {
       // Set Cookie & Redirect
       document.cookie = "isAdminLoggedIn=true; path=/";
       setShowSuccessModal(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to create store.");
+      setError(getErrorMessage(err) || "Failed to create store.");
     } finally {
       setLoading(false);
     }

@@ -16,6 +16,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { Country, City } from "country-state-city";
 import { Combobox } from "@/components/ui/combobox";
 import { PasswordInput } from "@/components/ui/password-input";
+import { getErrorCode } from "@/lib/errors";
 
 // Helper to get formatted options
 const countryOptions = Country.getAllCountries().map((country) => ({
@@ -100,10 +101,10 @@ export default function ShopSignup() {
       });
 
       router.push("/");
-    } catch (err: any) {
-      if (err.code === "auth/email-already-in-use") {
+    } catch (err) {
+      if (getErrorCode(err) === "auth/email-already-in-use") {
         setError("Email is already registered.");
-      } else if (err.code === "auth/weak-password") {
+      } else if (getErrorCode(err) === "auth/weak-password") {
         setError("Password should be at least 6 characters.");
       } else {
         setError("Failed to create account. Please try again.");

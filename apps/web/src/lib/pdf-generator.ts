@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Order } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
 
 interface ExportOptions {
   fileName?: string;
@@ -67,7 +67,7 @@ export const generateOrdersPDF = (orders: Order[], options: ExportOptions) => {
 
   // --- Table ---
   const tableData = orders.map((order, index) => {
-    const row: any = {};
+    const row: Record<string, string> = {};
     options.columns.forEach((col) => {
       if (col.dataKey === "id") {
         row[col.header] = (index + 1).toString();
@@ -76,9 +76,8 @@ export const generateOrdersPDF = (orders: Order[], options: ExportOptions) => {
           order.shipping?.address || ""
         }, ${order.shipping?.city || ""}`.trim();
       } else if (col.dataKey === "orderDate") {
-        row[col.header] = order.createdAt?.seconds
-          ? new Date(order.createdAt.seconds * 1000).toLocaleDateString()
-          : "-";
+        const orderDate = toJsDate(order.createdAt);
+        row[col.header] = orderDate ? orderDate.toLocaleDateString() : "-";
       } else if (col.dataKey === "itemsSummary") {
         row[col.header] = order.items
           .map((i) => `${i.quantity}x ${i.name}`)
@@ -86,7 +85,7 @@ export const generateOrdersPDF = (orders: Order[], options: ExportOptions) => {
       } else if (col.dataKey === "total") {
         row[col.header] = formatCurrency(order.total || 0).replace(/GH[₵\u20B5]/g, "GHS");
       } else {
-        row[col.header] = order[col.dataKey] || "-";
+        row[col.header] = String(order[col.dataKey] ?? "-");
       }
     });
     return Object.values(row);
@@ -97,7 +96,7 @@ export const generateOrdersPDF = (orders: Order[], options: ExportOptions) => {
   autoTable(doc, {
     startY: yPos + 10,
     head: [headers],
-    body: tableData as any[],
+    body: tableData,
     theme: "grid",
     headStyles: {
       fillColor: [0, 0, 0],
@@ -128,8 +127,16 @@ export const generateOrdersPDF = (orders: Order[], options: ExportOptions) => {
   doc.save(options.fileName || "orders_export.pdf");
 };
 
+interface FinanceTransaction {
+  createdAt?: import("@/types").FirestoreTimestampLike;
+  description?: string;
+  type?: "credit" | "debit" | "payout";
+  amount?: number;
+  status?: string;
+}
+
 export const generateFinancePDF = (
-  transactions: any[],
+  transactions: FinanceTransaction[],
   options: {
     fileName?: string;
     storeName: string;
@@ -187,9 +194,7 @@ export const generateFinancePDF = (
 
   // --- Transactions Table ---
   const tableData = transactions.map((tx) => [
-    tx.createdAt
-      ? new Date(tx.createdAt.seconds * 1000).toLocaleDateString()
-      : "-",
+    toJsDate(tx.createdAt)?.toLocaleDateString() || "-",
     tx.description || "Transaction",
     tx.type?.toUpperCase() || "-",
     `${tx.type === "credit" ? "+" : "-"} ${formatCurrency(tx.amount || 0).replace(/GH[₵\u20B5]/g, "GHS")}`,

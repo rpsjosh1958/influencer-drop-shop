@@ -39,7 +39,33 @@ import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
+import { getErrorMessage, getErrorCode } from "@/lib/errors";
+import type { StoreConfig, StoreType } from "@/types";
+
+// The page's own working copy of a store's config — a Partial<StoreConfig>
+// since the default state below doesn't set every required StoreConfig
+// field (id/slug/category/features/ownerId only exist once fetched), plus
+// page-specific overrides: `type` starts as "" (no type selected yet)
+// rather than a real StoreType, and `theme`/`theme.hero`/`theme.footer` are
+// always fully present (the default state below always initializes all
+// three) rather than optional like the general StoreConfig type allows.
+type SettingsTheme = NonNullable<StoreConfig["theme"]> & {
+  hero: NonNullable<NonNullable<StoreConfig["theme"]>["hero"]>;
+  footer: NonNullable<NonNullable<StoreConfig["theme"]>["footer"]> & {
+    contact: NonNullable<
+      NonNullable<NonNullable<StoreConfig["theme"]>["footer"]>["contact"]
+    >;
+    socials: NonNullable<
+      NonNullable<NonNullable<StoreConfig["theme"]>["footer"]>["socials"]
+    >;
+  };
+};
+
+type SettingsConfig = Partial<Omit<StoreConfig, "type" | "theme">> & {
+  type: StoreType | "";
+  theme: SettingsTheme;
+};
 
 const TABS = [
   { id: "general", label: "General", icon: Store },
@@ -120,7 +146,7 @@ export default function StoreSettingsPage() {
     BILLING_PLANS[billingCycle].price;
 
   // State
-  const [config, setConfig] = useState<any>({
+  const [config, setConfig] = useState<SettingsConfig>({
     name: "",
     type: "", // Added to track selection
     status: "maintenance",
@@ -173,15 +199,13 @@ export default function StoreSettingsPage() {
     let expiryDate: Date | null = null;
 
     if (planExpiresAt) {
-      expiryDate = planExpiresAt.toDate 
-        ? planExpiresAt.toDate() 
-        : new Date(planExpiresAt.seconds * 1000);
+      expiryDate = toJsDate(planExpiresAt);
     } else if (config.plan === "growth" && config.createdAt) {
       // Fallback: 30 days from creation if growth plan but no expiry set
-      const created = config.createdAt.toDate 
-        ? config.createdAt.toDate() 
-        : new Date(config.createdAt.seconds * 1000);
-      expiryDate = new Date(created.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const created = toJsDate(config.createdAt);
+      if (created) {
+        expiryDate = new Date(created.getTime() + 30 * 24 * 60 * 60 * 1000);
+      }
     }
 
     if (!expiryDate) return null;
@@ -197,7 +221,23 @@ export default function StoreSettingsPage() {
 
   const expiryInfo = getDaysLeft();
 
-  const [userData, setUserData] = useState<any>(null);
+  interface VendorUserData {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    contactPerson?: {
+      name?: string;
+      position?: string;
+      email?: string;
+      phone?: string;
+    };
+    vendorType?: string;
+    identity?: {
+      companyDoc?: string;
+      ghanaCard?: string;
+    };
+  }
+  const [userData, setUserData] = useState<VendorUserData | null>(null);
 
   // Fetch Vendor Data (User Profile)
   useEffect(() => {
@@ -223,7 +263,7 @@ export default function StoreSettingsPage() {
         if (snap.exists()) {
           const data = snap.data();
           // Merge with defaults
-          setConfig((prev: any) => ({
+          setConfig((prev) => ({
             ...prev,
             ...data,
             theme: {
@@ -300,8 +340,8 @@ export default function StoreSettingsPage() {
   };
 
   // Helper to handle nested updates
-  const setNested = (path: string[], value: any) => {
-    setConfig((prev: any) => {
+  const setNested = (path: string[], value: unknown) => {
+    setConfig((prev) => {
       const deepCopy = JSON.parse(JSON.stringify(prev));
       let current = deepCopy;
       for (let i = 0; i < path.length - 1; i++) {
@@ -328,7 +368,9 @@ export default function StoreSettingsPage() {
     currency: "GHS",
   };
 
-  const onSuccess = async (reference: any) => {
+  const onSuccess = async (
+    reference: string | { reference?: string } | undefined,
+  ) => {
     setLoading(true);
     try {
       // Never trust the popup's onSuccess alone — confirm server-side
@@ -367,11 +409,11 @@ export default function StoreSettingsPage() {
     try {
       // Recomputes the price server-side from BILLING_PLANS — never trusts
       // a client-supplied amount.
-      const initializeSubscriptionPayment = httpsCallable(
-        functions,
-        "initializeSubscriptionPayment",
-      );
-      const { data }: any = await initializeSubscriptionPayment({
+      const initializeSubscriptionPayment = httpsCallable<
+        { billingCycle: string },
+        { reference: string; amount: number }
+      >(functions, "initializeSubscriptionPayment");
+      const { data } = await initializeSubscriptionPayment({
         billingCycle,
       });
 
@@ -384,10 +426,10 @@ export default function StoreSettingsPage() {
         onSuccess,
         onClose,
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error("Subscription initialization error", err);
       alert(
-        err?.message || "Couldn't start checkout. Please try again.",
+        getErrorMessage(err) || "Couldn't start checkout. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -419,8 +461,11 @@ export default function StoreSettingsPage() {
       isVerified: false,
     }));
     try {
-      const verifyFn = httpsCallable(functions, "verifyBankAccount");
-      const result: any = await verifyFn({
+      const verifyFn = httpsCallable<
+        { accountNumber: string; bankCode: string },
+        { account_name: string }
+      >(functions, "verifyBankAccount");
+      const result = await verifyFn({
         accountNumber: payoutState.accountNumber,
         bankCode: payoutState.bankCode,
       });
@@ -448,8 +493,18 @@ export default function StoreSettingsPage() {
       // Creates the Paystack transfer recipient AND a Subaccount (so
       // checkout can split payments to this vendor automatically), and
       // writes payoutConfig server-side — all in one call.
-      const linkPayoutMethodFn = httpsCallable(functions, "linkPayoutMethod");
-      const result: any = await linkPayoutMethodFn({
+      const linkPayoutMethodFn = httpsCallable<
+        {
+          storeId: string | null;
+          type: "mobile_money" | "nuban";
+          name: string;
+          accountNumber: string;
+          bankCode: string;
+          bankName: string;
+        },
+        { subaccountCode: string }
+      >(functions, "linkPayoutMethod");
+      const result = await linkPayoutMethodFn({
         storeId,
         type: payoutState.provider === "momo" ? "mobile_money" : "nuban",
         name: payoutState.verifiedName,
@@ -473,11 +528,11 @@ export default function StoreSettingsPage() {
 
       setSuccess("Payout Method Verified & Saved! Your store can now accept orders.");
       // Update local config (linkPayoutMethod already wrote it to Firestore)
-      setConfig((prev: any) => ({ ...prev, payoutConfig }));
+      setConfig((prev) => ({ ...prev, payoutConfig }));
       // Reset form state slightly to showing saved state logic handled in render
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setSuccess("Error saving payout method: " + err.message);
+      setSuccess("Error saving payout method: " + getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -911,7 +966,7 @@ export default function StoreSettingsPage() {
                   <div className="space-y-2">
                     <FontPicker
                       label="Primary Font Family"
-                      value={config.theme.fontFamily}
+                      value={config.theme.fontFamily || "Inter"}
                       onChange={(val) =>
                         setNested(["theme", "fontFamily"], val)
                       }
@@ -1082,14 +1137,14 @@ export default function StoreSettingsPage() {
                         <div className="grid grid-cols-2 gap-4 mt-6">
                           <FontPicker
                             label="Headline Font"
-                            value={config.theme.hero.headlineFont}
+                            value={config.theme.hero.headlineFont || "Inter"}
                             onChange={(val) =>
                               setNested(["theme", "hero", "headlineFont"], val)
                             }
                           />
                           <FontPicker
                             label="Subheadline Font"
-                            value={config.theme.hero.subheadlineFont}
+                            value={config.theme.hero.subheadlineFont || "Inter"}
                             onChange={(val) =>
                               setNested(
                                 ["theme", "hero", "subheadlineFont"],
@@ -1344,12 +1399,17 @@ export default function StoreSettingsPage() {
                         )}
 
                         <div className="mb-6 bg-zinc-100 p-1.5 rounded-xl inline-flex">
-                          {(Object.entries(BILLING_PLANS) as [string, any][]).map(
+                          {(
+                            Object.entries(BILLING_PLANS) as [
+                              keyof typeof BILLING_PLANS,
+                              (typeof BILLING_PLANS)[keyof typeof BILLING_PLANS],
+                            ][]
+                          ).map(
                             ([key, details]) => (
                               <button
                                 key={key}
                                 type="button"
-                                onClick={() => setBillingCycle(key as any)}
+                                onClick={() => setBillingCycle(key)}
                                 className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                                   billingCycle === key
                                     ? "bg-white text-black shadow-sm"
@@ -1473,7 +1533,7 @@ export default function StoreSettingsPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setConfig((prev: any) => ({
+                          setConfig((prev) => ({
                             ...prev,
                             payoutConfig: null,
                           }));
@@ -1700,11 +1760,12 @@ function ChangePasswordForm() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
+    } catch (err) {
       console.error("Password change failed", err);
+      const code = getErrorCode(err);
       if (
-        err.code === "auth/invalid-credential" ||
-        err.code === "auth/wrong-password"
+        code === "auth/invalid-credential" ||
+        code === "auth/wrong-password"
       ) {
         setMessage({ type: "error", text: "Current password is incorrect." });
       } else {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { StoreConfig } from "@/components/shop/store-provider";
 
 const fontMap: Record<string, string> = {
   Inter: "var(--font-inter)",
@@ -11,7 +12,7 @@ const fontMap: Record<string, string> = {
 };
 
 interface ShopHeroProps {
-  theme: any;
+  theme: StoreConfig["theme"] | Record<string, never>;
 }
 
 export function ShopHero({ theme }: ShopHeroProps) {

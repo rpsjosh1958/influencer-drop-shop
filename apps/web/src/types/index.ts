@@ -1,3 +1,20 @@
+import type { FieldValue } from "firebase/firestore";
+
+// Firestore Timestamp fields show up in several shapes depending on how the
+// data got here: a real `Timestamp` (client SDK reads), a plain
+// `{seconds, nanoseconds}` object (serialized through JSON, e.g. server
+// component props), a `Date`/ISO string (manually constructed), or a
+// `FieldValue` sentinel (`serverTimestamp()` in an unwritten create/update
+// payload). Use the `toJsDate`/`getTimestampSeconds` helpers in
+// `@/lib/utils` to read one rather than accessing `.toDate()`/`.seconds`
+// directly — narrowing this union at every call site isn't worth it.
+export type FirestoreTimestampLike =
+  | { toDate: () => Date; seconds: number; nanoseconds: number }
+  | { seconds: number; nanoseconds: number }
+  | Date
+  | string
+  | FieldValue;
+
 export interface ProductOption {
   id: string;
   name: string; // e.g. "Size", "Color"
@@ -46,7 +63,17 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
+}
+
+export interface OrderItem {
+  id: string;
+  productId?: string;
+  name: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+  selectedVariant?: { id: string; name?: string } | null;
 }
 
 export interface Order {
@@ -55,7 +82,7 @@ export interface Order {
   customerEmail: string;
   total: number;
   status: string;
-  items: any[];
+  items: OrderItem[];
   shipping?: {
     address?: string;
     city?: string;
@@ -66,7 +93,7 @@ export interface Order {
     fullName?: string;
     email?: string;
   };
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
   userId?: string;
   customerNote?: string;
   hasReview?: boolean;
@@ -80,7 +107,7 @@ export interface Review {
   isAnonymous: boolean;
   rating: number;
   comment?: string;
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
   reply?: string;
 }
 
@@ -94,10 +121,10 @@ export interface Complaint {
   message: string;
   target: "store" | "platform";
   status: "unread" | "read" | "resolved";
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
   reply?: {
     message: string;
-    createdAt: any;
+    createdAt: FirestoreTimestampLike;
     sender: "admin";
   };
 }
@@ -120,28 +147,61 @@ export interface StoreConfig {
   type: StoreType;
   features: StoreFeatures;
   ownerId: string;
-  status: "live" | "closed";
+  status: "live" | "maintenance" | "unpaid";
   plan: "starter" | "growth";
+  planExpiresAt?: FirestoreTimestampLike;
+  planChangedAt?: FirestoreTimestampLike;
   isVerified?: boolean;
   isSuspended?: boolean;
   onboardingStatus?: "pending" | "approved" | "rejected" | "needs_more_info";
-  onboardingUpdatedAt?: any;
+  onboardingUpdatedAt?: FirestoreTimestampLike;
   onboardingReviewerId?: string;
   onboardingNotes?: string;
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
+  logo?: string;
   theme?: {
     primaryColor: string;
+    backgroundColor?: string;
     heroText?: string;
     footerText?: string;
     logoUrl?: string;
     fontFamily?: string;
+    cardSize?: "small" | "medium" | "large";
+    hero?: {
+      enabled?: boolean;
+      headline?: string;
+      subheadline?: string;
+      layout?: string;
+      headlineColor?: string;
+      headlineFont?: string;
+      subheadlineFont?: string;
+      backgroundType?: "color" | "image";
+      backgroundColor?: string;
+      backgroundImages?: string[];
+      overlayOpacity?: number;
+    };
+    footer?: {
+      enabled?: boolean;
+      text?: string;
+      contact?: {
+        email?: string;
+        address?: string;
+      };
+      socials?: {
+        instagram?: string;
+        twitter?: string;
+        tiktok?: string;
+      };
+    };
   };
   payoutConfig?: {
+    provider?: string;
     bankCode?: string;
+    bankName?: string;
     accountNumber?: string;
     accountName?: string;
     subaccountCode?: string;
-  };
+  } | null;
   socials?: {
     instagram?: string;
     twitter?: string;
@@ -165,7 +225,7 @@ export interface ServiceItem {
   category?: string;
   storeId: string;
   isActive: boolean;
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
 }
 
 export interface TimeSlot {
@@ -191,7 +251,22 @@ export interface AvailabilitySettings {
   };
   blockedDates: string[]; // ISO date strings "2026-01-15"
   cancellationHours: number; // Hours before appointment that cancellation is allowed
-  updatedAt?: any;
+  updatedAt?: FirestoreTimestampLike;
+}
+
+// Store-scoped vendor support ticket (stores/{storeId}/tickets) — distinct
+// from the separate top-level `tickets` collection used by the
+// super-admin/tickets page, which has its own narrower "open"|"closed"
+// status vocabulary.
+export interface Ticket {
+  id: string;
+  storeId: string;
+  subject: string;
+  message: string;
+  category: string;
+  status: string;
+  createdAt: FirestoreTimestampLike;
+  updatedAt?: FirestoreTimestampLike;
 }
 
 export type BookingStatus =
@@ -225,8 +300,8 @@ export interface Booking {
   status: BookingStatus;
 
   // Metadata
-  createdAt: any;
-  updatedAt?: any;
+  createdAt: FirestoreTimestampLike;
+  updatedAt?: FirestoreTimestampLike;
 }
 
 // Helper to derive features from store type

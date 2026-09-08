@@ -36,15 +36,27 @@ import {
   startOfYear,
   subMonths,
 } from "date-fns";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
 import { Portal } from "@/components/ui/portal";
+import type { FirestoreTimestampLike } from "@/types";
+
+interface AnalyticsOrder {
+  total?: number;
+  createdAt?: FirestoreTimestampLike;
+  customerId?: string;
+  items?: { name: string; quantity?: number }[];
+}
+
+interface AnalyticsBooking {
+  createdAt?: FirestoreTimestampLike;
+}
 
 interface AnalyticsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  orders: any[];
-  products: any[];
-  bookings: any[];
+  orders: AnalyticsOrder[];
+  products: unknown[];
+  bookings: AnalyticsBooking[];
 }
 
 type TimeRange = "week" | "month" | "year" | "all";
@@ -75,12 +87,8 @@ export function AnalyticsModal({
 
   const formatMoney = (amount: number) => formatCurrency(amount);
 
-  const parseDate = (createdAt: any) => {
-    if (!createdAt) return new Date();
-    if (createdAt.toDate) return createdAt.toDate();
-    if (createdAt.seconds) return new Date(createdAt.seconds * 1000);
-    return new Date(createdAt);
-  };
+  const parseDate = (createdAt: FirestoreTimestampLike | undefined) =>
+    toJsDate(createdAt) || new Date();
 
   const filteredData = useMemo(() => {
     const now = new Date();
@@ -106,7 +114,7 @@ export function AnalyticsModal({
   }, [orders, bookings, range]);
 
   const chartData = useMemo(() => {
-    const data: any[] = [];
+    const data: { name: string; value: number }[] = [];
     const now = new Date();
 
     if (range === "week" || range === "month") {
@@ -161,7 +169,7 @@ export function AnalyticsModal({
 
     const prodMap: Record<string, number> = {};
     filteredData.orders.forEach((o) => {
-      o.items?.forEach((item: any) => {
+      o.items?.forEach((item) => {
         prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
       });
     });

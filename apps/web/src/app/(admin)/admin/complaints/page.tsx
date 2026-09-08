@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Complaint } from "@/types";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { toJsDate } from "@/lib/utils";
 
 export default function AdminComplaintsPage() {
   const { storeId } = useAdminStore();
@@ -51,7 +52,13 @@ export default function AdminComplaintsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, newStatus }: { id: string; newStatus: string }) => {
+    mutationFn: async ({
+      id,
+      newStatus,
+    }: {
+      id: string;
+      newStatus: Complaint["status"];
+    }) => {
       if (!storeId) return;
       await updateDoc(doc(db, "stores", storeId, "complaints", id), {
         status: newStatus,
@@ -61,7 +68,7 @@ export default function AdminComplaintsPage() {
       queryClient.invalidateQueries({ queryKey: ["complaints", storeId] });
       if (selectedComplaint?.id === id) {
         setSelectedComplaint((prev) =>
-          prev ? { ...prev, status: newStatus as any } : null,
+          prev ? { ...prev, status: newStatus } : null,
         );
       }
     },
@@ -70,7 +77,7 @@ export default function AdminComplaintsPage() {
     },
   });
 
-  const handleStatusUpdate = (id: string, newStatus: string) => {
+  const handleStatusUpdate = (id: string, newStatus: Complaint["status"]) => {
     if (!storeId) return;
     statusMutation.mutate({ id, newStatus });
   };
@@ -157,11 +164,8 @@ export default function AdminComplaintsPage() {
                       {complaint.status}
                     </span>
                     <span className="text-xs text-zinc-400 font-medium">
-                      {complaint.createdAt?.seconds
-                        ? format(
-                            new Date(complaint.createdAt.seconds * 1000),
-                            "MMM d",
-                          )
+                      {toJsDate(complaint.createdAt)
+                        ? format(toJsDate(complaint.createdAt)!, "MMM d")
                         : "Now"}
                     </span>
                   </div>

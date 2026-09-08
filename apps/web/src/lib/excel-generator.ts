@@ -1,4 +1,6 @@
 import * as XLSX from "xlsx";
+import type { FirestoreTimestampLike } from "@/types";
+import { toJsDate } from "@/lib/utils";
 
 interface FinanceTransaction {
   id: string;
@@ -6,7 +8,7 @@ interface FinanceTransaction {
   amount: number;
   description: string;
   status: string;
-  createdAt: any; // Firestore Timestamp
+  createdAt: FirestoreTimestampLike;
 }
 
 interface ExportOptions {
@@ -19,19 +21,18 @@ export const generateFinanceExcel = (
   options: ExportOptions
 ) => {
   // 1. Format Data
-  const data = transactions.map((tx) => ({
-    Date: tx.createdAt?.toDate
-      ? tx.createdAt.toDate().toLocaleDateString()
-      : new Date().toLocaleDateString(),
-    Time: tx.createdAt?.toDate
-      ? tx.createdAt.toDate().toLocaleTimeString()
-      : new Date().toLocaleTimeString(),
-    Description: tx.description,
-    Type: tx.type.toUpperCase(),
-    Status: tx.status.toUpperCase(),
-    Amount: tx.amount,
-    "Transaction ID": tx.id,
-  }));
+  const data = transactions.map((tx) => {
+    const createdAt = toJsDate(tx.createdAt);
+    return {
+      Date: createdAt ? createdAt.toLocaleDateString() : new Date().toLocaleDateString(),
+      Time: createdAt ? createdAt.toLocaleTimeString() : new Date().toLocaleTimeString(),
+      Description: tx.description,
+      Type: tx.type.toUpperCase(),
+      Status: tx.status.toUpperCase(),
+      Amount: tx.amount,
+      "Transaction ID": tx.id,
+    };
+  });
 
   // 2. Create Worksheet
   const worksheet = XLSX.utils.json_to_sheet(data);

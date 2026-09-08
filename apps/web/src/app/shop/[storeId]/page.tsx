@@ -32,7 +32,7 @@ export default async function ShopPage({
       .get(),
   ]);
 
-  const initialProducts = productsSnap.docs.map((doc: any) => {
+  const initialProducts = productsSnap.docs.map((doc) => {
     const data = doc.data();
     return {
       ...data,
@@ -51,7 +51,7 @@ export default async function ShopPage({
   }) as Product[];
 
   const initialServices = servicesSnap.docs
-    .map((doc: any) => {
+    .map((doc) => {
       const data = doc.data();
       return {
         ...data,
@@ -68,9 +68,9 @@ export default async function ShopPage({
         }),
       };
     })
-    .filter((s: Record<string, any>) => s.isActive) as ServiceItem[];
+    .filter((s) => s.isActive) as ServiceItem[];
 
-  const initialCategories = categoriesSnap.docs.map((doc: any) => {
+  const initialCategories = categoriesSnap.docs.map((doc) => {
     const data = doc.data();
     return {
       ...data,

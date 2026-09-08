@@ -26,7 +26,8 @@ import {
   Watch,
   Gem,
   BadgePercent,
-  Heart
+  Heart,
+  type LucideIcon
 } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { motion } from "framer-motion";
@@ -35,7 +36,15 @@ import { cn } from "@/lib/utils";
 import { useEffect } from "react";
 
 // --- Sub-components for the floating icons ---
-const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: any) => (
+interface FloatingIconProps {
+  icon: LucideIcon;
+  delay: number;
+  x: string;
+  y: string;
+  size?: number;
+}
+
+const FloatingIcon = ({ icon: Icon, delay, x, y, size = 24 }: FloatingIconProps) => (
   <motion.div
     initial={{ opacity: 0, scale: 0.5 }}
     animate={{ 
@@ -88,7 +97,7 @@ export default function AdminLogin() {
       });
       if (!sessionRes.ok) throw new Error("Session creation failed");
       router.push("/admin/dashboard");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
       setError("Invalid credentials. Please try again.");
     } finally {

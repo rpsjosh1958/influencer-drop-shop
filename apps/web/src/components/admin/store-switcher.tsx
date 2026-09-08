@@ -26,6 +26,7 @@ import {
   updateDoc 
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/errors";
 
 export function StoreSwitcher({ collapsed }: { collapsed?: boolean }) {
   const { 
@@ -272,9 +273,9 @@ function AddStoreModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => vo
       setStoreType("product");
       
       alert("Store created successfully!");
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to create store");
+      setError(getErrorMessage(err) || "Failed to create store");
     } finally {
       setLoading(false);
     }

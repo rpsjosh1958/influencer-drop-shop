@@ -29,7 +29,18 @@ import Link from "next/link";
 import { generateFinancePDF } from "@/lib/pdf-generator";
 import { generateFinanceExcel } from "@/lib/excel-generator";
 import { HelpTrigger } from "@/context/onboarding-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
+import type { StoreConfig, FirestoreTimestampLike } from "@/types";
+
+interface WalletTransaction {
+  id: string;
+  type: "credit" | "debit" | "payout";
+  amount: number;
+  description: string;
+  status: string;
+  source?: "subaccount_split" | "internal_ledger";
+  createdAt: FirestoreTimestampLike;
+}
 
 export default function FinancePage() {
   const { storeId, userPlan, loading: storeLoading } = useAdminStore();
@@ -43,13 +54,14 @@ export default function FinancePage() {
   const [exporting, setExporting] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [storeConfig, setStoreConfig] = useState<any>(null);
+  const [storeConfig, setStoreConfig] = useState<StoreConfig | null>(null);
 
   // Fetch Store Config
   useEffect(() => {
     if (!storeId) return;
     getDoc(doc(db, "stores", storeId)).then((snap) => {
-      if (snap.exists()) setStoreConfig(snap.data());
+      if (snap.exists())
+        setStoreConfig({ id: snap.id, ...snap.data() } as StoreConfig);
     });
   }, [storeId]);
 
@@ -71,7 +83,7 @@ export default function FinancePage() {
       const periodTransactions = snapshot.docs.map((d) => ({
         id: d.id,
         ...d.data(),
-      })) as any[];
+      })) as WalletTransaction[];
 
       const totalEarnedPeriod = periodTransactions
         .filter((tx) => tx.type === "credit")
@@ -121,7 +133,7 @@ export default function FinancePage() {
       const periodTransactions = snapshot.docs.map((d) => ({
         id: d.id,
         ...d.data(),
-      })) as any[];
+      })) as WalletTransaction[];
 
       const monthName = new Date(selectedYear, selectedMonth).toLocaleString(
         "default",
@@ -174,7 +186,7 @@ export default function FinancePage() {
         limit(10),
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as WalletTransaction[];
     },
     enabled: !!storeId,
     refetchInterval: 30000,
@@ -472,7 +484,7 @@ export default function FinancePage() {
                       )}
                     </p>
                     <p className="text-xs text-zinc-500">
-                      {tx.createdAt?.toDate().toLocaleDateString()} •{" "}
+                      {toJsDate(tx.createdAt)?.toLocaleDateString()} •{" "}
                       {tx.status}
                     </p>
                   </div>

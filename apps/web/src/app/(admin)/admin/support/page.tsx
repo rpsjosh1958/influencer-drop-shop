@@ -14,6 +14,8 @@ import {
 } from "firebase/firestore";
 import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { Ticket } from "@/types";
+import { toJsDate } from "@/lib/utils";
 
 export default function VendorSupportPage() {
   const { storeId, userPlan, loading: storeLoading } = useAdminStore();
@@ -34,7 +36,7 @@ export default function VendorSupportPage() {
         orderBy("createdAt", "desc"),
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as Ticket[];
     },
     enabled: !!storeId,
   });
@@ -207,7 +209,7 @@ export default function VendorSupportPage() {
                   {ticket.message}
                 </p>
                 <p className="text-xs text-zinc-400 mt-2">
-                  {ticket.createdAt?.toDate().toLocaleDateString()} •{" "}
+                  {toJsDate(ticket.createdAt)?.toLocaleDateString()} •{" "}
                   {ticket.category}
                 </p>
               </div>

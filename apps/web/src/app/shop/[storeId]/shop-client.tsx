@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { Product, Category, ServiceItem } from "@/types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/components/shop/store-provider";
@@ -54,7 +54,7 @@ export default function ShopClient({
   const [categories] = useState<Category[]>(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   // Filter State
   const [filterType, setFilterType] = useState<"all" | "product" | "service">("all");

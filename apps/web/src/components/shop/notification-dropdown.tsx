@@ -6,6 +6,7 @@ import { useNotifications, Notification } from "@/context/notification-context";
 import { formatDistanceToNow } from "date-fns";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
+import { toJsDate } from "@/lib/utils";
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -112,11 +113,10 @@ export function NotificationDropdown({
                           {item.title}
                         </p>
                         <span className="text-[10px] text-zinc-500 shrink-0">
-                          {item.createdAt?.seconds
-                            ? formatDistanceToNow(
-                                new Date(item.createdAt.seconds * 1000),
-                                { addSuffix: true }
-                              )
+                          {toJsDate(item.createdAt)
+                            ? formatDistanceToNow(toJsDate(item.createdAt)!, {
+                                addSuffix: true,
+                              })
                             : "Just now"}
                         </span>
                       </div>

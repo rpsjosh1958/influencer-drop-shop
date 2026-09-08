@@ -21,6 +21,14 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
+import type { CartItem } from "@/components/shop/cart-provider";
+
+interface InitializeOrderPaymentResult {
+  reference: string;
+  amount: number; // pesewas
+  access_code?: string;
+}
 
 interface Address {
   id: string;
@@ -142,7 +150,9 @@ export default function CheckoutPage() {
   // variant purchase was silently rejected.
   const pendingReferenceRef = useRef<string | null>(null);
 
-  const handlePaystackSuccess = async (reference: any) => {
+  const handlePaystackSuccess = async (
+    reference: string | { reference: string },
+  ) => {
     setLoading(true);
     try {
       // Never trust the client-side popup's success alone — confirm
@@ -189,17 +199,17 @@ export default function CheckoutPage() {
     // Recomputes the total server-side and reserves stock atomically
     // (including variant stock) — never trust the client's own `total`.
     try {
-      const initializeOrderPayment = httpsCallable(
-        functions,
-        "initializeOrderPayment",
-      );
-      const safeItems = JSON.parse(JSON.stringify(cart));
-      const { data }: any = await initializeOrderPayment({
+      const initializeOrderPayment = httpsCallable<
+        unknown,
+        InitializeOrderPaymentResult
+      >(functions, "initializeOrderPayment");
+      const safeItems: CartItem[] = JSON.parse(JSON.stringify(cart));
+      const { data } = await initializeOrderPayment({
         storeId,
-        items: safeItems.map((item: any) => ({
+        items: safeItems.map((item) => ({
           id: item.id,
           quantity: item.quantity,
-          imageUrl: item.image,
+          imageUrl: item.imageUrl,
           selectedVariant: item.selectedVariant || null,
         })),
         shipping: {
@@ -230,13 +240,13 @@ export default function CheckoutPage() {
         onSuccess: handlePaystackSuccess,
         onClose: handlePaystackClose,
       });
-    } catch (error: any) {
+    } catch (error) {
       // initializeOrderPayment already releases any reservation it made
       // before throwing (e.g. Paystack init failed) — nothing to release here.
       console.error("Order initialization error", error);
       setLoading(false);
       alert(
-        error?.message ||
+        getErrorMessage(error) ||
           "Couldn't start checkout for this store. Please try again.",
       );
     }

@@ -13,7 +13,8 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { StoreType, StoreFeatures } from "@/types";
+import { StoreType, StoreFeatures, FirestoreTimestampLike } from "@/types";
+import { toJsDate, getTimestampSeconds } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface StoreListItem {
@@ -24,11 +25,19 @@ interface StoreListItem {
   isLocked?: boolean;
 }
 
+interface OwnedStoreDoc {
+  id: string;
+  name?: string;
+  plan?: "starter" | "growth";
+  status?: string;
+  createdAt?: FirestoreTimestampLike;
+}
+
 interface AdminStoreContextType {
   storeId: string | null;
   storeName: string | null;
   userPlan: "starter" | "growth" | null;
-  planExpiresAt: any | null;
+  planExpiresAt: FirestoreTimestampLike | null;
   storeType: StoreType | null;
   storeFeatures: StoreFeatures | null;
   pendingBookingsCount: number;
@@ -53,7 +62,7 @@ export function AdminStoreProvider({
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState<"starter" | "growth" | null>(null);
-  const [planExpiresAt, setPlanExpiresAt] = useState<any | null>(null);
+  const [planExpiresAt, setPlanExpiresAt] = useState<FirestoreTimestampLike | null>(null);
   const [storeType, setStoreType] = useState<StoreType | null>(null);
   const [storeFeatures, setStoreFeatures] = useState<StoreFeatures | null>(null);
   const [pendingBookingsCount, setPendingBookingsCount] = useState(0);
@@ -97,11 +106,9 @@ export function AdminStoreProvider({
             
             // Check if expired locally
             let isExpired = false;
-            if (expiry) {
-              const expiryDate = expiry.toDate ? expiry.toDate() : new Date(expiry.seconds * 1000);
-              if (new Date() > expiryDate) {
-                isExpired = true;
-              }
+            const expiryDate = toJsDate(expiry);
+            if (expiryDate && new Date() > expiryDate) {
+              isExpired = true;
             }
 
             const activePlan = (rawPlan === "growth" && !isExpired) ? "growth" : "starter";
@@ -111,7 +118,7 @@ export function AdminStoreProvider({
             if (storeIds.length > 0) {
               // Fetch basic info for all owned stores for the switcher
               const storeList: StoreListItem[] = [];
-              const storesData: any[] = [];
+              const storesData: OwnedStoreDoc[] = [];
               
               for (const id of storeIds) {
                 const sSnap = await getDoc(doc(db, "stores", id));
@@ -123,8 +130,8 @@ export function AdminStoreProvider({
 
               // Sort by createdAt to determine primary store
               storesData.sort((a, b) => {
-                const tA = a.createdAt?.seconds || 0;
-                const tB = b.createdAt?.seconds || 0;
+                const tA = getTimestampSeconds(a.createdAt);
+                const tB = getTimestampSeconds(b.createdAt);
                 return tA - tB;
               });
 

@@ -6,7 +6,7 @@ export type LogType = "info" | "error" | "warning";
 interface LogOptions {
   message: string;
   type?: LogType;
-  context?: any;
+  context?: Record<string, unknown>;
   userId?: string;
 }
 

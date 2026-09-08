@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { Star } from "lucide-react";
+import type { StoreConfig } from "@/components/shop/store-provider";
 
 interface ShopFooterProps {
-  theme: any;
-  store: any;
+  theme: StoreConfig["theme"] | Record<string, never>;
+  // `rating`/`reviewCount` aren't part of StoreConfig — pre-existing gap,
+  // not something this typing pass introduces or fixes; kept optional so
+  // this compiles the same way it ran before (undefined if absent).
+  store: (StoreConfig & { rating?: number; reviewCount?: number }) | null;
   onOpenReviews: () => void;
   onOpenComplaint: () => void;
 }
@@ -45,9 +49,9 @@ export function ShopFooter({
                 style={{ color: primaryColor }}
               >
                 <Star size={12} className="fill-current" />
-                <span>{Number(store.rating).toFixed(1)}</span>
+                <span>{Number(store?.rating).toFixed(1)}</span>
                 <span className="opacity-50">
-                  ({store.reviewCount} reviews)
+                  ({store?.reviewCount} reviews)
                 </span>
               </button>
             )}

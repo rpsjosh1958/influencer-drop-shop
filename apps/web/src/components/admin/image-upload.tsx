@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Upload, X, Loader2, Image as ImageIcon } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/errors";
 
 interface ImageUploadProps {
   value?: string | string[]; // Single URL or array of URLs
@@ -70,9 +71,9 @@ export function ImageUpload({
       } else {
         onChange(newUrls[0]); // Single mode, just take first
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Upload failed", err);
-      setError(err.message || "Failed to upload image.");
+      setError(getErrorMessage(err) || "Failed to upload image.");
     } finally {
       setUploading(false);
       // Reset input

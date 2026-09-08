@@ -16,6 +16,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Review } from "@/types";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
+import { toJsDate } from "@/lib/utils";
 
 interface ReviewsListModalProps {
   isOpen: boolean;
@@ -33,7 +34,7 @@ export function ReviewsListModal({
   const [stats, setStats] = useState({
     rating: 0,
     count: 0,
-    distribution: {} as any,
+    distribution: {} as Record<number, number>,
   });
 
   useBodyScrollLock(isOpen);
@@ -188,9 +189,7 @@ export function ReviewsListModal({
                                       : review.customerName}
                                   </p>
                                   <p className="text-[10px] text-zinc-400">
-                                    {review.createdAt
-                                      ?.toDate()
-                                      .toLocaleDateString()}
+                                    {toJsDate(review.createdAt)?.toLocaleDateString()}
                                   </p>
                                 </div>
                               </div>

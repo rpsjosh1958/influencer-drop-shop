@@ -1,15 +1,20 @@
 "use client";
 
+import type { ReadonlyURLSearchParams } from "next/navigation";
 import { Product, ServiceItem } from "@/types";
 import { ProductCard } from "./product-card";
 import { ServiceCard } from "./service-card";
 
+type FeedItem =
+  | (Product & { type: "product" })
+  | (ServiceItem & { type: "service" });
+
 interface ProductFeedProps {
   loading: boolean;
-  filteredItems: any[];
+  filteredItems: FeedItem[];
   getGridClass: () => string;
   addToCart: (product: Product) => void;
-  searchParams: any;
+  searchParams: ReadonlyURLSearchParams;
   storeId: string;
 }
 

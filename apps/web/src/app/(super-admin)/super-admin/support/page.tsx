@@ -11,6 +11,7 @@ import {
   orderBy,
   updateDoc,
   doc,
+  DocumentReference,
 } from "firebase/firestore";
 import {
   Loader2,
@@ -22,6 +23,11 @@ import {
   Lock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { Ticket as TicketDoc, Complaint } from "@/types";
+import { toJsDate } from "@/lib/utils";
+
+type TicketWithRef = TicketDoc & { ref: DocumentReference };
+type ComplaintWithRef = Complaint & { ref: DocumentReference };
 
 export default function SuperAdminSupportPage() {
   const queryClient = useQueryClient();
@@ -37,7 +43,7 @@ export default function SuperAdminSupportPage() {
         orderBy("createdAt", "desc")
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref })) as any[];
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref })) as TicketWithRef[];
     },
   });
 
@@ -50,14 +56,14 @@ export default function SuperAdminSupportPage() {
         orderBy("createdAt", "desc")
       );
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref })) as any[];
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref })) as ComplaintWithRef[];
     },
   });
 
   const loading = ticketsLoading || complaintsLoading;
 
   const resolveMutation = useMutation({
-    mutationFn: async (docRef: any) => {
+    mutationFn: async (docRef: DocumentReference) => {
       await updateDoc(docRef, { status: "resolved" });
     },
     onSuccess: () => {
@@ -68,13 +74,13 @@ export default function SuperAdminSupportPage() {
     },
   });
 
-  const handleResolve = (docRef: any) => {
+  const handleResolve = (docRef: DocumentReference) => {
     if (confirm("Mark this issue as resolved?")) {
       resolveMutation.mutate(docRef);
     }
   };
 
-  const TicketCard = ({ data }: { data: any }) => (
+  const TicketCard = ({ data }: { data: TicketWithRef }) => (
     <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl mb-4 group hover:border-zinc-700 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div>
@@ -94,8 +100,8 @@ export default function SuperAdminSupportPage() {
             </span>
           </div>
           <p className="text-zinc-500 text-xs mt-1">
-            {data.createdAt?.toDate
-              ? format(data.createdAt.toDate(), "PPpp")
+            {toJsDate(data.createdAt)
+              ? format(toJsDate(data.createdAt)!, "PPpp")
               : "Just now"}{" "}
             • {data.category}
           </p>
@@ -116,7 +122,7 @@ export default function SuperAdminSupportPage() {
     </div>
   );
 
-  const ComplaintCard = ({ data }: { data: any }) => (
+  const ComplaintCard = ({ data }: { data: ComplaintWithRef }) => (
     <div className="bg-zinc-900 border border-red-500/20 p-6 rounded-2xl mb-4 group hover:border-red-500/40 transition-colors">
       <div className="flex justify-between items-start mb-4">
         <div>

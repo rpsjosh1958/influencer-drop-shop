@@ -48,5 +48,13 @@ if (!admin.apps.length) {
   }
 }
 
-export const adminDb = admin.apps.length ? admin.firestore() : ({} as any);
-export const adminAuth = admin.apps.length ? admin.auth() : ({} as any);
+// Falls back to an empty stand-in (rather than throwing at import time) when
+// credentials are missing — every real usage site assumes initialization
+// succeeded, matching prior behavior; making these nullable would mean
+// updating every call site across the app, out of scope for a typing pass.
+export const adminDb = admin.apps.length
+  ? admin.firestore()
+  : ({} as unknown as admin.firestore.Firestore);
+export const adminAuth = admin.apps.length
+  ? admin.auth()
+  : ({} as unknown as admin.auth.Auth);

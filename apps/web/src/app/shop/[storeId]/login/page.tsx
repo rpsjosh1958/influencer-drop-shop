@@ -42,7 +42,7 @@ export default function ShopLogin() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push(`/shop/${storeId}`);
-    } catch (err: any) {
+    } catch {
       setError("Invalid credentials. Please try again.");
     } finally {
       setLoading(false);

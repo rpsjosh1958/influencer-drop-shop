@@ -7,25 +7,33 @@ import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useRouter, useParams } from "next/navigation";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
-import { Product, ServiceItem } from "@/types";
+import { toJsDate } from "@/lib/utils";
+import { Product, ProductVariant, ServiceItem } from "@/types";
 import { ProductDetailsModal } from "./product-details-modal";
 import { BookingModal } from "./booking-modal";
 
+// Combined store search result — a product or service doc tagged with which
+// it is. Uses `type: string` rather than a strict "product"|"service"
+// literal since the raw doc's own `type` field (Product/ServiceItem both
+// declare one, for unrelated purposes) is spread in after the tag and can
+// override it.
+type SearchResultItem = (Product | ServiceItem) & { type: string };
+
 interface HeaderSearchProps {
-  onAddToCart?: (product: any, variant?: any) => void;
+  onAddToCart?: (product: Product, variant?: ProductVariant) => void;
   onSearchOpen?: (isOpen: boolean) => void;
 }
 
 export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [queryText, setQueryText] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Search Scope: 'store' | 'global'
   const [scope, setScope] = useState<"store" | "global">("store");
 
-  const [storeProducts, setStoreProducts] = useState<any[]>([]);
+  const [storeProducts, setStoreProducts] = useState<SearchResultItem[]>([]);
   const [productToView, setProductToView] = useState<
     Product | ServiceItem | null
   >(null);
@@ -63,19 +71,19 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
           id: doc.id,
           type: "product",
           ...doc.data(),
-        }));
+        })) as SearchResultItem[];
 
         const serviceList = servicesSnapshot.docs.map((doc) => ({
           id: doc.id,
           type: "service",
           ...doc.data(),
-        }));
+        })) as SearchResultItem[];
 
         const combinedItems = [...productList, ...serviceList];
 
-        combinedItems.sort((a: any, b: any) => {
-          const timeA = a.createdAt?.toMillis() || 0;
-          const timeB = b.createdAt?.toMillis() || 0;
+        combinedItems.sort((a, b) => {
+          const timeA = toJsDate(a.createdAt)?.getTime() || 0;
+          const timeB = toJsDate(b.createdAt)?.getTime() || 0;
           return timeB - timeA;
         });
 
@@ -125,7 +133,7 @@ export function HeaderSearch({ onAddToCart, onSearchOpen }: HeaderSearchProps) {
     setLoading(true);
     try {
       const lower = text.toLowerCase();
-      const filtered = storeProducts.filter((p: any) =>
+      const filtered = storeProducts.filter((p) =>
         p.name.toLowerCase().includes(lower),
       );
       setResults(filtered.slice(0, 5));

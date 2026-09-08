@@ -1,6 +1,41 @@
 import { OpenAIStream, StreamingTextResponse } from "ai";
 import OpenAI from "openai";
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { getErrorMessage } from "@/lib/errors";
+
+// The parsed arguments an LLM tool call can send — a superset across every
+// tool below, all optional since each branch only reads its own subset.
+// Genuinely dynamic at this boundary (JSON.parse of the model's own
+// output), so this is a loose bag by design, not a per-tool discriminated
+// union — narrowing further would just chase the model's exact prompt
+// wording rather than catch real bugs.
+interface ToolCallArgs {
+  search?: string;
+  operation?: string;
+  value?: number;
+  searchFilter?: string;
+  newName?: string;
+  isLive?: boolean;
+  name?: string;
+  price?: number;
+  stock?: number;
+  productId?: string;
+  status?: string;
+  orderId?: string;
+  limit?: number;
+  title?: string;
+  content?: string;
+  ticketId?: string;
+  serviceId?: string;
+  duration?: number;
+  isActive?: boolean;
+  bookingId?: string;
+  day?: string;
+  enabled?: boolean;
+  startTime?: string;
+  endTime?: string;
+  query?: string;
+}
 
 // Create OpenAI client
 const openai = new OpenAI({
@@ -474,7 +509,7 @@ export async function POST(req: Request) {
         const rawArgs =
           toolCall.func?.arguments || toolCall.function?.arguments;
 
-        let fnArgs: any = {};
+        let fnArgs: ToolCallArgs = {};
         if (typeof rawArgs === "string") {
           try {
             fnArgs = JSON.parse(rawArgs);
@@ -490,7 +525,7 @@ export async function POST(req: Request) {
         try {
           // --- EXISTING TOOLS ---
           if (fnName === "listProducts") {
-            const search = (fnArgs as any).search?.toLowerCase();
+            const search = fnArgs.search?.toLowerCase();
             const snap = await adminDb
               .collection("stores")
               .doc(storeId)
@@ -498,13 +533,18 @@ export async function POST(req: Request) {
               .limit(50)
               .get();
 
-            let products = snap.docs.map((d: any) => ({
+            let products: Array<{
+              id: string;
+              name?: string;
+              price?: number;
+              stock?: number;
+            }> = snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({
               id: d.id,
               ...d.data(),
             }));
 
             if (search) {
-              products = products.filter((p: any) =>
+              products = products.filter((p) =>
                 p.name?.toLowerCase().includes(search)
               );
             }
@@ -514,14 +554,16 @@ export async function POST(req: Request) {
                 ? "No products found."
                 : products
                     .map(
-                      (p: any) =>
+                      (p) =>
                         `Product: ${p.name} | Price: GH₵${p.price} | Stock: ${p.stock ?? "N/A"} | ID: ${p.id}`
                     )
                     .join("\n");
           } else if (fnName === "batchUpdateProducts") {
-            const op = (fnArgs as any).operation;
-            const val = (fnArgs as any).value;
-            const filter = (fnArgs as any).searchFilter?.toLowerCase();
+            // operation/value are `required` in the tool schema — OpenAI
+            // won't call this tool without them.
+            const op = fnArgs.operation!;
+            const val = fnArgs.value!;
+            const filter = fnArgs.searchFilter?.toLowerCase();
 
             const snap = await adminDb
               .collection("stores")
@@ -532,7 +574,7 @@ export async function POST(req: Request) {
             let docs = snap.docs;
 
             if (filter) {
-              docs = docs.filter((d: any) =>
+              docs = docs.filter((d: FirebaseFirestore.QueryDocumentSnapshot) =>
                 d.data().name.toLowerCase().includes(filter)
               );
             }
@@ -540,9 +582,9 @@ export async function POST(req: Request) {
             const batch = adminDb.batch();
             let count = 0;
 
-            docs.forEach((doc: any) => {
+            docs.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
               const data = doc.data();
-              let update: any = null;
+              let update: Record<string, unknown> | null = null;
 
               if (op === "discount_percent") {
                 const newPrice = Math.max(0, data.price * (1 - val / 100));
@@ -568,10 +610,10 @@ export async function POST(req: Request) {
             await adminDb
               .collection("stores")
               .doc(storeId)
-              .update({ name: (fnArgs as any).newName });
-            result = `Updated name to ${(fnArgs as any).newName}`;
+              .update({ name: fnArgs.newName });
+            result = `Updated name to ${fnArgs.newName}`;
           } else if (fnName === "setStoreStatus") {
-            const status = (fnArgs as any).isLive ? "live" : "maintenance";
+            const status = fnArgs.isLive ? "live" : "maintenance";
             await adminDb.collection("stores").doc(storeId).update({ status });
             result = `Status updated to ${status}`;
           } else if (fnName === "getRecentOrders") {
@@ -586,13 +628,13 @@ export async function POST(req: Request) {
               ? "No orders found."
               : snap.docs
                   .map(
-                    (o: any) =>
+                    (o: FirebaseFirestore.QueryDocumentSnapshot) =>
                       `Order #${o.id.slice(0, 8).toUpperCase()} | Customer: ${o.data().customerName} | Total: GH₵${o.data().total} | Status: ${o.data().status} | ID: ${o.id}`
                   )
                   .join("\n");
           } else if (fnName === "updateProduct") {
-            const args = fnArgs as any;
-            const up: any = {};
+            const args = fnArgs;
+            const up: Record<string, unknown> = {};
             if (args.price) up.price = args.price;
             if (args.stock !== undefined) up.stock = args.stock;
             if (args.name) up.name = args.name;
@@ -601,7 +643,8 @@ export async function POST(req: Request) {
               .collection("stores")
               .doc(storeId)
               .collection("products");
-            let targetId = args.productId;
+            // productId is `required` in the tool schema.
+            let targetId = args.productId!;
 
             const docSnap = await productsRef.doc(targetId).get();
             if (!docSnap.exists) {
@@ -610,7 +653,7 @@ export async function POST(req: Request) {
                 s.toLowerCase().replace(/[^a-z0-9]/g, "");
               const targetClean = normalize(targetId);
 
-              const match = listSnap.docs.find((d: any) => {
+              const match = listSnap.docs.find((d: FirebaseFirestore.QueryDocumentSnapshot) => {
                 const name = d.data().name || "";
                 return normalize(name) === targetClean;
               });
@@ -618,7 +661,7 @@ export async function POST(req: Request) {
               if (match) {
                 targetId = match.id;
               } else {
-                const partial = listSnap.docs.find((d: any) =>
+                const partial = listSnap.docs.find((d: FirebaseFirestore.QueryDocumentSnapshot) =>
                   normalize(d.data().name || "").includes(targetClean)
                 );
                 if (partial) {
@@ -636,12 +679,13 @@ export async function POST(req: Request) {
 
             // --- NEW TOOLS ---
           } else if (fnName === "deleteProduct") {
-            const args = fnArgs as any;
+            const args = fnArgs;
             const productsRef = adminDb
               .collection("stores")
               .doc(storeId)
               .collection("products");
-            let targetId = args.productId;
+            // productId is `required` in the tool schema.
+            let targetId = args.productId!;
 
             const docSnap = await productsRef.doc(targetId).get();
             if (!docSnap.exists) {
@@ -650,7 +694,7 @@ export async function POST(req: Request) {
                 s.toLowerCase().replace(/[^a-z0-9]/g, "");
               const targetClean = normalize(targetId);
 
-              const match = listSnap.docs.find((d: any) => {
+              const match = listSnap.docs.find((d: FirebaseFirestore.QueryDocumentSnapshot) => {
                 const name = d.data().name || "";
                 return normalize(name) === targetClean;
               });
@@ -665,13 +709,14 @@ export async function POST(req: Request) {
             await productsRef.doc(targetId).delete();
             result = `Product deleted (ID: ${targetId}).`;
           } else if (fnName === "getPromotionalContext") {
-            const args = fnArgs as any;
+            const args = fnArgs;
             const productsRef = adminDb
               .collection("stores")
               .doc(storeId)
               .collection("products");
-            let targetId = args.productId;
-            let productData: any = {};
+            // productId is `required` in the tool schema.
+            let targetId = args.productId!;
+            let productData: Record<string, unknown> = {};
 
             const docSnap = await productsRef.doc(targetId).get();
             if (docSnap.exists) {
@@ -682,7 +727,7 @@ export async function POST(req: Request) {
                 s.toLowerCase().replace(/[^a-z0-9]/g, "");
               const targetClean = normalize(targetId);
 
-              const match = listSnap.docs.find((d: any) => {
+              const match = listSnap.docs.find((d: FirebaseFirestore.QueryDocumentSnapshot) => {
                 const name = d.data().name || "";
                 return normalize(name) === targetClean;
               });
@@ -699,7 +744,8 @@ export async function POST(req: Request) {
 
             // --- NEW CATEGORY & ORDER TOOLS ---
           } else if (fnName === "addCategory") {
-            const name = (fnArgs as any).name;
+            // name is `required` in the tool schema.
+            const name = fnArgs.name!;
             const slug = name.toLowerCase().replace(/\s+/g, "-");
             await adminDb
               .collection("stores")
@@ -712,9 +758,9 @@ export async function POST(req: Request) {
               });
             result = `Category created: ${name} (/${slug})`;
           } else if (fnName === "updateOrderStatus") {
-            const status = (fnArgs as any).status;
-            const orderId = (fnArgs as any).orderId;
-            const limitCount = (fnArgs as any).limit;
+            const status = fnArgs.status;
+            const orderId = fnArgs.orderId;
+            const limitCount = fnArgs.limit;
             const ordersRef = adminDb
               .collection("stores")
               .doc(storeId)
@@ -733,7 +779,7 @@ export async function POST(req: Request) {
                 .limit(limitCount || 5)
                 .get();
               const batch = adminDb.batch();
-              q.docs.forEach((d: any) => {
+              q.docs.forEach((d: FirebaseFirestore.QueryDocumentSnapshot) => {
                 batch.update(d.ref, { status });
                 count++;
               });
@@ -769,7 +815,7 @@ export async function POST(req: Request) {
               .get();
             const txs = txSnap.docs
               .map(
-                (d: any) =>
+                (d: FirebaseFirestore.QueryDocumentSnapshot) =>
                   `${d.data().type}: ${d.data().amount} (${
                     d.data().description
                   })`
@@ -789,8 +835,8 @@ export async function POST(req: Request) {
 Use this data to advise the user on cash flow, upgrading their plan, or marketing (e.g. if sales are low).
              `.trim();
           } else if (fnName === "broadcastMessage") {
-            const title = (fnArgs as any).title;
-            const content = (fnArgs as any).content;
+            const title = fnArgs.title;
+            const content = fnArgs.content;
 
             await adminDb.collection("notifications").add({
               userId: "all",
@@ -803,8 +849,8 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
 
             result = `Broadcast sent! Title: "${title}"`;
           } else if (fnName === "getSupportTickets") {
-            const status = (fnArgs as any).status || "open";
-            const limit = (fnArgs as any).limit || 5;
+            const status = fnArgs.status || "open";
+            const limit = fnArgs.limit || 5;
 
             let q = adminDb
               .collection("stores")
@@ -841,15 +887,16 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
               ? "No active tickets or complaints found."
               : snap.docs
                   .map(
-                    (d: any) =>
+                    (d: FirebaseFirestore.QueryDocumentSnapshot) =>
                       `[${collectionName.toUpperCase()}] ID: ${d.id} - ${
                         d.data().subject
                       }: ${d.data().message} (Status: ${d.data().status})`
                   )
                   .join("\n");
           } else if (fnName === "updateTicketStatus") {
-            const ticketId = (fnArgs as any).ticketId;
-            const status = (fnArgs as any).status;
+            // ticketId/status are `required` in the tool schema.
+            const ticketId = fnArgs.ticketId!;
+            const status = fnArgs.status!;
 
             // Try to find in tickets first
             const ticketRef = adminDb
@@ -880,7 +927,7 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
 
             result = `Updated ${collectionName} ${ticketId} to ${status}.`;
           } else if (fnName === "listServices") {
-            const search = (fnArgs as any).search?.toLowerCase();
+            const search = fnArgs.search?.toLowerCase();
             const snap = await adminDb
               .collection("stores")
               .doc(storeId)
@@ -888,13 +935,19 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
               .limit(50)
               .get();
 
-            let services = snap.docs.map((d: any) => ({
+            let services: Array<{
+              id: string;
+              name?: string;
+              price?: number;
+              duration?: number;
+              isActive?: boolean;
+            }> = snap.docs.map((d: FirebaseFirestore.QueryDocumentSnapshot) => ({
               id: d.id,
               ...d.data(),
             }));
 
             if (search) {
-              services = services.filter((s: any) =>
+              services = services.filter((s) =>
                 s.name?.toLowerCase().includes(search)
               );
             }
@@ -904,15 +957,16 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
                 ? "No services found."
                 : services
                     .map(
-                      (s: any) =>
+                      (s) =>
                         `Service: ${s.name} | Price: GH₵${s.price} | Duration: ${s.duration} min | Active: ${s.isActive} | ID: ${s.id}`
                     )
                     .join("\n");
           } else if (fnName === "updateService") {
-            const serviceId = (fnArgs as any).serviceId;
-            const price = (fnArgs as any).price;
-            const duration = (fnArgs as any).duration;
-            const isActive = (fnArgs as any).isActive;
+            // serviceId is `required` in the tool schema.
+            const serviceId = fnArgs.serviceId!;
+            const price = fnArgs.price;
+            const duration = fnArgs.duration;
+            const isActive = fnArgs.isActive;
 
             const serviceRef = adminDb
               .collection("stores")
@@ -933,7 +987,7 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
               docSnap = searchSnap.docs[0];
             }
 
-            const updates: any = {};
+            const updates: Record<string, unknown> = {};
             if (price !== undefined) updates.price = price;
             if (duration !== undefined) updates.duration = duration;
             if (isActive !== undefined) updates.isActive = isActive;
@@ -942,8 +996,8 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             await docSnap.ref.update(updates);
             result = `Updated service ${docSnap.id}.`;
           } else if (fnName === "getRecentBookings") {
-            const limit = (fnArgs as any).limit || 5;
-            const status = (fnArgs as any).status;
+            const limit = fnArgs.limit || 5;
+            const status = fnArgs.status;
 
             let q = adminDb
               .collection("stores")
@@ -960,14 +1014,15 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             result = snap.empty
               ? "No bookings found."
               : snap.docs
-                  .map((d: any) => {
+                  .map((d: FirebaseFirestore.QueryDocumentSnapshot) => {
                     const b = d.data();
                     return `Booking: ${b.serviceName} for ${b.customerName} on ${b.date} at ${b.startTime} | Status: ${b.status} | ID: ${d.id}`;
                   })
                   .join("\n");
           } else if (fnName === "updateBookingStatus") {
-            const bookingId = (fnArgs as any).bookingId;
-            const status = (fnArgs as any).status;
+            // bookingId/status are `required` in the tool schema.
+            const bookingId = fnArgs.bookingId!;
+            const status = fnArgs.status!;
 
             const bookingRef = adminDb
               .collection("stores")
@@ -984,7 +1039,7 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             });
             result = `Updated booking ${bookingId} to ${status}.`;
           } else if (fnName === "getTopSellingProducts") {
-            const limit = (fnArgs as any).limit || 5;
+            const limit = fnArgs.limit || 5;
 
             const ordersSnap = await adminDb
               .collection("stores")
@@ -996,16 +1051,24 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
 
             const salesMap: Record<string, { name: string; count: number; revenue: number }> = {};
 
-            ordersSnap.forEach((doc: any) => {
+            ordersSnap.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
               const order = doc.data();
-              order.items?.forEach((item: any) => {
-                const id = item.productId || item.id;
-                if (!salesMap[id]) {
-                  salesMap[id] = { name: item.name, count: 0, revenue: 0 };
-                }
-                salesMap[id].count += item.quantity || 1;
-                salesMap[id].revenue += (item.price || 0) * (item.quantity || 1);
-              });
+              order.items?.forEach(
+                (item: {
+                  productId?: string;
+                  id?: string;
+                  name?: string;
+                  quantity?: number;
+                  price?: number;
+                }) => {
+                  const id = item.productId || item.id!;
+                  if (!salesMap[id]) {
+                    salesMap[id] = { name: item.name!, count: 0, revenue: 0 };
+                  }
+                  salesMap[id].count += item.quantity || 1;
+                  salesMap[id].revenue += (item.price || 0) * (item.quantity || 1);
+                },
+              );
             });
 
             const sorted = Object.values(salesMap)
@@ -1018,12 +1081,14 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
                   .map((s, i) => `${i + 1}. ${s.name}: ${s.count} units (GH₵${s.revenue.toFixed(2)})`)
                   .join("\n");
           } else if (fnName === "updateStoreSchedule") {
-            const { day, enabled, startTime, endTime } = fnArgs as any;
+            // day/enabled are `required` in the tool schema.
+            const { enabled, startTime, endTime } = fnArgs;
+            const day = fnArgs.day!;
 
             const availRef = adminDb.collection("availability").doc(storeId);
             const availSnap = await availRef.get();
 
-            const scheduleUpdate: any = {
+            const scheduleUpdate: Record<string, unknown> = {
               [`schedule.${day}.enabled`]: enabled,
             };
             if (startTime && endTime) {
@@ -1056,7 +1121,8 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
 
             result = `Updated ${day} schedule.`;
           } else if (fnName === "searchCustomer") {
-            const queryStr = (fnArgs as any).query.toLowerCase();
+            // query is `required` in the tool schema.
+            const queryStr = fnArgs.query!.toLowerCase();
 
             const ordersSnap = await adminDb
               .collection("stores")
@@ -1067,7 +1133,7 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
 
             const customers: Record<string, { name: string; email: string; orderCount: number; totalSpent: number }> = {};
 
-            ordersSnap.forEach((doc: any) => {
+            ordersSnap.forEach((doc: FirebaseFirestore.QueryDocumentSnapshot) => {
               const order = doc.data();
               const email = order.customerEmail || order.shipping?.email;
               if (email) {
@@ -1101,9 +1167,9 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
           } else {
             result = "Unknown tool.";
           }
-        } catch (e: any) {
+        } catch (e) {
           console.error(e);
-          result = `Error: ${e.message}`;
+          result = `Error: ${getErrorMessage(e)}`;
         }
 
         const normalizedToolCall = {
@@ -1143,8 +1209,8 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
     });
 
     return new StreamingTextResponse(stream);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Chat Error:", error);
-    return new Response(error.message, { status: 500 });
+    return new Response(getErrorMessage(error), { status: 500 });
   }
 }

@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { generateOrdersPDF } from "@/lib/pdf-generator";
 import { db } from "@/lib/firebase";
-import { Order } from "@/types";
+import { Order, Product } from "@/types";
 import {
   Search,
   ShoppingBag,
@@ -25,7 +25,7 @@ import { AdminOrderModal } from "@/components/admin/admin-order-modal";
 import { ManualOrderModal } from "@/components/admin/manual-order-modal";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { HelpTrigger } from "@/context/onboarding-context";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
 import { startOfDay, endOfDay, isBefore, isAfter } from "date-fns";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -77,7 +77,7 @@ export default function OrdersPage() {
       return snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
-      })) as any[]; // using any or Product
+      })) as Product[];
     },
     enabled: !!storeId,
   });
@@ -130,9 +130,8 @@ export default function OrdersPage() {
       }
 
       // Date Filter
-      if (order.createdAt?.seconds) {
-        const orderDate = new Date(order.createdAt.seconds * 1000);
-
+      const orderDate = toJsDate(order.createdAt);
+      if (orderDate) {
         if (startDate) {
           const start = startOfDay(startDate);
           if (isBefore(orderDate, start)) return false;
@@ -414,7 +413,7 @@ export default function OrdersPage() {
                     <div className="flex flex-col items-end gap-1.5 min-w-[80px] md:min-w-[110px]">
                        <div className="sm:hidden font-black text-sm">{formatCurrency(order.total)}</div>
                       <span className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1">
-                        {new Date(order.createdAt?.seconds * 1000).toLocaleDateString(undefined, {
+                        {toJsDate(order.createdAt)?.toLocaleDateString(undefined, {
                           month: "short",
                           day: "numeric",
                         })}

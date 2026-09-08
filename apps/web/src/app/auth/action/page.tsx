@@ -6,6 +6,7 @@ import { confirmPasswordReset, verifyPasswordResetCode } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Loader2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function AuthActionPage() {
   return (
@@ -82,9 +83,9 @@ function AuthActionContent() {
     try {
       await confirmPasswordReset(auth, oobCode, password);
       setSuccess(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to reset password.");
+      setError(getErrorMessage(err) || "Failed to reset password.");
     } finally {
       setLoading(false);
     }

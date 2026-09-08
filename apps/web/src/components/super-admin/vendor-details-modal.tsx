@@ -56,7 +56,14 @@ export function VendorDetailsModal({
     revenue: 0,
   });
   const [suspending, setSuspending] = useState(false);
-  const [ownerData, setOwnerData] = useState<any>(null);
+  const [ownerData, setOwnerData] = useState<{
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    vendorType?: "individual" | "company";
+    contactPerson?: { name?: string; email?: string; phone?: string };
+    identity?: { ghanaCard?: string; companyDoc?: string };
+  } | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [updatingOnboarding, setUpdatingOnboarding] = useState(false);
 
@@ -131,7 +138,12 @@ export function VendorDetailsModal({
 
     setUpdatingOnboarding(true);
     try {
-      const updates: any = {
+      // Not Partial<StoreConfig> — status: "closed" below isn't one of
+      // StoreConfig's status literals ("live"|"maintenance"|"unpaid"), a
+      // pre-existing mismatch this typing pass surfaced but didn't
+      // introduce; worth a real look at what "closed" is supposed to mean
+      // here before tightening further.
+      const updates: Record<string, unknown> = {
         onboardingStatus: status,
         onboardingNotes: adminNotes,
         onboardingUpdatedAt: serverTimestamp(),

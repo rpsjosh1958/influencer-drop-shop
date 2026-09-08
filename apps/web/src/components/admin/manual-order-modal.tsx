@@ -10,6 +10,7 @@ import { doc, runTransaction, collection, addDoc, serverTimestamp } from "fireba
 import { formatCurrency } from "@/lib/utils";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Portal } from "@/components/ui/portal";
+import { getErrorMessage } from "@/lib/errors";
 
 interface ManualOrderModalProps {
   isOpen: boolean;
@@ -114,7 +115,7 @@ export function ManualOrderModal({ isOpen, onClose, products = [] }: ManualOrder
 
           if (item.variant) {
             const variants = productData.variants || [];
-            const variant = variants.find((v: any) => v.id === item.variant!.id);
+            const variant = variants.find((v: ProductVariant) => v.id === item.variant!.id);
             if (!variant) throw new Error(`Variant ${item.variant.name} no longer exists.`);
             if (variant.stock < item.quantity) {
               throw new Error(`Not enough stock for ${item.product.name} (${item.variant.name}). Only ${variant.stock} left.`);
@@ -131,7 +132,7 @@ export function ManualOrderModal({ isOpen, onClose, products = [] }: ManualOrder
         for (const { ref, snapshot, item } of productReads) {
           const productData = snapshot.data()!;
           if (item.variant) {
-            const updatedVariants = (productData.variants || []).map((v: any) => 
+            const updatedVariants = (productData.variants || []).map((v: ProductVariant) =>
                v.id === item.variant!.id ? { ...v, stock: v.stock - item.quantity } : v
             );
             const newTotalStock = (productData.stock ?? 0) - item.quantity;
@@ -185,9 +186,9 @@ export function ManualOrderModal({ isOpen, onClose, products = [] }: ManualOrder
       setCustomerEmail("");
       setCustomerPhone("");
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Manual order error:", error);
-      alert(error.message || "Failed to create manual order.");
+      alert(getErrorMessage(error) || "Failed to create manual order.");
     } finally {
       setIsSubmitting(false);
     }

@@ -5,12 +5,13 @@ import { X, MessageCircle, Send, AlertCircle, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { User as FirebaseUser } from "firebase/auth";
 
 interface ComplaintModalProps {
   isOpen: boolean;
   onClose: () => void;
   storeId: string;
-  user?: any;
+  user?: FirebaseUser | null;
 }
 
 export function ComplaintModal({

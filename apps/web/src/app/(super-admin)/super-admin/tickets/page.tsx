@@ -11,6 +11,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { MessageSquare, CheckCircle, Clock } from "lucide-react";
+import type { FirestoreTimestampLike } from "@/types";
+import { toJsDate } from "@/lib/utils";
 
 interface Ticket {
   id: string;
@@ -18,7 +20,7 @@ interface Ticket {
   message: string;
   fromEmail: string;
   status: "open" | "closed";
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
 }
 
 export default function TicketsPage() {
@@ -91,7 +93,7 @@ export default function TicketsPage() {
                   <h3 className="font-bold text-white">{ticket.subject}</h3>
                   <p className="text-xs text-zinc-500">
                     {ticket.fromEmail} •{" "}
-                    {new Date(ticket.createdAt?.toDate()).toLocaleDateString()}
+                    {toJsDate(ticket.createdAt)?.toLocaleDateString()}
                   </p>
                 </div>
               </div>

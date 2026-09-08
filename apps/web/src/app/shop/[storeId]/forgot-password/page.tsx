@@ -8,6 +8,7 @@ import { functions, db } from "@/lib/firebase";
 import { Loader2, ArrowLeft, Mail, Store } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function ShopForgotPasswordPage() {
   const params = useParams();
@@ -58,9 +59,9 @@ export default function ShopForgotPasswordPage() {
         origin: window.location.origin,
       });
       setSuccess(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to send reset link. Check the email.");
+      setError(getErrorMessage(err) || "Failed to send reset link. Check the email.");
     } finally {
       setLoading(false);
     }

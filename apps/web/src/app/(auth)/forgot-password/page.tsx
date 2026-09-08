@@ -5,6 +5,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 import { Loader2, ArrowLeft, Mail } from "lucide-react";
 import Link from "next/link";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -26,9 +27,9 @@ export default function ForgotPasswordPage() {
         origin: window.location.origin,
       });
       setSuccess(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to send reset link. Check the email.");
+      setError(getErrorMessage(err) || "Failed to send reset link. Check the email.");
     } finally {
       setLoading(false);
     }

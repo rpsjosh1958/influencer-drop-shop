@@ -32,7 +32,8 @@ import {
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
 import { HelpTrigger } from "@/context/onboarding-context";
-import { formatCurrency, cn } from "@/lib/utils";
+import { formatCurrency, cn, toJsDate, getTimestampSeconds } from "@/lib/utils";
+import type { OrderItem, FirestoreTimestampLike } from "@/types";
 
 interface OrderData {
   id: string;
@@ -40,21 +41,27 @@ interface OrderData {
   status: string;
   customerName?: string;
   customerEmail?: string;
-  items?: any[];
-  createdAt?: any;
+  items?: OrderItem[];
+  createdAt?: FirestoreTimestampLike;
 }
 
 interface ProductData {
   id: string;
   name: string;
   stock: number;
-  [key: string]: any;
 }
 
 interface BookingData {
   id: string;
   status: string;
-  [key: string]: any;
+  customerName?: string;
+  customerEmail?: string;
+  // Legacy fallback fields — some older booking docs used these instead
+  // of customerName/customerEmail.
+  name?: string;
+  email?: string;
+  serviceName?: string;
+  createdAt?: FirestoreTimestampLike;
 }
 
 interface ActivityItem {
@@ -65,7 +72,7 @@ interface ActivityItem {
   amount?: number;
   itemsCount?: number;
   serviceName?: string;
-  createdAt: any;
+  createdAt?: FirestoreTimestampLike;
 }
 
 export default function AdminDashboard() {
@@ -144,8 +151,8 @@ export default function AdminDashboard() {
 
       if (isPaidOrFulfilled) {
         let matchesMonth = true;
-        if (selectedMonth && data.createdAt) {
-          const date = data.createdAt.toDate();
+        const date = toJsDate(data.createdAt);
+        if (selectedMonth && date) {
           const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
           if (monthKey !== selectedMonth) matchesMonth = false;
         }
@@ -181,7 +188,7 @@ export default function AdminDashboard() {
 
   const { bookingsCount, recentBookings } = useMemo(() => {
     const sorted = [...allBookings].sort(
-      (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+      (a, b) => getTimestampSeconds(b.createdAt) - getTimestampSeconds(a.createdAt),
     );
     let count = 0;
     const recent: BookingData[] = [];
@@ -224,7 +231,7 @@ export default function AdminDashboard() {
      // Top Product logic for all time
      const prodMap: Record<string, number> = {};
      allOrders.forEach(o => {
-         o.items?.forEach((item: any) => {
+         o.items?.forEach((item: OrderItem) => {
              prodMap[item.name] = (prodMap[item.name] || 0) + (item.quantity || 1);
          });
      });
@@ -361,7 +368,7 @@ export default function AdminDashboard() {
     }));
 
     return [...mappedOrders, ...mappedBookings]
-      .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      .sort((a, b) => getTimestampSeconds(b.createdAt) - getTimestampSeconds(a.createdAt))
       .slice(0, 10);
   }, [recentOrders, recentBookings]);
 
@@ -705,10 +712,8 @@ export default function AdminDashboard() {
                           : activity.serviceName || 'Service Booking'}
                       </p>
                       <p className="text-xs text-zinc-400">
-                        {activity.createdAt?.seconds
-                          ? new Date(
-                              activity.createdAt.seconds * 1000
-                            ).toLocaleString(undefined, {
+                        {toJsDate(activity.createdAt)
+                          ? toJsDate(activity.createdAt)!.toLocaleString(undefined, {
                               dateStyle: "medium",
                               timeStyle: "short",
                             })

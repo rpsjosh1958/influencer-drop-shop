@@ -6,11 +6,12 @@ import { X, Search, Loader2 } from "lucide-react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ProductCard } from "./product-card";
+import type { Product, ProductVariant } from "@/types";
 
 interface SearchOverlayProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddToCart: (product: any, variant?: any) => void;
+  onAddToCart: (product: Product, variant?: ProductVariant) => void;
 }
 
 export function SearchOverlay({
@@ -19,9 +20,9 @@ export function SearchOverlay({
   onAddToCart,
 }: SearchOverlayProps) {
   const [queryText, setQueryText] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
-  const [allProducts, setAllProducts] = useState<any[]>([]); // Cache for client-side fallback
+  const [allProducts, setAllProducts] = useState<Product[]>([]); // Cache for client-side fallback
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input on open
@@ -45,7 +46,7 @@ export function SearchOverlay({
     try {
       const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
       const snapshot = await getDocs(q);
-      const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Product[];
       setAllProducts(items);
     } catch (e) {
       console.error("Failed to load products for search", e);
@@ -66,12 +67,12 @@ export function SearchOverlay({
       );
       const snapshot = await getDocs(q);
 
-      let items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      let items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as Product[];
 
       if (items.length === 0 && allProducts.length > 0) {
         // Client-side fallback for case-insensitive
         const lower = queryText.toLowerCase();
-        items = allProducts.filter((p: any) =>
+        items = allProducts.filter((p) =>
           p.name.toLowerCase().includes(lower)
         );
       }
@@ -82,7 +83,7 @@ export function SearchOverlay({
       // Fallback
       if (allProducts.length > 0) {
         const lower = queryText.toLowerCase();
-        const items = allProducts.filter((p: any) =>
+        const items = allProducts.filter((p) =>
           p.name.toLowerCase().includes(lower)
         );
         setResults(items);

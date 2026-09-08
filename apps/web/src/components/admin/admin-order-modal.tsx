@@ -214,7 +214,7 @@ export function AdminOrderModal({
                     Items ({order.items.length})
                   </h4>
                   <div className="space-y-3">
-                    {order.items.map((item: any, idx: number) => (
+                    {order.items.map((item, idx) => (
                       <div
                         key={idx}
                         className="flex items-center gap-4 p-3 border border-zinc-100 dark:border-zinc-800 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
@@ -222,12 +222,7 @@ export function AdminOrderModal({
                         <div className="h-16 w-16 bg-zinc-200 dark:bg-zinc-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={
-                              item.imageUrl ||
-                              item.image ||
-                              item.images?.[0] ||
-                              "/placeholder.png"
-                            }
+                            src={item.imageUrl || "/placeholder.png"}
                             alt={item.name}
                             className="h-full w-full object-cover"
                           />
@@ -242,12 +237,12 @@ export function AdminOrderModal({
                             </p>
                           )}
                           <p className="text-xs text-zinc-500">
-                            Qty: {item.quantity} × {formatCurrency(item.selectedVariant?.price || item.price)}
+                            Qty: {item.quantity} × {formatCurrency(item.price)}
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-zinc-900 dark:text-white text-sm">
-                            {formatCurrency((item.selectedVariant?.price || item.price) * item.quantity)}
+                            {formatCurrency(item.price * item.quantity)}
                           </p>
                         </div>
                       </div>

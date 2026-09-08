@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import { collection, getDocs, orderBy, query, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { AlertTriangle, Info, XCircle } from "lucide-react";
+import type { FirestoreTimestampLike } from "@/types";
+import { toJsDate } from "@/lib/utils";
 
 interface Log {
   id: string;
   type: "error" | "info" | "warning";
   message: string;
-  context?: any;
-  createdAt: any;
+  context?: Record<string, unknown>;
+  createdAt: FirestoreTimestampLike;
 }
 
 export default function LogsPage() {
@@ -87,9 +89,7 @@ export default function LogsPage() {
                   )}
                 </td>
                 <td className="p-4 text-right text-zinc-500">
-                  {log.createdAt?.seconds
-                    ? new Date(log.createdAt.seconds * 1000).toLocaleString()
-                    : "Just now"}
+                  {toJsDate(log.createdAt)?.toLocaleString() || "Just now"}
                 </td>
               </tr>
             ))}

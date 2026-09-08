@@ -6,7 +6,7 @@ import { X, Trash2, ShoppingBag, Minus, Plus } from "lucide-react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { formatCurrency } from "@/lib/utils";
 export function CartDrawer() {
@@ -22,7 +22,7 @@ export function CartDrawer() {
   useBodyScrollLock(isCartOpen);
   const { showAlert } = useAlert();
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const router = useRouter();
   const params = useParams();
 

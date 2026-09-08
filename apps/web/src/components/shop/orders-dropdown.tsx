@@ -23,9 +23,9 @@ import { User } from "firebase/auth";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { useParams } from "next/navigation";
-import { Booking, BookingStatus } from "@/types";
+import { Booking, BookingStatus, FirestoreTimestampLike } from "@/types";
 import { format, parseISO } from "date-fns";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
 
 interface Order {
   id: string;
@@ -33,7 +33,7 @@ interface Order {
   status: string;
   storeName?: string;
   storeId?: string;
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
   items: {
     id: string;
     name: string;
@@ -251,15 +251,13 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                             </span>
                           </div>
                           <p className="text-[10px] text-zinc-400 font-medium mt-1">
-                            {order.createdAt
-                              ?.toDate()
-                              .toLocaleDateString("en-GB", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                            {toJsDate(order.createdAt)?.toLocaleDateString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </p>
                         </div>
                         <p className="font-bold text-sm text-black">

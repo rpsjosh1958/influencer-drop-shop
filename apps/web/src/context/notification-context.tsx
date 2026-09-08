@@ -19,6 +19,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, User } from "firebase/auth";
+import type { FirestoreTimestampLike } from "@/types";
 
 export interface Notification {
   id: string;
@@ -26,13 +27,16 @@ export interface Notification {
   title: string;
   message: string;
   read: boolean;
-  createdAt: any;
+  createdAt: FirestoreTimestampLike;
   orderId?: string;
+  // Set to "all" on broadcast notifications (sent platform-wide rather than
+  // to one user) — only meaningful when type === "broadcast".
+  userId?: string;
   data?: {
     orderId?: string;
     bookingId?: string;
     storeId?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -122,7 +126,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const notif = notifications.find((n) => n.id === id);
       const isBroadcast =
         notif &&
-        (notif.type === "broadcast" || (notif as any).userId === "all");
+        (notif.type === "broadcast" || notif.userId === "all");
 
       if (isBroadcast) {
         // Store locally
@@ -153,7 +157,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     notifications
       .filter(
         (n) =>
-          !n.read && (n.type === "broadcast" || (n as any).userId === "all")
+          !n.read && (n.type === "broadcast" || n.userId === "all")
       )
       .forEach((n) => broadcastIds.push(n.id));
 
@@ -167,7 +171,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     // Process server notifications
     notifications.forEach(async (n) => {
-      if (!n.read && n.type !== "broadcast" && (n as any).userId !== "all") {
+      if (!n.read && n.type !== "broadcast" && n.userId !== "all") {
         await updateDoc(doc(db, "notifications", n.id), { read: true });
       }
     });

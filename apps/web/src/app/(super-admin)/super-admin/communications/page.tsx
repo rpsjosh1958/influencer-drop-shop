@@ -48,10 +48,10 @@ export default function CommunicationsPage() {
             Target Audience
           </label>
           <div className="flex gap-2">
-            {["all", "basic", "growth"].map((t) => (
+            {(["all", "basic", "growth"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => setTarget(t as any)}
+                onClick={() => setTarget(t)}
                 className={`px-4 py-2 rounded-xl text-sm font-bold capitalize transition-all ${
                   target === t
                     ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
