@@ -20,6 +20,17 @@ service cloud.firestore {
       return exists(/databases/$(database)/documents/super_admins/$(request.auth.uid));
     }
 
+    // A second+ store requires the Growth plan (the "Add New Store" UI
+    // already disables this for starter — this is the server-side half of
+    // that gate, since a direct client write bypassed it entirely before).
+    // A user's very first store is always allowed regardless of plan.
+    function isOnGrowthOrHasNoStores() {
+      return !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        || !('ownedStores' in get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.ownedStores.size() == 0
+        || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'growth';
+    }
+
     // --- Super Admins ---
     match /super_admins/{userId} {
       allow read: if true; // or restrictive 
@@ -50,14 +61,22 @@ service cloud.firestore {
       // Public can view stores (for shopping)
       allow read: if true;
       
-      // Authenticated users can create a store
-      allow create: if isAuthenticated();
-      
+      // Authenticated users can create a store — a second+ store requires
+      // the Growth plan (see isOnGrowthOrHasNoStores above).
+      allow create: if isAuthenticated()
+        && request.resource.data.ownerId == request.auth.uid
+        && isOnGrowthOrHasNoStores();
+
       // Only the owner can edit their store settings (Name, Theme, etc.)
       // Super Admin can edit anything (Approval, Suspension, etc.)
+      // Theme (colors/fonts/hero/footer) is Growth-only — the settings UI
+      // disables the whole styling tab for starter, but that's client-side
+      // only, so lock it here too: starter can touch every other field,
+      // just not theme.
       allow update: if isSuperAdmin() || (
-        isStoreOwner() && 
+        isStoreOwner() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId'])
+        && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
       );
 
       allow delete: if isStoreOwner() || isSuperAdmin();

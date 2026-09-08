@@ -39,6 +39,19 @@ export async function POST(req: Request) {
       return new Response("Forbidden", { status: 403 });
     }
 
+    // The AI Assistant is a Growth-plan feature — the UI hides it entirely
+    // for other plans, but that's client-side only, and every call here
+    // costs real OpenAI spend, so it needs its own server-side gate too.
+    const storeDocForPlanCheck = await adminDb
+      .collection("stores")
+      .doc(storeId)
+      .get();
+    if (storeDocForPlanCheck.data()?.plan !== "growth") {
+      return new Response("The AI Assistant requires the Growth plan.", {
+        status: 403,
+      });
+    }
+
     // 3. Define Tools (Native JSON Schema)
     const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       {
