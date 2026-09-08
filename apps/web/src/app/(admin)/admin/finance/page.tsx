@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { db } from "@/lib/firebase";
 import {
   doc,
-  onSnapshot,
   collection,
   query,
   orderBy,
@@ -33,12 +33,6 @@ import { formatCurrency } from "@/lib/utils";
 
 export default function FinancePage() {
   const { storeId, userPlan, loading: storeLoading } = useAdminStore();
-
-  // Wallet State
-  const [wallet, setWallet] = useState<any>(null);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [monthEarned, setMonthEarned] = useState(0);
 
   const [message, setMessage] = useState<{
     type: "success" | "error";
@@ -151,61 +145,65 @@ export default function FinancePage() {
     }
   };
 
-  useEffect(() => {
-    if (!storeId) return;
+  // Wallet — no on-page action ever mutates this (it's written by Cloud
+  // Functions/webhooks elsewhere), so a short poll interval is used instead
+  // of onSnapshot to keep the balance from going stale without an open
+  // realtime listener.
+  const { data: wallet, isLoading: walletLoading } = useQuery({
+    queryKey: ["wallet", storeId],
+    queryFn: async () => {
+      const snap = await getDoc(doc(db, "stores", storeId!, "wallet", "main"));
+      return snap.exists()
+        ? snap.data()
+        : { currentBalance: 0, pendingBalance: 0, totalEarned: 0 };
+    },
+    enabled: !!storeId,
+    refetchInterval: 30000,
+  });
 
-    // 1. Realtime Wallet
-    const unsubWallet = onSnapshot(
-      doc(db, "stores", storeId, "wallet", "main"),
-      (doc) => {
-        if (doc.exists()) {
-          setWallet(doc.data());
-        } else {
-          setWallet({ currentBalance: 0, pendingBalance: 0, totalEarned: 0 });
-        }
-        setLoading(false);
-      },
-    );
+  // Recent Settlements — credits only. Without this filter, failed payout
+  // attempts (from the now-removed withdrawal feature, or any future manual
+  // adjustment) drown out actual earnings in this list.
+  const { data: transactions = [] } = useQuery({
+    queryKey: ["wallet_transactions", storeId],
+    queryFn: async () => {
+      const q = query(
+        collection(db, "stores", storeId!, "wallet_transactions"),
+        where("type", "==", "credit"),
+        orderBy("createdAt", "desc"),
+        limit(10),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+    },
+    enabled: !!storeId,
+    refetchInterval: 30000,
+  });
 
-    // 2. Recent Settlements — credits only. Without this filter, failed
-    // payout attempts (from the now-removed withdrawal feature, or any
-    // future manual adjustment) drown out actual earnings in this list.
-    const q = query(
-      collection(db, "stores", storeId, "wallet_transactions"),
-      where("type", "==", "credit"),
-      orderBy("createdAt", "desc"),
-      limit(10),
-    );
-    const unsubTx = onSnapshot(q, (snapshot) => {
-      setTransactions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    // 3. This month's earnings — a more immediate, actionable number than
-    // lifetime Total Earned, since there's no "current balance" anymore.
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const qMonth = query(
-      collection(db, "stores", storeId, "wallet_transactions"),
-      where("type", "==", "credit"),
-      where("createdAt", ">=", monthStart),
-    );
-    const unsubMonth = onSnapshot(qMonth, (snapshot) => {
-      const sum = snapshot.docs.reduce(
+  // This month's earnings — a more immediate, actionable number than
+  // lifetime Total Earned, since there's no "current balance" anymore.
+  const { data: monthEarned = 0 } = useQuery({
+    queryKey: ["wallet_transactions_month", storeId],
+    queryFn: async () => {
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      const qMonth = query(
+        collection(db, "stores", storeId!, "wallet_transactions"),
+        where("type", "==", "credit"),
+        where("createdAt", ">=", monthStart),
+      );
+      const snapshot = await getDocs(qMonth);
+      return snapshot.docs.reduce(
         (total, d) => total + (d.data().amount || 0),
         0,
       );
-      setMonthEarned(sum);
-    });
+    },
+    enabled: !!storeId,
+    refetchInterval: 30000,
+  });
 
-    return () => {
-      unsubWallet();
-      unsubTx();
-      unsubMonth();
-    };
-  }, [storeId]);
-
-  if (storeLoading || loading) {
+  if (storeLoading || walletLoading || !wallet) {
     return (
       <div className="h-96 flex items-center justify-center">
         <Loader2 className="animate-spin" />

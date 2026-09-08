@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   collection,
   addDoc,
   deleteDoc,
   doc,
-  onSnapshot,
+  getDocs,
   orderBy,
   query,
   serverTimestamp,
@@ -19,64 +20,73 @@ import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function CategoriesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [newCatName, setNewCatName] = useState("");
-  const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    if (!storeId) {
-      if (!storeLoading) setLoading(false);
-      return;
-    }
-
-    // Scoped to Store
-    const q = query(
-      collection(db, "stores", storeId, "categories"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
+  const { data: categories = [], isLoading: loading } = useQuery({
+    queryKey: ["categories", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "categories"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Category[];
-      setCategories(items);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [storeId, storeLoading]);
+    },
+    enabled: !!storeId,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: async (name: string) => {
+      if (!storeId) return;
+      const slug = name.toLowerCase().replace(/\s+/g, "-");
+      await addDoc(collection(db, "stores", storeId, "categories"), {
+        name,
+        slug,
+        createdAt: serverTimestamp(),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories", storeId] });
+      setNewCatName("");
+    },
+    onError: (e) => {
+      console.error(e);
+      alert("Failed to add category");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      if (!storeId) return;
+      await deleteDoc(doc(db, "stores", storeId, "categories", id));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories", storeId] });
+    },
+  });
 
   const handleAddKey = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") handleAdd();
   };
 
-  const handleAdd = async () => {
+  const handleAdd = () => {
     if (!newCatName.trim() || !storeId) return;
-    setAdding(true);
-    try {
-      const slug = newCatName.toLowerCase().replace(/\s+/g, "-");
-      // Scoped to Store
-      await addDoc(collection(db, "stores", storeId, "categories"), {
-        name: newCatName,
-        slug,
-        createdAt: serverTimestamp(),
-      });
-      setNewCatName("");
-    } catch (e) {
-      console.error(e);
-      alert("Failed to add category");
-    } finally {
-      setAdding(false);
+    addMutation.mutate(newCatName);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!storeId) return;
+    if (confirm("Delete this category?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!storeId) return;
-    if (confirm("Delete this category?")) {
-      // Scoped to Store
-      await deleteDoc(doc(db, "stores", storeId, "categories", id));
-    }
-  };
+  const adding = addMutation.isPending;
 
   if (storeLoading) {
     return (

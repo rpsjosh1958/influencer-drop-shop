@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   doc,
-  onSnapshot,
+  getDoc,
   updateDoc,
   collection,
+  getDocs,
   query,
   orderBy,
 } from "firebase/firestore";
@@ -75,149 +77,142 @@ export default function AdminDashboard() {
     isSuspended,
     userPlan,
   } = useAdminStore();
-  const [storeName, setStoreName] = useState("");
-  const [isLive, setIsLive] = useState(false);
-  const [storeType, setStoreType] = useState<"products" | "services" | "both">("both");
-  const [loading, setLoading] = useState(true);
-  const [revenue, setRevenue] = useState(0);
-  const [ordersCount, setOrdersCount] = useState(0);
-  const [bookingsCount, setBookingsCount] = useState(0);
-  const [allOrders, setAllOrders] = useState<OrderData[]>([]);
-  const [recentOrders, setRecentOrders] = useState<OrderData[]>([]);
-  const [recentBookings, setRecentBookings] = useState<BookingData[]>([]);
-  const [products, setProducts] = useState<ProductData[]>([]);
+  const queryClient = useQueryClient();
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
-  const [toggling, setToggling] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [activeSalesIndex, setActiveSalesIndex] = useState(0);
 
   const onboardingBlocked = onboardingStatus !== "approved" || isSuspended;
 
-  // Real-time listener for Store Config
-  useEffect(() => {
-    if (!storeId) return;
+  // Store config
+  const { data: storeData, isLoading: loading } = useQuery({
+    queryKey: ["store", storeId],
+    queryFn: async () => {
+      if (!storeId) return null;
+      const snap = await getDoc(doc(db, "stores", storeId));
+      return snap.exists() ? snap.data() : null;
+    },
+    enabled: !!storeId,
+  });
 
-    const unsub = onSnapshot(doc(db, "stores", storeId), (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setIsLive(data.status === "live");
-        setStoreName(data.name);
-        // Real field is `type` ("product"|"service"|"hybrid") — `storeType`
-        // is never actually set anywhere, so this always silently fell back
-        // to "both" before, and the Sales-vs-Bookings toggle never
-        // correctly reflected a product-only or service-only store.
-        const typeMap: Record<string, "products" | "services" | "both"> = {
-          product: "products",
-          service: "services",
-          hybrid: "both",
-        };
-        setStoreType(typeMap[data.type] || "both");
+  const isLive = storeData?.status === "live";
+  const storeName = storeData?.name || "";
+  // Real field is `type` ("product"|"service"|"hybrid") — `storeType`
+  // is never actually set anywhere, so this always silently fell back
+  // to "both" before, and the Sales-vs-Bookings toggle never
+  // correctly reflected a product-only or service-only store.
+  const storeType = useMemo(() => {
+    const typeMap: Record<string, "products" | "services" | "both"> = {
+      product: "products",
+      service: "services",
+      hybrid: "both",
+    };
+    return typeMap[storeData?.type] || "both";
+  }, [storeData?.type]);
+
+  // Orders
+  const { data: allOrders = [] } = useQuery({
+    queryKey: ["orders", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "orders"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as OrderData[];
+    },
+    enabled: !!storeId,
+  });
+
+  const { revenue, ordersCount, recentOrders } = useMemo(() => {
+    let totalRev = 0;
+    let count = 0;
+    const recent: OrderData[] = [];
+
+    allOrders.forEach((data) => {
+      const isPaidOrFulfilled = [
+        "paid",
+        "processing",
+        "packaged",
+        "sent-out",
+        "shipped",
+        "delivered",
+        "completed",
+      ].includes(data.status);
+
+      if (isPaidOrFulfilled) {
+        let matchesMonth = true;
+        if (selectedMonth && data.createdAt) {
+          const date = data.createdAt.toDate();
+          const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+          if (monthKey !== selectedMonth) matchesMonth = false;
+        }
+
+        if (matchesMonth) {
+          totalRev += data.total || 0;
+          count++;
+        }
       }
-      setLoading(false);
+
+      if (recent.length < 5) {
+        recent.push(data);
+      }
     });
-    return () => unsub();
-  }, [storeId]);
 
-   // Real-time listener for Metrics & Recent Orders
-   useEffect(() => {
-     if (!storeId) return;
+    return { revenue: totalRev, ordersCount: count, recentOrders: recent };
+  }, [allOrders, selectedMonth]);
 
-     const ordersQ = query(
-       collection(db, "stores", storeId, "orders"),
-       orderBy("createdAt", "desc")
-     );
-     const ordersUnsub = onSnapshot(ordersQ, (snapshot) => {
-       let totalRev = 0;
-       let ordersCount = 0;
-       const recentOrders: any[] = [];
-       const allOrders: any[] = [];
+  // Bookings
+  const { data: allBookings = [] } = useQuery({
+    queryKey: ["bookings", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "bookings"),
+        orderBy("date", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as BookingData[];
+    },
+    enabled: !!storeId,
+  });
 
-       snapshot.forEach((doc) => {
-         const data = doc.data();
-         const orderData = { id: doc.id, ...data } as OrderData;
-         allOrders.push(orderData);
-
-         const isPaidOrFulfilled = [
-           "paid",
-           "processing",
-           "packaged",
-           "sent-out",
-           "shipped",
-           "delivered",
-           "completed",
-         ].includes(data.status);
-
-         if (isPaidOrFulfilled) {
-           let matchesMonth = true;
-           if (selectedMonth && data.createdAt) {
-             const date = data.createdAt.toDate();
-             const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-             if (monthKey !== selectedMonth) matchesMonth = false;
-           }
-
-           if (matchesMonth) {
-             totalRev += data.total || 0;
-             ordersCount++;
-           }
-         }
-
-         if (recentOrders.length < 5) {
-           recentOrders.push(orderData);
-         }
-       });
-       setRevenue(totalRev);
-       setOrdersCount(ordersCount);
-       setRecentOrders(recentOrders);
-       setAllOrders(allOrders);
-     });
-
-     // Real-time listener for Bookings
-     const bookingsQ = query(
-       collection(db, "stores", storeId, "bookings"),
-       orderBy("createdAt", "desc")
-     );
-     const bookingsUnsub = onSnapshot(bookingsQ, (snapshot) => {
-       const recentBookings: any[] = [];
-       let bookingsCount = 0;
-
-       snapshot.forEach((doc) => {
-         const data = doc.data();
-         const bookingData = { id: doc.id, ...data } as BookingData;
-         
-         // Count bookings that are confirmed or pending (active bookings)
-         if (["confirmed", "pending"].includes(data.status)) {
-           bookingsCount++;
-         }
-
-         if (recentBookings.length < 5) {
-           recentBookings.push(bookingData);
-         }
-       });
-       setBookingsCount(bookingsCount);
-       setRecentBookings(recentBookings);
-     });
-
-     return () => {
-       ordersUnsub();
-       bookingsUnsub();
-     };
-   }, [storeId, selectedMonth]);
-
-  // Real-time listener for Inventory Summary
-  useEffect(() => {
-    if (!storeId) return;
-
-    const q = query(
-      collection(db, "stores", storeId, "products"),
-      orderBy("createdAt", "desc")
+  const { bookingsCount, recentBookings } = useMemo(() => {
+    const sorted = [...allBookings].sort(
+      (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
     );
-    const unsub = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as ProductData[];
-      setProducts(items);
+    let count = 0;
+    const recent: BookingData[] = [];
+
+    sorted.forEach((data) => {
+      // Count bookings that are confirmed or pending (active bookings)
+      if (["confirmed", "pending"].includes(data.status)) {
+        count++;
+      }
+      if (recent.length < 5) {
+        recent.push(data);
+      }
     });
-    return () => unsub();
-  }, [storeId]);
+
+    return { bookingsCount: count, recentBookings: recent };
+  }, [allBookings]);
+
+  // Inventory summary
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as ProductData[];
+    },
+    enabled: !!storeId,
+  });
 
    // Insights Logic (Matching Mobile)
    const insights = useMemo(() => {
@@ -377,18 +372,26 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, [insights.length]);
 
-  const toggleStore = async () => {
-    if (!storeId || toggling || onboardingBlocked) return;
-    setToggling(true);
-    try {
+  const toggleMutation = useMutation({
+    mutationFn: async () => {
+      if (!storeId) return;
       await updateDoc(doc(db, "stores", storeId), {
         status: isLive ? "maintenance" : "live",
       });
-    } catch (err) {
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["store", storeId] });
+    },
+    onError: (err) => {
       console.error("Failed to toggle status", err);
-    } finally {
-      setToggling(false);
-    }
+    },
+  });
+
+  const toggling = toggleMutation.isPending;
+
+  const toggleStore = () => {
+    if (!storeId || toggling || onboardingBlocked) return;
+    toggleMutation.mutate();
   };
 
   if (storeLoading || !storeId) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { db } from "@/lib/firebase";
 import {
@@ -9,42 +10,38 @@ import {
   serverTimestamp,
   query,
   orderBy,
-  onSnapshot,
+  getDocs,
 } from "firebase/firestore";
 import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
 import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function VendorSupportPage() {
-  const { storeId, userPlan } = useAdminStore();
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { storeId, userPlan, loading: storeLoading } = useAdminStore();
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
 
   // Form State
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState("technical");
-  const [sending, setSending] = useState(false);
 
-  useEffect(() => {
-    if (!storeId) return;
-    const q = query(
-      collection(db, "stores", storeId, "tickets"),
-      orderBy("createdAt", "desc"),
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setTickets(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, [storeId]);
+  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
+    queryKey: ["tickets", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "tickets"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as any[];
+    },
+    enabled: !!storeId,
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!subject || !message || !storeId) return;
-    setSending(true);
-
-    try {
+  const submitMutation = useMutation({
+    mutationFn: async () => {
+      if (!subject || !message || !storeId) return;
       await addDoc(collection(db, "stores", storeId, "tickets"), {
         storeId,
         subject,
@@ -54,18 +51,28 @@ export default function VendorSupportPage() {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tickets", storeId] });
       setShowForm(false);
       setSubject("");
       setMessage("");
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error(error);
       alert("Failed to submit ticket.");
-    } finally {
-      setSending(false);
-    }
+    },
+  });
+
+  const sending = submitMutation.isPending;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subject || !message || !storeId) return;
+    submitMutation.mutate();
   };
 
-  if (loading) {
+  if (storeLoading || ticketsLoading) {
     return (
       <div className="h-96 flex items-center justify-center">
         <Loader2 className="animate-spin" />

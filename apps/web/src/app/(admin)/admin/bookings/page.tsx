@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   collection,
-  onSnapshot,
+  getDocs,
   doc,
   updateDoc,
   query,
@@ -61,8 +62,7 @@ const STATUS_CONFIG: Record<
 
 export default function BookingsPage() {
   const { storeId, storeName, loading: storeLoading } = useAdminStore();
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Calendar State
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -70,27 +70,24 @@ export default function BookingsPage() {
 
   // Modal State
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [updating, setUpdating] = useState(false);
 
   // View Mode
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
 
   // Fetch bookings
-  useEffect(() => {
-    if (!storeId) return;
-    const q = query(
-      collection(db, "stores", storeId, "bookings"),
-      orderBy("date", "desc"),
-    );
-    const unsub = onSnapshot(q, (snap) => {
-      const items = snap.docs.map(
-        (d) => ({ id: d.id, ...d.data() }) as Booking,
+  const { data: bookings = [], isLoading: loading } = useQuery({
+    queryKey: ["bookings", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "bookings"),
+        orderBy("date", "desc"),
       );
-      setBookings(items);
-      setLoading(false);
-    });
-    return () => unsub();
-  }, [storeId]);
+      const snap = await getDocs(q);
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Booking);
+    },
+    enabled: !!storeId,
+  });
 
   // Calendar days
   const calendarDays = useMemo(() => {
@@ -119,18 +116,19 @@ export default function BookingsPage() {
     );
   }, [selectedDate, bookingsByDate]);
 
-  const updateBookingStatus = async (
-    booking: Booking,
-    status: BookingStatus,
-  ) => {
-    if (!storeId) return;
-    setUpdating(true);
-    try {
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({
+      booking,
+      status,
+    }: {
+      booking: Booking;
+      status: BookingStatus;
+    }) => {
+      if (!storeId) return;
       await updateDoc(doc(db, "stores", storeId, "bookings", booking.id), {
         status,
         updatedAt: Timestamp.now(),
       });
-      setSelectedBooking({ ...booking, status });
 
       // Send Notification on Confirmation
       if (status === "confirmed") {
@@ -173,11 +171,21 @@ export default function BookingsPage() {
           },
         });
       }
-    } catch (err) {
+    },
+    onSuccess: (_, { booking, status }) => {
+      queryClient.invalidateQueries({ queryKey: ["bookings", storeId] });
+      setSelectedBooking({ ...booking, status });
+    },
+    onError: (err) => {
       console.error("Failed to update booking", err);
-    } finally {
-      setUpdating(false);
-    }
+    },
+  });
+
+  const updating = updateStatusMutation.isPending;
+
+  const updateBookingStatus = (booking: Booking, status: BookingStatus) => {
+    if (!storeId) return;
+    updateStatusMutation.mutate({ booking, status });
   };
 
   if (storeLoading || loading) {

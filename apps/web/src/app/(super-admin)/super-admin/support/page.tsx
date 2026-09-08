@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { db } from "@/lib/firebase";
 import {
   collectionGroup,
   query,
   where,
-  onSnapshot,
+  getDocs,
   orderBy,
   updateDoc,
   doc,
@@ -23,47 +24,53 @@ import {
 import { format } from "date-fns";
 
 export default function SuperAdminSupportPage() {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"tickets" | "complaints">(
     "tickets"
   );
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [complaints, setComplaints] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // 1. Fetch Vendor Tickets
-    const qTickets = query(
-      collectionGroup(db, "tickets"),
-      orderBy("createdAt", "desc")
-    );
-    const unsubTickets = onSnapshot(qTickets, (snapshot) => {
-      setTickets(
-        snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref }))
+  const { data: tickets = [], isLoading: ticketsLoading } = useQuery({
+    queryKey: ["super-admin-tickets"],
+    queryFn: async () => {
+      const q = query(
+        collectionGroup(db, "tickets"),
+        orderBy("createdAt", "desc")
       );
-    });
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref })) as any[];
+    },
+  });
 
-    // 2. Fetch Platform Complaints
-    const qComplaints = query(
-      collectionGroup(db, "complaints"),
-      where("target", "==", "platform"),
-      orderBy("createdAt", "desc")
-    );
-    const unsubComplaints = onSnapshot(qComplaints, (snapshot) => {
-      setComplaints(
-        snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref }))
+  const { data: complaints = [], isLoading: complaintsLoading } = useQuery({
+    queryKey: ["super-admin-platform-complaints"],
+    queryFn: async () => {
+      const q = query(
+        collectionGroup(db, "complaints"),
+        where("target", "==", "platform"),
+        orderBy("createdAt", "desc")
       );
-      setLoading(false);
-    });
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({ id: d.id, ...d.data(), ref: d.ref })) as any[];
+    },
+  });
 
-    return () => {
-      unsubTickets();
-      unsubComplaints();
-    };
-  }, []);
+  const loading = ticketsLoading || complaintsLoading;
 
-  const handleResolve = async (docRef: any) => {
-    if (confirm("Mark this issue as resolved?")) {
+  const resolveMutation = useMutation({
+    mutationFn: async (docRef: any) => {
       await updateDoc(docRef, { status: "resolved" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["super-admin-tickets"] });
+      queryClient.invalidateQueries({
+        queryKey: ["super-admin-platform-complaints"],
+      });
+    },
+  });
+
+  const handleResolve = (docRef: any) => {
+    if (confirm("Mark this issue as resolved?")) {
+      resolveMutation.mutate(docRef);
     }
   };
 

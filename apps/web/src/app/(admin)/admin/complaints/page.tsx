@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   collection,
   query,
   orderBy,
-  onSnapshot,
+  getDocs,
   doc,
   updateDoc,
 } from "firebase/firestore";
@@ -26,47 +27,52 @@ import { HelpTrigger } from "@/context/onboarding-context";
 
 export default function AdminComplaintsPage() {
   const { storeId } = useAdminStore();
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | "unread" | "resolved">("all");
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(
     null,
   );
 
-  useEffect(() => {
-    if (!storeId) return;
-
-    const q = query(
-      collection(db, "stores", storeId, "complaints"),
-      orderBy("createdAt", "desc"),
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const items = snapshot.docs.map((doc) => ({
+  const { data: complaints = [], isLoading: loading } = useQuery({
+    queryKey: ["complaints", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "complaints"),
+        orderBy("createdAt", "desc"),
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Complaint[];
-      setComplaints(items);
-      setLoading(false);
-    });
+    },
+    enabled: !!storeId,
+  });
 
-    return () => unsubscribe();
-  }, [storeId]);
-
-  const handleStatusUpdate = async (id: string, newStatus: string) => {
-    if (!storeId) return;
-    try {
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, newStatus }: { id: string; newStatus: string }) => {
+      if (!storeId) return;
       await updateDoc(doc(db, "stores", storeId, "complaints", id), {
         status: newStatus,
       });
+    },
+    onSuccess: (_, { id, newStatus }) => {
+      queryClient.invalidateQueries({ queryKey: ["complaints", storeId] });
       if (selectedComplaint?.id === id) {
         setSelectedComplaint((prev) =>
           prev ? { ...prev, status: newStatus as any } : null,
         );
       }
-    } catch (error) {
+    },
+    onError: (error) => {
       console.error("Error updating status:", error);
-    }
+    },
+  });
+
+  const handleStatusUpdate = (id: string, newStatus: string) => {
+    if (!storeId) return;
+    statusMutation.mutate({ id, newStatus });
   };
 
   const filteredComplaints = complaints.filter((c) => {
