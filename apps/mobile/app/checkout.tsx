@@ -28,13 +28,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SlideToPay, SlideToPayRef } from "@/components/ui/slide-to-pay";
 import { auth, db, functions } from "@/lib/firebase";
-import {
-  doc,
-  getDoc,
-  serverTimestamp,
-  runTransaction,
-  increment,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { useStore } from "@/context/store-context";
 import { formatCurrency } from "@/lib/format";
@@ -98,124 +92,12 @@ export default function CheckoutScreen() {
 
   // ... existing code
 
-  const reserveStock = async () => {
-    if (!storeId) return false;
-    try {
-      await runTransaction(db, async (transaction) => {
-        // 1. Read all product docs first
-        const productReads = await Promise.all(
-          cart.map(async (item) => {
-            const ref = doc(db, "stores", storeId, "products", item.id); // Updated path
-            const snapshot = await transaction.get(ref);
-            return { ref, snapshot, item };
-          }),
-        );
-
-        // ... validation logic (same as before)
-        for (const { snapshot, item } of productReads) {
-          if (!snapshot.exists()) {
-            throw new Error(`Product ${item.name} no longer exists.`);
-          }
-          // ... rest of validation
-          const productData = snapshot.data();
-
-          if (item.variant) {
-            const variants = productData.variants || [];
-            const variant = variants.find(
-              (v: any) => v.id === item.variant!.id,
-            );
-            if (!variant)
-              throw new Error(
-                `Variant ${item.variant.name} of ${item.name} no longer exists.`,
-              );
-            if (variant.stock < item.quantity)
-              throw new Error(
-                `Not enough stock for ${item.name} (${item.variant.name}). Only ${variant.stock} left.`,
-              );
-          } else {
-            const currentStock = productData.stock ?? 0;
-            if (currentStock < item.quantity)
-              throw new Error(
-                `Not enough stock for ${item.name}. Only ${currentStock} left.`,
-              );
-          }
-        }
-
-        // 3. Write updates (deduct stock)
-        for (const { ref, snapshot, item } of productReads) {
-          const productData = snapshot.data();
-          if (!productData) continue;
-
-          if (item.variant) {
-            const variants = productData.variants || [];
-            const updatedVariants = variants.map((v: any) => {
-              if (v.id === item.variant!.id) {
-                return { ...v, stock: v.stock - item.quantity };
-              }
-              return v;
-            });
-            const newTotalStock = (productData.stock ?? 0) - item.quantity;
-            transaction.update(ref, {
-              variants: updatedVariants,
-              stock: newTotalStock,
-            });
-          } else {
-            const newStock = (productData.stock ?? 0) - item.quantity;
-            transaction.update(ref, { stock: newStock });
-          }
-        }
-      });
-      return true;
-    } catch (err: any) {
-      console.error("Stock reservation failed:", err);
-      showAlert({
-        title: "Stock Error",
-        message: err.message || "Failed to reserve stock. Please try again.",
-        type: "error",
-      });
-      return false;
-    }
-  };
-
-  const restoreStock = async () => {
-    if (!storeId) return;
-    try {
-      await runTransaction(db, async (transaction) => {
-        const reads = await Promise.all(
-          cart.map((item) =>
-            transaction.get(doc(db, "stores", storeId, "products", item.id)),
-          ),
-        );
-
-        reads.forEach((snap, idx) => {
-          if (!snap.exists()) return;
-          const item = cart[idx];
-          const data = snap.data();
-          if (!data) return;
-
-          const ref = doc(db, "stores", storeId, "products", item.id);
-
-          if (item.variant) {
-            const variants = data.variants || [];
-            const updated = variants.map((v: any) =>
-              v.id === item.variant!.id
-                ? { ...v, stock: v.stock + item.quantity }
-                : v,
-            );
-            transaction.update(ref, {
-              variants: updated,
-              stock: (data.stock || 0) + item.quantity,
-            });
-          } else {
-            transaction.update(ref, { stock: increment(item.quantity) });
-          }
-        });
-      });
-      console.log("Stock restored after cancellation");
-    } catch (err) {
-      console.error("Failed to restore stock:", err);
-    }
-  };
+  // Stock is reserved/released server-side now (initializeOrderPayment /
+  // cancelOrderPayment) — this fixes variant-product checkout, which the
+  // old client-side transaction could never do correctly: Firestore rules
+  // only ever allowed a public write to `stock`, not `variants`, so any
+  // variant purchase was silently rejected.
+  const pendingReferenceRef = React.useRef<string | null>(null);
 
   const handleSuccess = async (res: any) => {
     try {
@@ -226,6 +108,7 @@ export default function CheckoutScreen() {
       // telling the customer anything succeeded.
       const confirmOrderPayment = httpsCallable(functions, "confirmOrderPayment");
       await confirmOrderPayment({ reference: res.reference });
+      pendingReferenceRef.current = null;
 
       clearCart();
       setLoading(false);
@@ -256,7 +139,13 @@ export default function CheckoutScreen() {
 
   const handleCancel = () => {
     setLoading(false);
-    restoreStock();
+    if (pendingReferenceRef.current) {
+      const cancelOrderPayment = httpsCallable(functions, "cancelOrderPayment");
+      cancelOrderPayment({ reference: pendingReferenceRef.current }).catch(
+        (err) => console.error("Failed to release stock on cancel", err),
+      );
+      pendingReferenceRef.current = null;
+    }
     showAlert({
       title: "Payment Cancelled",
       message: "You cancelled the payment process.",
@@ -280,12 +169,6 @@ export default function CheckoutScreen() {
     }
 
     setLoading(true);
-    const stockReserved = await reserveStock();
-    if (!stockReserved) {
-      sliderRef.current?.reset();
-      setLoading(false);
-      return;
-    }
 
     try {
       const initializeOrderPayment = httpsCallable(
@@ -314,6 +197,10 @@ export default function CheckoutScreen() {
         guestEmail: email,
       });
 
+      // Stock is now reserved server-side — remember the reference so
+      // handleCancel can release it if the customer backs out.
+      pendingReferenceRef.current = data.reference;
+
       popup.checkout({
         amount: data.amount / 100, // server returns pesewas; this SDK takes GHS
         email,
@@ -326,8 +213,9 @@ export default function CheckoutScreen() {
         onCancel: handleCancel,
       });
     } catch (error: any) {
+      // initializeOrderPayment already releases any reservation it made
+      // before throwing (e.g. Paystack init failed) — nothing to release here.
       console.error("Order initialization error", error);
-      await restoreStock();
       sliderRef.current?.reset();
       setLoading(false);
       showAlert({

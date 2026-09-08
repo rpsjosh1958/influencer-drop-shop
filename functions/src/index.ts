@@ -22,6 +22,7 @@ import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
 import { BILLING_PLANS } from "./billing";
+import { reserveStockAndPrice, releaseStock } from "./stock";
 
 admin.initializeApp();
 
@@ -852,49 +853,6 @@ export const initializeOrderPayment = onCall(async (request) => {
     );
   }
 
-  let totalGHS = 0;
-  const verifiedItems: any[] = [];
-  for (const item of items) {
-    const productSnap = await db
-      .collection("stores")
-      .doc(storeId)
-      .collection("products")
-      .doc(item.id)
-      .get();
-    if (!productSnap.exists) {
-      throw new HttpsError(
-        "failed-precondition",
-        `Product ${item.id} no longer exists`
-      );
-    }
-    const product = productSnap.data()!;
-    let price = product.price;
-    if (item.selectedVariant?.id && Array.isArray(product.variants)) {
-      const variant = product.variants.find(
-        (v: any) => v.id === item.selectedVariant.id
-      );
-      if (variant?.price !== undefined) price = variant.price;
-    }
-    const quantity = Number(item.quantity) || 0;
-    if (quantity <= 0) {
-      throw new HttpsError(
-        "invalid-argument",
-        `Invalid quantity for ${item.id}`
-      );
-    }
-    totalGHS += price * quantity;
-    verifiedItems.push({
-      id: item.id,
-      name: product.name,
-      price,
-      quantity,
-      imageUrl: item.imageUrl || product.images?.[0] || null,
-      selectedVariant: item.selectedVariant || null,
-    });
-  }
-
-  const expectedAmountPesewas = Math.round(totalGHS * 100);
-  const reference = `drop_${crypto.randomBytes(12).toString("hex")}`;
   const email = request.auth?.token?.email || guestEmail;
   if (!email) {
     throw new HttpsError(
@@ -903,36 +861,87 @@ export const initializeOrderPayment = onCall(async (request) => {
     );
   }
 
-  await db
-    .collection("payment_intents")
-    .doc(reference)
-    .set({
-      storeId,
-      items: verifiedItems,
-      shipping,
-      customerNote: customerNote || "",
-      userId: request.auth?.uid || "guest",
-      customerEmail: email,
-      customerName: shipping.fullName || "",
-      storeName: store.name || "Unknown Store",
-      expectedAmountPesewas,
-      status: "pending",
-      createdAt: admin.firestore.Timestamp.now(),
+  // Validates availability, computes real prices, and atomically decrements
+  // stock/variant stock — server-side, since the client Firestore rules
+  // can't safely allow a public write to the `variants` field (that's how
+  // variant-product checkout was broken before: the rule only ever allowed
+  // `stock`, not `variants`, so any variant purchase was rejected).
+  const { verifiedItems, totalGHS } = await reserveStockAndPrice(
+    storeId,
+    items
+  );
+
+  const expectedAmountPesewas = Math.round(totalGHS * 100);
+  const reference = `drop_${crypto.randomBytes(12).toString("hex")}`;
+
+  try {
+    await db
+      .collection("payment_intents")
+      .doc(reference)
+      .set({
+        storeId,
+        items: verifiedItems,
+        shipping,
+        customerNote: customerNote || "",
+        userId: request.auth?.uid || "guest",
+        customerEmail: email,
+        customerName: shipping.fullName || "",
+        storeName: store.name || "Unknown Store",
+        expectedAmountPesewas,
+        status: "pending",
+        createdAt: admin.firestore.Timestamp.now(),
+      });
+
+    const tx = await initializeTransaction({
+      email,
+      amount: expectedAmountPesewas,
+      reference,
+      subaccount: subaccountCode,
     });
 
-  const tx = await initializeTransaction({
-    email,
-    amount: expectedAmountPesewas,
-    reference,
-    subaccount: subaccountCode,
+    return {
+      reference,
+      accessCode: tx.access_code,
+      authorizationUrl: tx.authorization_url,
+      amount: expectedAmountPesewas,
+    };
+  } catch (err) {
+    // Paystack initialize (or the intent write) failed after stock was
+    // already reserved — release it rather than leaving it stuck
+    // decremented with no order ever created.
+    await releaseStock(storeId, verifiedItems);
+    throw err;
+  }
+});
+
+// Releases a reservation from initializeOrderPayment — called when the
+// customer cancels/closes the Paystack popup, or the client otherwise gives
+// up before confirmOrderPayment. Idempotent: only acts if the intent is
+// still "pending" (not already consumed by a successful payment, and not
+// already cancelled), so a stray double-call can't double-restore stock.
+export const cancelOrderPayment = onCall(async (request) => {
+  const { reference } = request.data;
+  if (!reference) {
+    throw new HttpsError("invalid-argument", "Missing reference");
+  }
+
+  const db = admin.firestore();
+  const intentRef = db.collection("payment_intents").doc(reference);
+
+  const intentToRelease = await db.runTransaction(async (t) => {
+    const snap = await t.get(intentRef);
+    if (!snap.exists || snap.data()?.status !== "pending") {
+      return null;
+    }
+    t.update(intentRef, { status: "cancelled" });
+    return snap.data()!;
   });
 
-  return {
-    reference,
-    accessCode: tx.access_code,
-    authorizationUrl: tx.authorization_url,
-    amount: expectedAmountPesewas,
-  };
+  if (intentToRelease) {
+    await releaseStock(intentToRelease.storeId, intentToRelease.items);
+  }
+
+  return { success: true };
 });
 
 // Step 2 of checkout: called right after the Paystack popup's onSuccess

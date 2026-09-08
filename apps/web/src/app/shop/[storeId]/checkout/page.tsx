@@ -2,18 +2,13 @@
 
 import { useCart } from "@/components/shop/cart-provider";
 import { useStore } from "@/components/shop/store-provider";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { usePaystackPayment } from "react-paystack";
 import { auth, db, functions } from "@/lib/firebase";
 import { httpsCallable } from "firebase/functions";
 import { onAuthStateChanged, User } from "firebase/auth";
-import {
-  doc,
-  runTransaction,
-  increment,
-  getDoc,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import {
   Loader2,
   ShieldCheck,
@@ -140,140 +135,12 @@ export default function CheckoutPage() {
 
   const initializePayment = usePaystackPayment(config);
 
-  const reserveStock = async () => {
-    try {
-      const storeId = Array.isArray(params?.storeId)
-        ? params.storeId[0]
-        : (params?.storeId as string) || "default-store";
-
-      await runTransaction(db, async (transaction) => {
-        // 1. Read all product docs first
-        const productReads = await Promise.all(
-          cart.map(async (item) => {
-            const ref = doc(db, "stores", storeId, "products", item.id);
-            const snapshot = await transaction.get(ref);
-            return { ref, snapshot, item };
-          }),
-        );
-
-        // 2. Validate availability
-        for (const { snapshot, item } of productReads) {
-          if (!snapshot.exists()) {
-            throw new Error(`Product ${item.name} no longer exists.`);
-          }
-
-          const productData = snapshot.data();
-
-          if (item.selectedVariant) {
-            // Variant Logic
-            const variants = productData.variants || [];
-            const variant = variants.find(
-              (v: any) => v.id === item.selectedVariant!.id,
-            );
-
-            if (!variant) {
-              throw new Error(
-                `Variant ${item.selectedVariant.name} of ${item.name} no longer exists.`,
-              );
-            }
-
-            if (variant.stock < item.quantity) {
-              throw new Error(
-                `Not enough stock for ${item.name} (${item.selectedVariant.name}). Only ${variant.stock} left.`,
-              );
-            }
-          } else {
-            // Simple Product Logic
-            const currentStock = productData.stock ?? 0;
-            if (currentStock < item.quantity) {
-              throw new Error(
-                `Not enough stock for ${item.name}. Only ${currentStock} left.`,
-              );
-            }
-          }
-        }
-
-        // 3. Write updates (deduct stock)
-        for (const { ref, snapshot, item } of productReads) {
-          const productData = snapshot.data();
-          if (!productData) continue; // Should not happen given step 2
-
-          if (item.selectedVariant) {
-            const variants = productData.variants || [];
-            const updatedVariants = variants.map((v: any) => {
-              if (v.id === item.selectedVariant!.id) {
-                return { ...v, stock: v.stock - item.quantity };
-              }
-              return v;
-            });
-
-            // Also decrease total stock for convenience
-            const newTotalStock = (productData.stock ?? 0) - item.quantity;
-
-            transaction.update(ref, {
-              variants: updatedVariants,
-              stock: newTotalStock,
-            });
-          } else {
-            const newStock = (productData.stock ?? 0) - item.quantity;
-            transaction.update(ref, { stock: newStock });
-          }
-        }
-      });
-      return true;
-    } catch (err: any) {
-      console.error("Stock reservation failed:", err);
-      alert(err.message || "Failed to reserve stock. Please try again.");
-      return false;
-    }
-  };
-
-  const restoreStock = async () => {
-    // Best effort restoration
-    // Using transaction to properly update variant arrays
-    try {
-      const storeId = Array.isArray(params?.storeId)
-        ? params.storeId[0]
-        : (params?.storeId as string) || "default-store";
-
-      await runTransaction(db, async (transaction) => {
-        const reads = await Promise.all(
-          cart.map((item) =>
-            transaction.get(doc(db, "stores", storeId, "products", item.id)),
-          ),
-        );
-
-        reads.forEach((snap, idx) => {
-          if (!snap.exists()) return;
-          const item = cart[idx];
-          const data = snap.data();
-          if (!data) return;
-
-          const ref = doc(db, "stores", storeId, "products", item.id);
-
-          if (item.selectedVariant) {
-            const variants = data.variants || [];
-            const updated = variants.map((v: any) =>
-              v.id === item.selectedVariant!.id
-                ? { ...v, stock: v.stock + item.quantity }
-                : v,
-            );
-            transaction.update(ref, {
-              variants: updated,
-              stock: (data.stock || 0) + item.quantity,
-            });
-          } else {
-            transaction.update(ref, {
-              stock: increment(item.quantity),
-            });
-          }
-        });
-      });
-      console.log("Stock restored after cancellation");
-    } catch (err) {
-      console.error("Failed to restore stock:", err);
-    }
-  };
+  // Stock is reserved/released server-side now (initializeOrderPayment /
+  // cancelOrderPayment) — this fixes variant-product checkout, which the
+  // old client-side transaction could never do correctly: Firestore rules
+  // only ever allowed a public write to `stock`, not `variants`, so any
+  // variant purchase was silently rejected.
+  const pendingReferenceRef = useRef<string | null>(null);
 
   const handlePaystackSuccess = async (reference: any) => {
     setLoading(true);
@@ -285,6 +152,7 @@ export default function CheckoutPage() {
       const ref =
         typeof reference === "string" ? reference : reference?.reference;
       await confirmOrderPayment({ reference: ref });
+      pendingReferenceRef.current = null;
 
       clearCart();
       setShowSuccess(true);
@@ -300,7 +168,13 @@ export default function CheckoutPage() {
 
   const handlePaystackClose = () => {
     console.log("Payment closed/cancelled");
-    restoreStock(); // Add items back to shelf
+    if (pendingReferenceRef.current) {
+      const cancelOrderPayment = httpsCallable(functions, "cancelOrderPayment");
+      cancelOrderPayment({ reference: pendingReferenceRef.current }).catch(
+        (err) => console.error("Failed to release stock on cancel", err),
+      );
+      pendingReferenceRef.current = null;
+    }
     setLoading(false);
   };
 
@@ -312,15 +186,8 @@ export default function CheckoutPage() {
       ? params.storeId[0]
       : (params?.storeId as string) || "default-store";
 
-    // 1. Reserve Stock
-    const reserved = await reserveStock();
-    if (!reserved) {
-      setLoading(false);
-      return;
-    }
-
-    // 2. Recompute the total server-side and start a split payment to the
-    // vendor's Paystack Subaccount — never trust the client's own `total`.
+    // Recomputes the total server-side and reserves stock atomically
+    // (including variant stock) — never trust the client's own `total`.
     try {
       const initializeOrderPayment = httpsCallable(
         functions,
@@ -349,7 +216,11 @@ export default function CheckoutPage() {
         guestEmail: email,
       });
 
-      // 3. Open Payment Modal with the server-issued reference/amount
+      // Stock is now reserved server-side — remember the reference so
+      // handlePaystackClose can release it if the customer backs out.
+      pendingReferenceRef.current = data.reference;
+
+      // Open Payment Modal with the server-issued reference/amount
       initializePayment({
         config: {
           reference: data.reference,
@@ -360,8 +231,9 @@ export default function CheckoutPage() {
         onClose: handlePaystackClose,
       });
     } catch (error: any) {
+      // initializeOrderPayment already releases any reservation it made
+      // before throwing (e.g. Paystack init failed) — nothing to release here.
       console.error("Order initialization error", error);
-      await restoreStock();
       setLoading(false);
       alert(
         error?.message ||
