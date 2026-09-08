@@ -726,38 +726,33 @@ export function OnboardingProvider({
       <AnimatePresence>
         {isActive && (
           <div className="fixed inset-0 z-[10000] pointer-events-none">
-            {/* Dark Overlay with Hole */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-auto">
-              <defs>
-                <mask id="tutorial-mask">
-                  <rect width="100%" height="100%" fill="white" />
-                  {targetRect && (
-                    <rect
-                      x={targetRect.left - (step.padding || 12)}
-                      y={targetRect.top - (step.padding || 12)}
-                      width={
-                        targetRect.width +
-                        (step.padding ? step.padding * 2 : 24)
-                      }
-                      height={
-                        targetRect.height +
-                        (step.padding ? step.padding * 2 : 24)
-                      }
-                      rx="16"
-                      fill="black"
-                    />
-                  )}
-                </mask>
-              </defs>
-              <rect
-                width="100%"
-                height="100%"
-                fill="rgba(0, 0, 0, 0.75)"
-                mask="url(#tutorial-mask)"
-                className="backdrop-blur-[3px]"
+            {/* Dark overlay with a "hole" cut around the target — a
+                box-shadow spotlight rather than an SVG mask, since
+                mask + backdrop-filter combinations are a known rough edge
+                across browsers. Falls back to a plain full dim (no hole)
+                when there's no target yet. */}
+            {targetRect ? (
+              <div
+                className="absolute rounded-2xl pointer-events-auto"
+                style={{
+                  left: targetRect.left - (step.padding || 12),
+                  top: targetRect.top - (step.padding || 12),
+                  width:
+                    targetRect.width + (step.padding ? step.padding * 2 : 24),
+                  height:
+                    targetRect.height +
+                    (step.padding ? step.padding * 2 : 24),
+                  boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.75)",
+                }}
                 onClick={exitTutorial}
               />
-            </svg>
+            ) : (
+              <div
+                className="absolute inset-0 pointer-events-auto"
+                style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
+                onClick={exitTutorial}
+              />
+            )}
 
             {/* Dialogue Box */}
             <motion.div
