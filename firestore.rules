@@ -63,9 +63,13 @@ service cloud.firestore {
       match /products/{productId} {
         allow read: if true;
         allow write: if isParentStoreOwner();
-        // Allow public to update ONLY the 'stock' field (decrement) during checkout
-        // This is a loose rule for MVP; ideally use Cloud Functions
-        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'updatedAt']);
+        // Allow public to update ONLY the 'stock' field during checkout
+        // (reserve on purchase, restore on cancel).
+        // Still a loose rule for MVP (real fix is server-side order confirmation),
+        // but this blocks setting stock to a negative or non-integer value.
+        allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'updatedAt'])
+          && request.resource.data.stock is int
+          && request.resource.data.stock >= 0;
       }
       
       // -- Categories --
@@ -149,9 +153,9 @@ service cloud.firestore {
         
         // Store Owner can read all bookings for their store
         // Authenticated customers can read their own bookings
-        allow read: if isParentStoreOwner() || 
+        allow read: if isParentStoreOwner() ||
           (isAuthenticated() && resource.data.customerId == request.auth.uid) ||
-          true; // For now, allow public read during development - tighten later
+          isSuperAdmin();
         
         // Only the store owner can update (confirm, cancel, complete)
         allow update: if isParentStoreOwner();

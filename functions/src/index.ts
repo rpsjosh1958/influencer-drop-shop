@@ -711,11 +711,17 @@ export const onComplaintCreated = onDocumentCreated(
 
 // --- PAYOUT SYSTEM ---
 
-export const getBanks = onCall(async () => {
+export const getBanks = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
   return await listBanks();
 });
 
 export const verifyBankAccount = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
   const { accountNumber, bankCode } = request.data;
   if (!accountNumber || !bankCode) {
     throw new HttpsError("invalid-argument", "Missing account details");
@@ -724,6 +730,9 @@ export const verifyBankAccount = onCall(async (request) => {
 });
 
 export const createTransferRecipient = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
   const { type, name, accountNumber, bankCode } = request.data;
   // type should be "nuban" or "mobile_money"
   return await createRecipient({
