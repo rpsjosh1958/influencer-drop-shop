@@ -533,7 +533,7 @@ export const onOrderStatusUpdated = onDocumentUpdated(
       }
 
       await sendNotificationToUser(after.userId, title, body, "customer_order", {
-        screen: "/(tabs)/orders",
+        screen: `/(tabs)/orders?orderId=${orderId}`,
         id: orderId,
         storeId,
       });
@@ -652,7 +652,11 @@ export const onBookingStatusUpdated = onDocumentUpdated(
           title,
           body,
           "customer_booking",
-          { screen: "/(tabs)/orders", id: event.params.bookingId, storeId }
+          {
+            screen: `/(tabs)/orders?bookingId=${event.params.bookingId}`,
+            id: event.params.bookingId,
+            storeId,
+          }
         );
       }
 

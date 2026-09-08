@@ -111,6 +111,23 @@ export default function OrdersScreen() {
     }
   }, [params.orderId, activities, detailsVisible, selectedOrder]);
 
+  useMemo(() => {
+    if (
+      params.bookingId &&
+      activities.length > 0 &&
+      !bookingDetailsVisible &&
+      !selectedBooking
+    ) {
+      const target = activities.find(
+        (a) => a.id === params.bookingId && a.type === "booking"
+      );
+      if (target) {
+        setSelectedBooking(target);
+        setBookingDetailsVisible(true);
+      }
+    }
+  }, [params.bookingId, activities, bookingDetailsVisible, selectedBooking]);
+
   const onRefresh = async () => {
     if (!user) return;
     await refetch();
