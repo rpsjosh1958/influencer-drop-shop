@@ -43,7 +43,7 @@ export const paystackWebhook = onRequest(async (req, res) => {
           reference: data.reference,
           status: data.status,
           amount: data.amount,
-          split: data.split,
+          fees_split: data.fees_split,
         });
         break;
       }

@@ -47,18 +47,6 @@ export const processOrderWallet = async (
         .doc(storeId)
         .collection("wallet_transactions")
         .doc();
-      const txData: WalletTransaction = {
-        id: txRef.id,
-        type: "credit",
-        amount: orderData.vendorNetAmount,
-        description: `Earnings from Order #${orderId
-          .slice(0, 8)
-          .toUpperCase()} (auto-settled via Paystack)`,
-        orderId: orderId,
-        status: "success",
-        createdAt: admin.firestore.Timestamp.now(),
-        balanceAfter: 0, // informational only — not part of the withdrawable ledger
-      };
       await db.runTransaction(async (t) => {
         const walletRef = db
           .collection("stores")
@@ -66,6 +54,9 @@ export const processOrderWallet = async (
           .collection("wallet")
           .doc("main");
         const walletDoc = await t.get(walletRef);
+        const currentBalance = walletDoc.exists
+          ? walletDoc.data()?.currentBalance || 0
+          : 0;
         const totalEarned =
           (walletDoc.exists ? walletDoc.data()?.totalEarned || 0 : 0) +
           orderData.vendorNetAmount;
@@ -77,6 +68,19 @@ export const processOrderWallet = async (
           },
           { merge: true }
         );
+        const txData: WalletTransaction = {
+          id: txRef.id,
+          type: "credit",
+          amount: orderData.vendorNetAmount,
+          description: `Earnings from Order #${orderId
+            .slice(0, 8)
+            .toUpperCase()} (auto-settled via Paystack)`,
+          orderId: orderId,
+          status: "success",
+          createdAt: admin.firestore.Timestamp.now(),
+          // Unchanged — this transaction never touches currentBalance.
+          balanceAfter: currentBalance,
+        };
         t.set(txRef, {
           ...txData,
           source: "subaccount_split",

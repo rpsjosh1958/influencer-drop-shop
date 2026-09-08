@@ -1011,7 +1011,7 @@ export const confirmOrderPayment = onCall(async (request) => {
     reference: verified.reference,
     status: verified.status,
     amount: verified.amount,
-    split: verified.split,
+    fees_split: verified.fees_split,
   });
 
   if (!result.created && !result.storeId) {

@@ -18,10 +18,13 @@ interface VerifiedPaystackCharge {
   reference: string;
   status: string;
   amount: number; // pesewas/kobo
-  split?: {
-    shares?: {
-      subaccounts?: { amount: number; subaccount_code: string }[];
-    };
+  // The `subaccount` param (single-subaccount split, what checkout uses)
+  // reports the vendor's real net share under fees_split.subaccount, in
+  // pesewas — NOT under `split` (that shape is for the separate
+  // Multi-split/Transaction Splits feature with split_code, which we don't
+  // use, and which is always {} for a plain subaccount charge).
+  fees_split?: {
+    subaccount?: number;
   };
 }
 
@@ -62,8 +65,10 @@ export const createOrderFromVerifiedPayment = async (
     .collection("orders")
     .doc(charge.reference);
 
-  const vendorShare = charge.split?.shares?.subaccounts?.[0];
-  const vendorNetAmount = vendorShare ? vendorShare.amount / 100 : undefined;
+  const vendorNetAmount =
+    charge.fees_split?.subaccount !== undefined
+      ? charge.fees_split.subaccount / 100
+      : undefined;
 
   try {
     await orderRef.create({
