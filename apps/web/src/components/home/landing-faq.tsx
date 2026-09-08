@@ -6,7 +6,7 @@ import { Plus, Minus } from "lucide-react";
 const FAQS = [
   {
     q: "How do payouts work?",
-    a: "Sales are credited to your store balance immediately. You can request a payout to your Bank Account or Mobile Money wallet whenever you want, processed securely via Paystack."
+    a: "Link your Bank Account or Mobile Money wallet once, and your earnings settle there automatically via Paystack after every sale — no need to request a payout."
   },
   {
     q: "Do I need my own website?",
