@@ -176,11 +176,27 @@ export function AiAssistant() {
       <div ref={assistantRef}>
         <AnimatePresence>
           {isOpen && (
+            // Mobile-only backdrop: on a small screen the panel below takes
+            // up most of the viewport, so it needs to behave like a proper
+            // sheet (dimmed background, tap-away-to-close) rather than a
+            // floating box that ambiguously sits over live page content.
+            // Desktop keeps the lighter corner-widget feel, no backdrop.
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-black/40 z-[99] md:hidden"
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {isOpen && (
             <motion.div
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.95 }}
-              className="fixed bottom-24 right-4 md:right-6 w-[calc(100vw-2rem)] md:w-96 h-[500px] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-[100]"
+              className="fixed bottom-24 right-4 md:right-6 w-[calc(100vw-2rem)] md:w-96 h-[min(500px,calc(100dvh-8rem))] bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl flex flex-col overflow-hidden z-[100]"
             >
               {/* Header */}
               <div className="p-4 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">

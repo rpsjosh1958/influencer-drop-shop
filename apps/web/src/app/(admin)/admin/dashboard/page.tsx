@@ -103,8 +103,16 @@ export default function AdminDashboard() {
         const data = doc.data();
         setIsLive(data.status === "live");
         setStoreName(data.name);
-        // Set store type flags
-        setStoreType(data.storeType || 'both'); // Default to both if not set
+        // Real field is `type` ("product"|"service"|"hybrid") — `storeType`
+        // is never actually set anywhere, so this always silently fell back
+        // to "both" before, and the Sales-vs-Bookings toggle never
+        // correctly reflected a product-only or service-only store.
+        const typeMap: Record<string, "products" | "services" | "both"> = {
+          product: "products",
+          service: "services",
+          hybrid: "both",
+        };
+        setStoreType(typeMap[data.type] || "both");
       }
       setLoading(false);
     });
@@ -210,18 +218,6 @@ export default function AdminDashboard() {
     });
     return () => unsub();
   }, [storeId]);
-
-   // Bookings Listener
-   useEffect(() => {
-     if (!storeId) return;
-     const q = query(collection(db, "stores", storeId, "bookings"), orderBy("createdAt", "desc"));
-     const unsub = onSnapshot(q, (snapshot) => {
-       setRecentBookings(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })) as BookingData[]);
-       // Update total bookings count
-       setBookingsCount(snapshot.docs.length);
-     });
-     return () => unsub();
-   }, [storeId]);
 
    // Insights Logic (Matching Mobile)
    const insights = useMemo(() => {
