@@ -193,6 +193,16 @@ export interface Order {
     fullName?: string;
     email?: string;
   };
+  vendorNetAmount?: number;
+  // Refunds — refundedAmount is the cumulative amount actually confirmed
+  // refunded (refund.processed); pendingRefundAmount/refundStatus track a
+  // refund still in flight (see functions/src/refunds.ts). Triggering a
+  // refund is web-admin-only for now, matching finance/payouts.
+  refundedAmount?: number;
+  refundStatus?: "pending" | "processing" | "needs-attention" | "processed" | "failed";
+  pendingRefundAmount?: number;
+  // Disputes/chargebacks — detect + notify only, see functions/src/webhooks.ts.
+  disputeStatus?: string;
 }
 
 // Shape of a line item on a PERSISTED order (Order.items) — distinct from

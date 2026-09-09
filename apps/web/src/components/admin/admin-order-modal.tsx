@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Package, Truck, CheckCircle2, Circle } from "lucide-react";
+import { X, Package, Truck, CheckCircle2, Circle, RotateCcw, AlertTriangle, Loader2 } from "lucide-react";
 import {
   doc,
   updateDoc,
@@ -10,10 +10,12 @@ import {
   collection,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import { Order } from "@/types";
 import { Portal } from "@/components/ui/portal";
 import { formatCurrency } from "@/lib/utils";
+import { getErrorMessage } from "@/lib/errors";
 
 interface AdminOrderModalProps {
   isOpen: boolean;
@@ -59,14 +61,52 @@ export function AdminOrderModal({
 }: AdminOrderModalProps) {
   const [updating, setUpdating] = useState(false);
   const [currentStatus, setCurrentStatus] = useState<string | null>(null);
+  const [showRefundForm, setShowRefundForm] = useState(false);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refunding, setRefunding] = useState(false);
+  const [refundError, setRefundError] = useState("");
 
   useEffect(() => {
     if (order) {
       setCurrentStatus(order.status);
+      setShowRefundForm(false);
+      setRefundAmount("");
+      setRefundError("");
     }
   }, [order]);
 
   if (!order) return null;
+
+  const refundedSoFar = order.refundedAmount || 0;
+  const refundable = Math.max(0, order.total - refundedSoFar);
+  const hasPendingRefund =
+    order.refundStatus === "pending" || order.refundStatus === "processing";
+
+  const handleRefund = async () => {
+    if (!storeId || refunding) return;
+    const amount = refundAmount ? parseFloat(refundAmount) : undefined;
+    if (refundAmount && (isNaN(amount!) || amount! <= 0 || amount! > refundable)) {
+      setRefundError(`Enter an amount between 0 and ${refundable.toFixed(2)}.`);
+      return;
+    }
+
+    setRefunding(true);
+    setRefundError("");
+    try {
+      const refundOrderFn = httpsCallable<
+        { storeId: string; orderId: string; amount?: number },
+        { status: string; amount: number }
+      >(functions, "refundOrder");
+      await refundOrderFn({ storeId, orderId: order.id, amount });
+      setShowRefundForm(false);
+      setRefundAmount("");
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      setRefundError(getErrorMessage(error));
+    } finally {
+      setRefunding(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     if (!order || !storeId || updating) return;
@@ -165,6 +205,107 @@ export function AdminOrderModal({
                     })}
                   </div>
                 </div>
+
+                {/* Dispute banner */}
+                {order.disputeStatus === "open" && (
+                  <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800">
+                    <AlertTriangle size={20} className="shrink-0" />
+                    <p className="text-sm font-medium">
+                      This order's charge has been disputed by the customer.
+                      Respond on your Paystack dashboard within 16 hours or
+                      it will auto-resolve against you.
+                    </p>
+                  </div>
+                )}
+
+                {/* Refund Section — hidden for manually-recorded orders,
+                    which have no real Paystack transaction to refund. */}
+                {order.paymentMethod !== "manual" && (
+                  <div>
+                    <h4 className="text-xs font-bold uppercase text-zinc-400 mb-3 tracking-wider">
+                      Refund
+                    </h4>
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-3">
+                      {refundedSoFar > 0 && (
+                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          {formatCurrency(refundedSoFar)} refunded so far
+                          {refundable > 0 && ` — ${formatCurrency(refundable)} refundable`}.
+                        </p>
+                      )}
+                      {hasPendingRefund && (
+                        <p className="text-sm font-bold text-amber-600 flex items-center gap-2">
+                          <Loader2 size={14} className="animate-spin" />
+                          Refund of {formatCurrency(order.pendingRefundAmount || 0)} is processing…
+                        </p>
+                      )}
+                      {order.refundStatus === "needs-attention" && (
+                        <p className="text-sm font-bold text-red-600">
+                          This refund needs the customer's payout details — handle it on the Paystack dashboard.
+                        </p>
+                      )}
+                      {order.refundStatus === "failed" && (
+                        <p className="text-sm font-bold text-red-600">
+                          The last refund attempt failed. You can try again below.
+                        </p>
+                      )}
+
+                      {refundable <= 0.005 ? (
+                        <p className="text-sm text-zinc-500">
+                          This order has been fully refunded.
+                        </p>
+                      ) : !showRefundForm ? (
+                        <button
+                          type="button"
+                          onClick={() => setShowRefundForm(true)}
+                          disabled={hasPendingRefund}
+                          className="flex items-center gap-2 px-4 py-2 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-bold hover:bg-white dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <RotateCcw size={16} /> Refund Order
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-xs font-bold text-zinc-500 uppercase block">
+                            Amount (leave blank for full {formatCurrency(refundable)})
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min={0}
+                              max={refundable}
+                              value={refundAmount}
+                              onChange={(e) => setRefundAmount(e.target.value)}
+                              placeholder={refundable.toFixed(2)}
+                              className="flex-1 p-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm outline-none focus:ring-2 ring-black"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleRefund}
+                              disabled={refunding}
+                              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-bold disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {refunding && <Loader2 size={14} className="animate-spin" />}
+                              Confirm Refund
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowRefundForm(false);
+                                setRefundError("");
+                              }}
+                              className="px-3 py-2 text-sm font-bold text-zinc-500 hover:text-zinc-900"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {refundError && (
+                            <p className="text-xs text-red-600 font-medium">{refundError}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {/* Customer Info */}

@@ -23,6 +23,8 @@ import { getPlatformFeePercentage } from "./fees";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
 import { BILLING_PLANS } from "./billing";
 import { reserveStockAndPrice, releaseStock } from "./stock";
+import { initiateOrderRefund } from "./refunds";
+import { sendNotificationToUser } from "./notifications";
 
 admin.initializeApp();
 
@@ -348,60 +350,6 @@ export const onStoreUpdated = onDocumentUpdated(
     }
   }
 );
-
-// --- ORDER TRIGGER ---
-
-// Helper to send Notification (Push + Firestore)
-async function sendNotificationToUser(
-  userId: string,
-  title: string,
-  body: string,
-  type: string,
-  data: Record<string, unknown>
-) {
-  try {
-    // 1. Save to Firestore
-    await admin.firestore().collection("notifications").add({
-      userId,
-      title,
-      message: body,
-      type,
-      data,
-      read: false,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // 2. Send Push
-    const userDoc = await admin
-      .firestore()
-      .collection("users")
-      .doc(userId)
-      .get();
-    const user = userDoc.data();
-    if (
-      !user ||
-      !user.expoPushToken ||
-      !Expo.isExpoPushToken(user.expoPushToken)
-    )
-      return;
-
-    const messages = [
-      {
-        to: user.expoPushToken,
-        sound: "default",
-        title,
-        body,
-        data: { ...data, type }, // Ensure type is in data for routing
-      },
-    ];
-
-    // Safety check for Expo SDK instance, assuming global 'expo' const or init here
-    const expoClient = new Expo();
-    await expoClient.sendPushNotificationsAsync(messages);
-  } catch (error) {
-    logger.error(`Failed to send notification to ${userId}`, error);
-  }
-}
 
 // --- ORDER TRIGGER ---
 
@@ -1170,6 +1118,46 @@ export const confirmSubscriptionPayment = onCall(async (request) => {
   }
 
   return { success: true };
+});
+
+// Vendor (or their store's owner) triggers a real Paystack refund — full
+// or partial — for one of their orders. Only initiates the refund;
+// refunded/refundStatus/the vendor's wallet debit only get applied once
+// refund.processed confirms it actually completed (see webhooks.ts and
+// refunds.ts) — a refund can still fail or land in needs-attention after
+// being created.
+export const refundOrder = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+  const { storeId, orderId, amount, note } = request.data;
+  if (!storeId || !orderId) {
+    throw new HttpsError("invalid-argument", "Missing storeId or orderId");
+  }
+  if (amount !== undefined && (typeof amount !== "number" || amount <= 0)) {
+    throw new HttpsError("invalid-argument", "Invalid refund amount");
+  }
+
+  const storeDoc = await admin.firestore().collection("stores").doc(storeId).get();
+  if (!storeDoc.exists || storeDoc.data()?.ownerId !== request.auth.uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Not authorized to refund orders for this store"
+    );
+  }
+
+  const orderRef = admin
+    .firestore()
+    .collection("stores")
+    .doc(storeId)
+    .collection("orders")
+    .doc(orderId);
+  const orderDoc = await orderRef.get();
+  if (!orderDoc.exists) {
+    throw new HttpsError("not-found", "Order not found");
+  }
+
+  return initiateOrderRefund(orderRef, orderDoc.data()!, amount, note);
 });
 
 export { paystackWebhook } from "./webhooks";

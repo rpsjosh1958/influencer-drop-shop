@@ -97,6 +97,17 @@ export interface Order {
   userId?: string;
   customerNote?: string;
   hasReview?: boolean;
+  storeId?: string;
+  vendorNetAmount?: number;
+  paymentMethod?: string;
+  // Refunds — refundedAmount is the cumulative amount actually confirmed
+  // refunded (refund.processed); pendingRefundAmount/refundStatus track a
+  // refund still in flight (see functions/src/refunds.ts).
+  refundedAmount?: number;
+  refundStatus?: "pending" | "processing" | "needs-attention" | "processed" | "failed";
+  pendingRefundAmount?: number;
+  // Disputes/chargebacks — detect + notify only, see functions/src/webhooks.ts.
+  disputeStatus?: string;
 }
 
 export interface Review {

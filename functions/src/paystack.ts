@@ -129,3 +129,29 @@ export const initializeTransaction = async (data: {
     );
   }
 };
+
+// No documented subaccount-clawback behavior — this is called against the
+// platform's own key, not the vendor's subaccount, so the customer side of
+// a refund is unconditionally real regardless of the split. The vendor's
+// recorded earnings are adjusted separately on our side once refund.processed
+// confirms the refund actually completed (see webhooks.ts) — see
+// functions/src/refunds.ts for why.
+export const createRefund = async (data: {
+  transaction: string; // reference or numeric id
+  amount?: number; // pesewas — omit for a full refund
+  merchant_note?: string;
+}) => {
+  try {
+    const response = await paystack.post("/refund", data);
+    return response.data.data;
+  } catch (error) {
+    console.error(
+      "Paystack API Error (Create Refund):",
+      getAxiosErrorData(error)
+    );
+    throw new functions.https.HttpsError(
+      "internal",
+      getAxiosErrorApiMessage(error, "Could not initiate refund")
+    );
+  }
+};
