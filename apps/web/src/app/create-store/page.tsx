@@ -100,6 +100,8 @@ export default function CreateStoreWizard() {
     "individual",
   );
   const [companyFile, setCompanyFile] = useState<File | null>(null);
+  const [idFrontFile, setIdFrontFile] = useState<File | null>(null);
+  const [idBackFile, setIdBackFile] = useState<File | null>(null);
 
   const [formData, setFormData] = useState({
     // Step 1: Vendor
@@ -164,6 +166,20 @@ export default function CreateStoreWizard() {
       setError("");
     }
   };
+
+  const handleIdImageChange =
+    (setter: (file: File) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        if (file.size > 1024 * 1024) {
+          // 1MB limit
+          setError("File size too large. Max 1MB.");
+          return;
+        }
+        setter(file);
+        setError("");
+      }
+    };
 
   const handleGhanaCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value.toUpperCase();
@@ -246,8 +262,10 @@ export default function CreateStoreWizard() {
         }
       }
 
-      // 2. Upload Verification File (if Company)
+      // 2. Upload Verification Files (Company doc, or ID front/back)
       let verificationDocUrl = "";
+      let idFrontUrl = "";
+      let idBackUrl = "";
       if (vendorType === "company" && companyFile && uid) {
         const storageRef = ref(
           storage,
@@ -255,6 +273,19 @@ export default function CreateStoreWizard() {
         );
         await uploadBytes(storageRef, companyFile);
         verificationDocUrl = await getDownloadURL(storageRef);
+      } else if (vendorType === "individual" && uid && idFrontFile && idBackFile) {
+        const frontRef = ref(
+          storage,
+          `verifications/${uid}/id-front-${idFrontFile.name}`,
+        );
+        const backRef = ref(
+          storage,
+          `verifications/${uid}/id-back-${idBackFile.name}`,
+        );
+        await uploadBytes(frontRef, idFrontFile);
+        await uploadBytes(backRef, idBackFile);
+        idFrontUrl = await getDownloadURL(frontRef);
+        idBackUrl = await getDownloadURL(backRef);
       }
 
       // 3. Update Public Profile
@@ -275,6 +306,8 @@ export default function CreateStoreWizard() {
           identity: {
             verified: boolean;
             ghanaCard?: string;
+            ghanaCardFrontUrl?: string;
+            ghanaCardBackUrl?: string;
             companyDoc?: string;
           };
           contactPerson?: {
@@ -296,6 +329,8 @@ export default function CreateStoreWizard() {
 
         if (vendorType === "individual") {
           userData.identity.ghanaCard = formData.ghanaCard;
+          userData.identity.ghanaCardFrontUrl = idFrontUrl;
+          userData.identity.ghanaCardBackUrl = idBackUrl;
         } else {
           userData.identity.companyDoc = verificationDocUrl;
           userData.contactPerson = {
@@ -593,12 +628,41 @@ export default function CreateStoreWizard() {
                     </div>
 
                     {vendorType === "individual" ? (
-                      <div className="space-y-1">
-                        <label className={labelClasses}>Ghana Card (NIA)</label>
-                        <input name="ghanaCard" value={formData.ghanaCard} onChange={handleGhanaCardChange} onFocus={() => { if (!formData.ghanaCard) setFormData(prev => ({ ...prev, ghanaCard: "GHA-" })); }} maxLength={15} placeholder="GHA-xxxxxxxxx-x" className={inputClasses} required />
-                        <p className="text-[10px] text-zinc-400 mt-2 flex items-center gap-1.5 ml-1">
-                          <CheckCircle2 size={12} className="text-green-500" /> Securely encrypted and stored.
-                        </p>
+                      <div className="space-y-6">
+                        <div className="space-y-1">
+                          <label className={labelClasses}>Ghana Card (NIA)</label>
+                          <input name="ghanaCard" value={formData.ghanaCard} onChange={handleGhanaCardChange} onFocus={() => { if (!formData.ghanaCard) setFormData(prev => ({ ...prev, ghanaCard: "GHA-" })); }} maxLength={15} placeholder="GHA-xxxxxxxxx-x" className={inputClasses} required />
+                          <p className="text-[10px] text-zinc-400 mt-2 flex items-center gap-1.5 ml-1">
+                            <CheckCircle2 size={12} className="text-green-500" /> Securely encrypted and stored.
+                          </p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className={labelClasses}>Ghana Card Photos (Max 1MB each)</label>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="border-2 border-dashed border-zinc-100 rounded-2xl p-6 flex flex-col items-center justify-center bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer relative group">
+                              <input type="file" accept="image/*" onChange={handleIdImageChange(setIdFrontFile)} className="absolute inset-0 opacity-0 cursor-pointer" required={!idFrontFile} />
+                              {idFrontFile ? (
+                                <div className="flex flex-col items-center gap-1 text-black font-black text-xs uppercase tracking-widest text-center"><FileText size={18} /> {idFrontFile.name}</div>
+                              ) : (
+                                <div className="text-center">
+                                  <Upload className="mx-auto mb-2 text-zinc-300 group-hover:text-black transition-colors" size={24} />
+                                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Front</p>
+                                </div>
+                              )}
+                            </div>
+                            <div className="border-2 border-dashed border-zinc-100 rounded-2xl p-6 flex flex-col items-center justify-center bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer relative group">
+                              <input type="file" accept="image/*" onChange={handleIdImageChange(setIdBackFile)} className="absolute inset-0 opacity-0 cursor-pointer" required={!idBackFile} />
+                              {idBackFile ? (
+                                <div className="flex flex-col items-center gap-1 text-black font-black text-xs uppercase tracking-widest text-center"><FileText size={18} /> {idBackFile.name}</div>
+                              ) : (
+                                <div className="text-center">
+                                  <Upload className="mx-auto mb-2 text-zinc-300 group-hover:text-black transition-colors" size={24} />
+                                  <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Back</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-6 border-t border-zinc-100 pt-6">
