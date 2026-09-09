@@ -204,8 +204,24 @@ service cloud.firestore {
           (isAuthenticated() && resource.data.customerId == request.auth.uid) ||
           isSuperAdmin();
         
-        // Only the store owner can update (confirm, cancel, complete)
-        allow update: if isParentStoreOwner();
+        // Store owner can update anything (confirm, cancel, complete).
+        // A customer can also cancel their OWN pending/confirmed booking —
+        // both web and mobile's booking-details-modal already call this
+        // directly from the client (no Cloud Function), but this rule only
+        // ever allowed the store owner, so every real customer cancellation
+        // attempt was silently rejected. Scoped tightly: only a pending or
+        // confirmed booking can move to cancelled, and only the
+        // status/cancelledBy/updatedAt fields the client actually writes —
+        // the cancellation-notice-hours window itself stays client-enforced
+        // only (booking-details-modal's canCancel()), same trust level as
+        // other UI-only time checks elsewhere in this app.
+        allow update: if isParentStoreOwner() || (
+          isAuthenticated() &&
+          resource.data.customerId == request.auth.uid &&
+          (resource.data.status == 'pending' || resource.data.status == 'confirmed') &&
+          request.resource.data.status == 'cancelled' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
+        );
         
         // Store owner can delete bookings
         allow delete: if isParentStoreOwner();
