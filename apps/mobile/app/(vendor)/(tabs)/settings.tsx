@@ -12,6 +12,7 @@ import {
   ChevronRight,
   User,
   Shield,
+  CreditCard,
 } from "lucide-react-native";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -78,6 +79,12 @@ export default function VendorSettings() {
           icon={User}
           label="Profile Settings"
           onPress={() => router.push("/(vendor)/profile-settings" as Href)}
+          showChevron
+        />
+        <SettingsItem
+          icon={CreditCard}
+          label="Billing & Plan"
+          onPress={() => router.push("/(vendor)/billing" as Href)}
           showChevron
         />
 

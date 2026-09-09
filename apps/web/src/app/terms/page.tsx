@@ -18,7 +18,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-zinc-500 mb-12 font-medium">
-            Last Updated: January 2026
+            Last Updated: September 2026
           </p>
 
           <div className="space-y-12">
@@ -72,6 +72,15 @@ export default function TermsPage() {
                   You are solely responsible for fulfilling orders and shipping
                   items to Buyers in a timely manner.
                 </li>
+                <li>
+                  <strong className="text-black">
+                    Identity Verification:
+                  </strong>{" "}
+                  Before your store can accept payments, you must complete
+                  identity verification (including a valid Ghana Card) and
+                  link a payout method. We review new stores before approving
+                  them, and may request additional information at any time.
+                </li>
               </ul>
             </Section>
 
@@ -97,18 +106,22 @@ export default function TermsPage() {
                 <li>
                   <strong className="text-black">Payouts:</strong>
                   <ul className="list-circle pl-5 mt-2 space-y-1 text-zinc-500 text-sm">
-                    <li>Funds are processed via Paystack.</li>
                     <li>
-                      <strong>Starter:</strong> Payouts are released T+2 days
-                      after sale to allow for fraud checks.
+                      Payments are processed via Paystack. To receive
+                      payouts, you must link a bank account or mobile money
+                      wallet, which we register as a dedicated payout
+                      destination with Paystack in your name.
                     </li>
                     <li>
-                      <strong>Growth:</strong> Payouts are instant for verified
-                      vendors.
+                      Your share of each sale settles to your linked account
+                      automatically, on Paystack&apos;s own settlement
+                      schedule, at the transaction fee for your plan
+                      (Starter 8%, Growth 2%).
                     </li>
                     <li>
-                      We reserve the right to hold funds if we suspect fraud or
-                      violation of these Terms.
+                      We reserve the right to hold or adjust funds if we
+                      suspect fraud, a violation of these Terms, or to
+                      recover an amount owed under Section 5 below.
                     </li>
                   </ul>
                 </li>
@@ -119,14 +132,42 @@ export default function TermsPage() {
               <p>
                 <strong className="text-black">Vendor Responsibility:</strong>{" "}
                 Vendors are responsible for their own refund policies and
-                handling buyer disputes.
+                for fulfilling orders as described. We may issue a refund to
+                a Buyer at your request, or on our own initiative if we
+                determine a refund is warranted (for example, an item never
+                sent, or a payment dispute raised through Paystack).
+              </p>
+              <p className="mt-4">
+                <strong className="text-black">How Refunds Work:</strong> A
+                refund is paid out of the platform&apos;s own Paystack
+                balance, not withheld directly from your linked account —
+                your share of that sale has typically already settled to you
+                by the time a refund happens. To recover that amount, we
+                temporarily increase the platform&apos;s share of your{" "}
+                <em>future</em> sales (up to 80%, leaving you 20%) until the
+                refunded amount is recovered, after which your rate returns
+                automatically to your normal plan rate. If a recovery ever
+                takes more than what was owed, we correct it by giving you
+                a larger share of your next sale(s) until you&apos;re made
+                whole. This activity is shown transparently in your Finance
+                dashboard.
+              </p>
+              <p className="mt-4">
+                <strong className="text-black">Payment Disputes (Chargebacks):</strong>{" "}
+                If a Buyer disputes a charge with their bank or card issuer
+                through Paystack, we will notify you and you may respond
+                with evidence via Paystack&apos;s dashboard within the
+                window Paystack provides (currently 16 hours). An
+                unanswered dispute may be automatically resolved against
+                you and refunded to the Buyer, recovered the same way as
+                described above.
               </p>
               <p className="mt-4">
                 <strong className="text-black">Platform Intervention:</strong>{" "}
                 We reserve the right to intervene in disputes. If a Vendor is
                 found to be fraudulent or negligent (e.g., item not sent), we
-                may refund the Buyer from the Vendor's account balance and
-                suspend the Vendor.
+                may refund the Buyer and suspend the Vendor, in addition to
+                the recovery process described above.
               </p>
             </Section>
 

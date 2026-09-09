@@ -254,6 +254,13 @@ function VendorLayout() {
           }}
         />
         <Drawer.Screen
+          name="billing"
+          options={{
+            drawerItemStyle: { display: "none" },
+            title: "Billing & Plan",
+          }}
+        />
+        <Drawer.Screen
           name="product-form"
           options={{
             drawerItemStyle: { display: "none" },

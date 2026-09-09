@@ -21,7 +21,7 @@ const STEPS = [
   {
     num: "03",
     title: "Secure the Bag",
-    desc: "Watch orders fly in real-time. We handle payment processing and instant payouts so you can focus on the next big thing.",
+    desc: "Watch orders fly in real-time. We handle payment processing and automatic payouts so you can focus on the next big thing.",
     icon: DollarSign,
     color: "from-amber-500 to-orange-500",
   },

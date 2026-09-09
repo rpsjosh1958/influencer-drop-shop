@@ -18,7 +18,7 @@ export default function PrivacyPage() {
             Privacy Policy
           </h1>
           <p className="text-zinc-500 mb-12 font-medium">
-            Last Updated: January 2026
+            Last Updated: September 2026
           </p>
 
           <div className="space-y-12">
@@ -38,8 +38,17 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong className="text-black">Identity Verification:</strong>{" "}
-                  For Vendors, we collect Ghana Card (NIA) numbers for identity
-                  verification as required by financial regulations.
+                  For Vendors, we collect a Ghana Card number and photos of
+                  the front and back of the card, used to verify your
+                  identity and approve your store before it can accept
+                  payments. These images are stored securely and are only
+                  accessible to our compliance team.
+                </li>
+                <li>
+                  <strong className="text-black">Payout Information:</strong>{" "}
+                  For Vendors, we collect bank or mobile money account
+                  details, which we share with Paystack to create your
+                  payout destination and settle your earnings directly.
                 </li>
                 <li>
                   <strong className="text-black">Transaction Data:</strong>{" "}
@@ -47,7 +56,8 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong className="text-black">Device Data:</strong> IP
-                  address, browser type, and usage patterns for analytics and
+                  address, browser type, push notification tokens, and usage
+                  patterns for analytics, delivering notifications, and
                   security.
                 </li>
               </ul>
@@ -61,11 +71,13 @@ export default function PrivacyPage() {
                 </li>
                 <li>
                   <strong className="text-black">Processing Payments:</strong>{" "}
-                  To facilitate transactions via our payment partners.
+                  To facilitate transactions and payouts via our payment
+                  partner, Paystack.
                 </li>
                 <li>
-                  <strong className="text-black">Communication:</strong> To send
-                  order updates, security alerts, and support messages.
+                  <strong className="text-black">Communication:</strong> To
+                  send order updates, push notifications, security alerts,
+                  support messages, and occasional platform announcements.
                 </li>
                 <li>
                   <strong className="text-black">Fraud Prevention:</strong> To
