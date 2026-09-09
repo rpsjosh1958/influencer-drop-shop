@@ -31,27 +31,37 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import { useState, useEffect, useMemo } from "react";
+import { useLocalSearchParams } from "expo-router";
 import type { Booking } from "@/types";
 // ... imports
 
 export default function VendorBookings() {
   const navigation = useNavigation();
+  const params = useLocalSearchParams<{ bookingId?: string }>();
   const { store, bookings: allBookings, refreshStore } = useVendor();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
   const [viewMode, setViewMode] = useState<"calendar" | "list">("calendar");
   const [showFullCalendar, setShowFullCalendar] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Deep linking logic temporarily disabled to fix crash
-  // useEffect(() => {
-  //   if (params.bookingId && allBookings.length > 0) {
-  //     const booking = allBookings.find((b: any) => b.id === params.bookingId);
-  //     if (booking) {
-  //       setSelectedBooking(booking);
-  //     }
-  //   }
-  // }, [params.bookingId, allBookings]);
+  // Deep Link Handling — open the booking details modal when arriving from
+  // a notification tap with ?bookingId=... (in-app tap or OS push tap).
+  // Visibility is tracked separately from `selectedBooking` (never cleared
+  // back to null on close) — otherwise, since the ?bookingId param is never
+  // cleared either, closing the modal (or a status update auto-closing it)
+  // would immediately re-satisfy this effect's guard and reopen it in a
+  // loop (same bug just fixed on the orders screen).
+  useEffect(() => {
+    if (params.bookingId && !detailsVisible && !selectedBooking && allBookings.length > 0) {
+      const booking = allBookings.find((b) => b.id === params.bookingId);
+      if (booking) {
+        setSelectedBooking(booking);
+        setDetailsVisible(true);
+      }
+    }
+  }, [params.bookingId, allBookings, detailsVisible, selectedBooking]);
 
   // Generate Date Strip
   const dateStripDocs = useMemo(() => {
@@ -92,7 +102,10 @@ export default function VendorBookings() {
 
   const BookingCard = ({ booking }: { booking: Booking }) => (
     <Pressable
-      onPress={() => setSelectedBooking(booking)}
+      onPress={() => {
+        setSelectedBooking(booking);
+        setDetailsVisible(true);
+      }}
       className="flex-row mb-4 bg-white border border-zinc-100 rounded-2xl overflow-hidden shadow-sm active:scale-[0.98] transition-all"
     >
       {/* Time Column */}
@@ -405,12 +418,12 @@ export default function VendorBookings() {
       </Modal>
 
       <VendorBookingDetails
-        visible={!!selectedBooking}
+        visible={detailsVisible}
         booking={selectedBooking}
-        onClose={() => setSelectedBooking(null)}
+        onClose={() => setDetailsVisible(false)}
         onUpdate={() => {
           refreshStore();
-          setSelectedBooking(null);
+          setDetailsVisible(false);
         }}
       />
     </SafeAreaView>

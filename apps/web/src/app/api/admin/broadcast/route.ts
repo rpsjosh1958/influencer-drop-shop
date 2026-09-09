@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { getEmailLayout } from "@/lib/email-layout";
 
 const resendApiKey = process.env.RESEND_API_KEY;
 
@@ -73,17 +74,16 @@ export async function POST(req: Request) {
             from: "The Drop <announcements@copdrop.io>",
             to: [email],
             subject,
-            html: `
-              <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5; padding: 40px 20px;">
-                <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                  <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 20px; color: #000;">${subject}</h1>
-                  <p style="color: #333; font-size: 15px; line-height: 1.6; white-space: pre-wrap;">${message}</p>
-                  <p style="margin-top: 30px; font-size: 12px; color: #999;">
-                    You're receiving this as a registered vendor on The Drop.
-                  </p>
-                </div>
-              </div>
-            `,
+            html: getEmailLayout(
+              `
+                <h2 style="font-size: 22px; font-weight: 800; color: #ffffff; margin-bottom: 20px;">${subject}</h2>
+                <p style="color: #cccccc; font-size: 16px; line-height: 1.6; white-space: pre-wrap; text-align: left;">${message}</p>
+                <p style="margin-top: 40px; font-size: 12px; color: #666666;">
+                  You're receiving this as a registered vendor on The Drop.
+                </p>
+              `,
+              "Platform Update."
+            ),
           })
         )
       );

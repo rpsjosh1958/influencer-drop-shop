@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2,
   Lock,
@@ -58,17 +59,13 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams();
-
-  useEffect(() => {
-    //
-  }, [params, pathname]);
+  const queryClient = useQueryClient();
+  const storeId = Array.isArray(params?.storeId)
+    ? params.storeId[0]
+    : (params?.storeId as string) || "default-store";
 
   // 1. Check Store Status
   useEffect(() => {
-    const storeId = Array.isArray(params?.storeId)
-      ? params.storeId[0]
-      : (params?.storeId as string) || "default-store";
-
     const unsub = onSnapshot(
       doc(db, "stores", storeId),
       (doc) => {
@@ -93,7 +90,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
       }
     );
     return () => unsub();
-  }, [params]);
+  }, [storeId]);
 
   // 2. Check Auth Status
   useEffect(() => {
@@ -113,12 +110,7 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
       type: "error", // Using error style (red) for destructive action
       onConfirm: async () => {
         await signOut(auth);
-
-        // Use window.location for a hard refresh to clear any lingering React state/listeners
-        // or just router.replace with the correct store path
-        const storeId = Array.isArray(params?.storeId)
-          ? params.storeId[0]
-          : (params?.storeId as string) || "default-store";
+        queryClient.clear();
         router.replace(`/shop/${storeId}/login`);
       },
       onCancel: () => {},
@@ -129,12 +121,18 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const isAuthPage =
     pathname.includes("/login") || pathname.includes("/signup");
 
-  // Prevent flicker: If user is logged in but on auth page, redirect
+  // Prevent flicker: If user is logged in but on auth page, redirect back
+  // to this store (not the site root — this page lives at
+  // /shop/[storeId]/login|signup, and this is the single source of truth
+  // for "already logged in, bounce off the auth page"; the login/signup
+  // pages used to also run their own onAuthStateChanged redirect, which
+  // raced this one and could send the user to "/" instead, leaving them
+  // stuck looking like they were still on the login page).
   useEffect(() => {
     if (user && isAuthPage) {
-      router.replace("/");
+      router.replace(`/shop/${storeId}`);
     }
-  }, [user, isAuthPage, router]);
+  }, [user, isAuthPage, router, storeId]);
 
   // ...
 

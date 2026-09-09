@@ -213,6 +213,10 @@ export interface StoreConfig {
     accountName?: string;
     subaccountCode?: string;
   } | null;
+  // Real GHS amount still owed to the platform after a refund — see
+  // functions/src/refunds.ts. While > 0, the store's subaccount runs at an
+  // elevated percentage_charge to recover it from future order splits.
+  pendingRefundDebt?: number;
   socials?: {
     instagram?: string;
     twitter?: string;

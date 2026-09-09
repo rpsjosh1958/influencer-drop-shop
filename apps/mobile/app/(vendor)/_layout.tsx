@@ -8,18 +8,21 @@ import {
   Calendar,
   Settings,
   Clock,
+  Wallet,
 } from "lucide-react-native";
 import { useNotifications } from "@/context/notification-context";
 import { useEffect } from "react";
+import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DrawerContentScrollView,
   DrawerItemList,
   type DrawerContentComponentProps,
 } from "@react-navigation/drawer";
-import { View, Text } from "react-native";
+import { View, Text, ActivityIndicator } from "react-native";
 import { P } from "@/components/ui/text";
 import Constants from "expo-constants";
+import { DrawerLabelBadge } from "@/components/vendor/drawer-label-badge";
 
 export default function VendorLayoutWrapper() {
   return (
@@ -84,12 +87,36 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
 function VendorLayout() {
   const { setMode } = useNotifications();
-  const { badgeCounts, store } = useVendor();
+  const { badgeCounts, store, ownedStores, loading } = useVendor();
+  const router = useRouter();
+
+  const hasNoStores = !loading && ownedStores.length === 0;
 
   useEffect(() => {
+    if (loading) return;
+
+    if (hasNoStores) {
+      // A signed-in user with zero owned stores landed here — most likely
+      // a stale "appMode: vendor" left over from a previous account on
+      // this device (see the logout fixes in vendor settings/profile).
+      // Bounce back to the customer side instead of rendering an empty
+      // vendor dashboard, and correct appMode so this doesn't recur.
+      AsyncStorage.setItem("appMode", "customer");
+      router.replace("/(tabs)");
+      return;
+    }
+
     setMode("vendor");
     AsyncStorage.setItem("appMode", "vendor");
-  }, []);
+  }, [loading, hasNoStores]);
+
+  if (loading || hasNoStores) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator color="black" />
+      </View>
+    );
+  }
 
   // Feature Logic
   const storeType = store?.type || "product";
@@ -146,9 +173,13 @@ function VendorLayout() {
         <Drawer.Screen
           name="orders"
           options={{
-            drawerLabel: `Orders ${
-              badgeCounts?.orders > 0 ? `(${badgeCounts.orders})` : ""
-            }`,
+            drawerLabel: ({ color }) => (
+              <DrawerLabelBadge
+                label="Orders"
+                count={badgeCounts?.orders || 0}
+                color={color}
+              />
+            ),
             title: "Orders",
             drawerIcon: ({ color, size }) => (
               <ShoppingBag size={22} color={color} />
@@ -176,9 +207,13 @@ function VendorLayout() {
         <Drawer.Screen
           name="bookings"
           options={{
-            drawerLabel: `Bookings ${
-              badgeCounts?.bookings > 0 ? `(${badgeCounts.bookings})` : ""
-            }`,
+            drawerLabel: ({ color }) => (
+              <DrawerLabelBadge
+                label="Bookings"
+                count={badgeCounts?.bookings || 0}
+                color={color}
+              />
+            ),
             title: "Bookings",
             drawerIcon: ({ color, size }) => (
               <Calendar size={22} color={color} />
@@ -201,6 +236,14 @@ function VendorLayout() {
             },
           }}
         />
+        <Drawer.Screen
+          name="finance"
+          options={{
+            drawerLabel: "Finance",
+            title: "Finance",
+            drawerIcon: ({ color, size }) => <Wallet size={22} color={color} />,
+          }}
+        />
 
         {/* Hidden Routes */}
         <Drawer.Screen
@@ -208,13 +251,6 @@ function VendorLayout() {
           options={{
             drawerItemStyle: { display: "none" },
             title: "Edit Store",
-          }}
-        />
-        <Drawer.Screen
-          name="availability"
-          options={{
-            drawerItemStyle: { display: "none" },
-            title: "Booking Policy",
           }}
         />
         <Drawer.Screen

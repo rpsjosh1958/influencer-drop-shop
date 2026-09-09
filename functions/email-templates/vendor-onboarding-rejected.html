@@ -1,0 +1,29 @@
+<!--
+  THE DROP — "Application Rejected" email
+  Sent automatically when a vendor's onboardingStatus becomes "rejected"
+  (functions/src/onboarding.ts, onStoreOnboardingUpdated)
+
+  Placeholders:
+    {{fullName}}    {{storeName}}    {{rejectionReason}}
+-->
+<div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <img src="https://copdrop.io/assets/landing/drop_logo.svg" alt="THE DROP" style="width: 80px; height: 80px; margin-bottom: 20px;" />
+    <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px; color: #ffffff;">Application Update.</h1>
+    <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
+
+    <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
+      Hi <strong>{{fullName}}</strong>,<br/><br/>
+      We regret to inform you that your application for <strong>{{storeName}}</strong> has been rejected at this time.
+    </p>
+    <div style="background: rgba(255,0,0,0.1); border: 1px solid #FF0000; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: left;">
+      <p style="margin: 0; font-weight: bold; color: #FF0000;">Reason:</p>
+      <p style="margin: 10px 0; color: #ffffff;">{{rejectionReason}}</p>
+    </div>
+    <p style="color: #999999; margin-bottom: 30px;">If you have questions, please contact our support team.</p>
+
+    <p style="margin-top: 60px; font-size: 12px; color: #666666;">
+      © 2026 THE DROP. • Accra, Ghana
+    </p>
+  </div>
+</div>

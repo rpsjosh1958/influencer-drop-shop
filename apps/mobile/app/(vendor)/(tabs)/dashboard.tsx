@@ -12,12 +12,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P, H2 } from "@/components/ui/text";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
 import {
   CreditCard,
   ShoppingBag,
   Package,
-  Menu,
   TrendingUp,
   BadgeCheck,
   Calendar,
@@ -36,23 +34,26 @@ import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";
 import { VendorBookingDetails } from "@/components/vendor/vendor-booking-details";
 import { AnalyticsModal } from "@/components/vendor/analytics-modal";
 import { VendorStoreSwitcher } from "@/components/vendor/vendor-store-switcher";
+import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
 import { useRouter } from "expo-router";
 import { cn } from "@/lib/utils";
+import { getOrderStatusColor, getBookingStatusColor } from "@/lib/status-colors";
 import { formatCurrency } from "@/lib/format";
+import { isToday, isYesterday, format as formatDate } from "date-fns";
 import type { Order, Booking } from "@/types";
 
 const { width } = Dimensions.get("window");
 
 export default function VendorDashboard() {
-  const { 
-    store, 
-    metrics, 
-    loading, 
-    toggleStoreStatus, 
-    orders, 
+  const {
+    store,
+    metrics,
+    loading,
+    toggleStoreStatus,
+    orders,
     bookings,
     isLocked,
-    refreshStore 
+    refreshStore
   } = useVendor();
   const [toggling, setToggling] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -60,7 +61,6 @@ export default function VendorDashboard() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [showSwitcher, setShowSwitcher] = useState(false);
-  const navigation = useNavigation();
   const router = useRouter();
 
   const formatMoney = (amount: number) => formatCurrency(amount);
@@ -164,7 +164,8 @@ export default function VendorDashboard() {
     return () => clearInterval(timer);
   }, [insights.length, activeInsightIndex]);
 
-  // Merge & Sort Activity
+  // Merge & Sort Activity — capped to 5, "View More" links to the full
+  // Orders page for the rest.
   const liveActivity = useMemo(() => {
     const combined = [
       ...orders.map((o) => ({ ...o, _type: "order" as const })),
@@ -176,8 +177,32 @@ export default function VendorDashboard() {
         const tB = b.createdAt?.seconds || 0;
         return tB - tA;
       })
-      .slice(0, 10);
+      .slice(0, 5);
   }, [orders, bookings]);
+
+  const getDateLabel = (seconds?: number) => {
+    if (!seconds) return "Unknown";
+    const date = new Date(seconds * 1000);
+    if (isToday(date)) return "Today";
+    if (isYesterday(date)) return "Yesterday";
+    return formatDate(date, "MMM d");
+  };
+
+  // liveActivity is already sorted desc, so consecutive same-day items
+  // naturally land in the same group with this single pass.
+  const groupedActivity = useMemo(() => {
+    const groups: { label: string; items: typeof liveActivity }[] = [];
+    liveActivity.forEach((item) => {
+      const label = getDateLabel(item.createdAt?.seconds);
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.label === label) {
+        lastGroup.items.push(item);
+      } else {
+        groups.push({ label, items: [item] });
+      }
+    });
+    return groups;
+  }, [liveActivity]);
 
   if (loading && !store) {
     return (
@@ -195,13 +220,9 @@ export default function VendorDashboard() {
       {/* Header */}
       <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between bg-white z-40">
         <View className="flex-row items-center gap-3 flex-1 pr-4">
+          <VendorDrawerMenuButton />
+
           <Pressable
-            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-          >
-            <Menu size={24} color="black" />
-          </Pressable>
-          
-          <Pressable 
             onPress={() => setShowSwitcher(true)}
             className="flex-1 active:opacity-60"
           >
@@ -227,12 +248,16 @@ export default function VendorDashboard() {
           </Pressable>
         </View>
 
-        {/* Profile/Logo Placeholder */}
-        <View className="w-10 h-10 rounded-full bg-zinc-100 items-center justify-center overflow-hidden border border-zinc-200">
+        {/* Store Logo — just the mark, no circle chrome around it */}
+        <View className="w-10 h-10 items-center justify-center">
           {store?.logo ? (
-            <Image source={{ uri: store.logo }} className="w-full h-full" />
+            <Image
+              source={{ uri: store.logo }}
+              className="w-full h-full"
+              resizeMode="contain"
+            />
           ) : (
-            <P className="font-black text-xs">{store?.name?.[0]}</P>
+            <P className="font-black text-xs text-zinc-400">{store?.name?.[0]}</P>
           )}
         </View>
       </View>
@@ -360,67 +385,72 @@ export default function VendorDashboard() {
                   <P className="text-zinc-400 font-bold">No recent activity</P>
                 </View>
               ) : (
-                <View className="space-y-3">
-                  {liveActivity.map((item) => {
-                    const isOrder = item._type === "order";
-                    let statusBg = "bg-zinc-100";
-                    let statusText = "text-zinc-500";
+                <View>
+                  {groupedActivity.map((group) => (
+                    <View key={group.label} className="mb-2">
+                      <P className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-2 mt-1">
+                        {group.label}
+                      </P>
+                      {group.items.map((item) => {
+                        const isOrder = item._type === "order";
+                        const { bg: statusBg, text: statusText } = isOrder
+                          ? getOrderStatusColor(item.status)
+                          : getBookingStatusColor(item.status);
 
-                    if (["paid", "completed", "confirmed"].includes(item.status)) {
-                      statusBg = "bg-green-100";
-                      statusText = "text-green-700";
-                    } else if (["processing", "shipped", "sent-out"].includes(item.status)) {
-                      statusBg = "bg-blue-100";
-                      statusText = "text-blue-700";
-                    } else if (["cancelled", "no-show"].includes(item.status)) {
-                      statusBg = "bg-red-100";
-                      statusText = "text-red-700";
-                    }
+                        return (
+                          <Pressable
+                            key={`${item._type}-${item.id}`}
+                            onPress={() => {
+                              if (isLocked) return;
+                              if (item._type === "order") setSelectedOrder(item);
+                              else setSelectedBooking(item);
+                            }}
+                            className="bg-white p-4 mb-3 rounded-2xl border border-zinc-100 flex-row items-center justify-between active:scale-[0.98] transition-all shadow-sm"
+                          >
+                            <View className="flex-row items-center gap-4 flex-1">
+                              <View className={cn(
+                                "w-12 h-12 rounded-2xl items-center justify-center border",
+                                isOrder ? "bg-zinc-50 border-zinc-100" : "bg-purple-50 border-purple-100"
+                              )}>
+                                {isOrder ? <ShoppingBag size={20} color="black" /> : <Calendar size={20} color="#8b5cf6" />}
+                              </View>
+                              <View className="flex-1">
+                                <H1 className="text-sm font-black" numberOfLines={1}>
+                                  {item.customerName || "Customer"}
+                                </H1>
+                                <View className="flex-row items-center gap-1.5">
+                                  <P className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
+                                    {item._type === "order" ? `Order #${item.id.slice(-5).toUpperCase()}` : item.serviceName}
+                                  </P>
+                                  <P className="text-xs text-zinc-300 font-black">•</P>
+                                  <P className="text-[10px] text-zinc-400 font-medium">
+                                    {item.createdAt?.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleTimeString([], {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    }) : '--:--'}
+                                  </P>
+                                </View>
+                              </View>
+                            </View>
 
-                    return (
-                      <Pressable
-                        key={`${item._type}-${item.id}`}
-                        onPress={() => {
-                          if (isLocked) return;
-                          if (item._type === "order") setSelectedOrder(item);
-                          else setSelectedBooking(item);
-                        }}
-                        className="bg-white p-4 mb-4 rounded-2xl border border-zinc-100 flex-row items-center justify-between active:scale-[0.98] transition-all shadow-sm"
-                      >
-                        <View className="flex-row items-center gap-4 flex-1">
-                          <View className={cn(
-                            "w-12 h-12 rounded-2xl items-center justify-center border",
-                            isOrder ? "bg-zinc-50 border-zinc-100" : "bg-purple-50 border-purple-100"
-                          )}>
-                            {isOrder ? <ShoppingBag size={20} color="black" /> : <Calendar size={20} color="#8b5cf6" />}
-                          </View>
-                          <View className="flex-1">
-                            <H1 className="text-sm font-black" numberOfLines={1}>
-                              {item.customerName || "Customer"}
-                            </H1>
-                            <View className="flex-row items-center gap-1.5">
-                              <P className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                                {item._type === "order" ? `Order #${item.id.slice(-5).toUpperCase()}` : item.serviceName}
-                              </P>
-                              <P className="text-xs text-zinc-300 font-black">•</P>
-                              <P className="text-[10px] text-zinc-400 font-medium">
-                                {item.createdAt?.seconds ? new Date(item.createdAt.seconds * 1000).toLocaleTimeString([], {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }) : '--:--'}
+                            <View className={`${statusBg} px-3 py-1 rounded-full`}>
+                              <P className={`${statusText} text-[8px] font-black uppercase tracking-tighter`}>
+                                {item.status}
                               </P>
                             </View>
-                          </View>
-                        </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ))}
 
-                        <View className={`${statusBg} px-3 py-1 rounded-full`}>
-                          <P className={`${statusText} text-[8px] font-black uppercase tracking-tighter`}>
-                            {item.status}
-                          </P>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
+                  <Pressable
+                    onPress={() => router.push("/(vendor)/orders")}
+                    className="flex-row items-center justify-center gap-1 py-3 mt-1 rounded-xl bg-zinc-50 border border-zinc-100 active:opacity-70"
+                  >
+                    <P className="text-xs font-black uppercase text-zinc-600">View More</P>
+                    <ChevronRight size={14} color="#52525b" />
+                  </Pressable>
                 </View>
               )}
             </View>

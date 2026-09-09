@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
@@ -19,20 +19,12 @@ export default function ShopLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    console.log("ShopLogin: Mounted. StoreId:", storeId);
-    const unsub = onAuthStateChanged(auth, (user) => {
-      console.log("ShopLogin: Auth check. User:", user ? user.uid : "null");
-      if (user) {
-        console.log(
-          "ShopLogin: User logged in, redirecting to store home:",
-          `/shop/${storeId}`
-        );
-        router.replace(`/shop/${storeId}`);
-      }
-    });
-    return () => unsub();
-  }, [router, storeId]);
+  // Note: there's no auth-redirect effect here — ShopLayoutWrapper (the
+  // layout this page renders inside) already owns "already logged in,
+  // bounce off the auth page" as a single source of truth. A duplicate
+  // listener here used to race it (each targeting a different route),
+  // which could leave the user stuck looking like they were still on the
+  // login page after a successful sign-in.
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

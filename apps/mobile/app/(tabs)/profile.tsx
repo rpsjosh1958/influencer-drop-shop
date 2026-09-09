@@ -38,6 +38,7 @@ import {
 } from "firebase/firestore";
 import { router, type Href } from "expo-router";
 import * as Linking from "expo-linking";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Address } from "@/types";
 import { getErrorMessage, getErrorCode } from "@/lib/errors";
 import {
@@ -151,7 +152,13 @@ export default function ProfileScreen() {
       onConfirm: async () => {
         try {
           await signOut(auth);
-          // router.replace("/(tabs)");
+          // Otherwise never cleared, so the next account signed into on
+          // this device could inherit a stale "vendor" appMode/active
+          // store from this session (see the same fix in vendor settings).
+          await AsyncStorage.multiRemove([
+            "appMode",
+            "@vendor_active_store_id",
+          ]).catch(() => {});
         } catch (e) {
           console.error(e);
         }
@@ -427,7 +434,11 @@ export default function ProfileScreen() {
       const snapshot = await getDocs(storeQuery);
 
       if (!snapshot.empty) {
-        // 2. IS VENDOR -> Redirect to Admin
+        // 2. IS VENDOR -> Redirect to Admin. Persist appMode too — this
+        // never used to be set here, so the switch worked for the current
+        // in-session navigation but a later fresh app launch would still
+        // read the old "customer" value and land back on the shop side.
+        await AsyncStorage.setItem("appMode", "vendor");
         router.replace("/(vendor)/(tabs)/dashboard" as Href);
       } else {
         // 3. NOT VENDOR -> Prompt to Create

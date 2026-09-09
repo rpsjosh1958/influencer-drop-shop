@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, onAuthStateChanged } from "firebase/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { BroadcastModal } from "@/components/admin/broadcast-modal";
@@ -63,6 +64,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
@@ -87,6 +89,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     try {
       await signOut(auth);
       await fetch("/api/auth/session", { method: "DELETE" });
+      queryClient.clear();
       router.push("/admin");
     } catch (error) {
       console.error("Logout failed", error);

@@ -3,6 +3,7 @@ import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import * as logger from "firebase-functions/logger";
 import { getErrorCode, getErrorMessage } from "./errors";
+import { getEmailLayout, emailButton } from "./email-layout";
 
 export const sendPasswordReset = onCall(async (request) => {
   const { email, userType, storeId, origin } = request.data; // userType: 'vendor' | 'customer'
@@ -36,28 +37,23 @@ export const sendPasswordReset = onCall(async (request) => {
     // 4. Send Email via Resend
     const resend = new Resend(process.env.RESEND_API_KEY);
 
+    const resetContent = `
+      <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 30px;">
+        We received a request to reset the password for your <strong>${userType || "vendor"}</strong> account associated with <strong>${email}</strong>.
+      </p>
+
+      ${emailButton(customLink, "Reset Password")}
+
+      <p style="margin-top: 40px; font-size: 13px; color: #666666;">
+        If you didn't ask for this, you can ignore this email — your password will not be changed.
+      </p>
+    `;
+
     const { error } = await resend.emails.send({
       from: "The Drop Security <security@copdrop.io>",
       to: [email],
       subject: "Reset your password",
-      html: `
-        <div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5; padding: 40px 20px; text-align: center;">
-          <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 40px; border-radius: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 20px; color: #000;">Reset Request</h1>
-            <p style="color: #666; font-size: 16px; line-height: 1.5; margin-bottom: 30px;">
-              We received a request to reset the password for your <strong>${userType}</strong> account associated with <strong>${email}</strong>.
-            </p>
-            
-            <a href="${customLink}" style="display: inline-block; background-color: #000000; color: #ffffff; padding: 15px 30px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 16px;">
-              Reset Password
-            </a>
-
-            <p style="margin-top: 30px; font-size: 12px; color: #999;">
-              If you didn't ask for this, you can ignore this email. Your password will not be changed.
-            </p>
-          </div>
-        </div>
-      `,
+      html: getEmailLayout(resetContent, "Reset Request."),
     });
 
     if (error) {

@@ -22,13 +22,7 @@ import {
 } from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  doc,
-  updateDoc,
-  serverTimestamp,
-  addDoc,
-  collection,
-} from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
 import type { Booking } from "@/types";
@@ -86,6 +80,11 @@ export function VendorBookingDetails({
     if (!booking) return;
     setLoading(true);
     try {
+      // The customer notification (confirmed/cancelled/completed/no-show)
+      // is sent server-side by onBookingStatusUpdated, which fires
+      // automatically off this write — a client-side notification used to
+      // be created here too, using the wrong schema (metadata/isRead
+      // instead of data/read) and duplicating the server one.
       await updateDoc(
         doc(db, "stores", booking.storeId, "bookings", booking.id),
         {
@@ -94,33 +93,6 @@ export function VendorBookingDetails({
           ...(newStatus === "cancelled" ? { cancelledBy: "admin" } : {}),
         }
       );
-
-      // Notifications
-      if (newStatus === "cancelled") {
-        await addDoc(collection(db, "notifications"), {
-          userId: booking.customerId,
-          type: "booking_cancelled_admin",
-          title: "Booking Unavailable ❌",
-          message: `Unfortunately, your appointment for ${
-            booking.serviceName
-          } on ${formatDate(
-            booking.date
-          )} is unavailable. Please reschedule at your convenience.`,
-          isRead: false,
-          createdAt: serverTimestamp(),
-          metadata: { bookingId: booking.id, storeId: booking.storeId },
-        });
-      } else if (newStatus === "confirmed") {
-        await addDoc(collection(db, "notifications"), {
-          userId: booking.customerId,
-          type: "booking_confirmed",
-          title: "Booking Confirmed ✅",
-          message: `Your appointment for ${booking.serviceName} is confirmed.`,
-          isRead: false,
-          createdAt: serverTimestamp(),
-          metadata: { bookingId: booking.id, storeId: booking.storeId },
-        });
-      }
 
       onUpdate();
       Alert.alert("Success", `Booking updated to ${newStatus}`);

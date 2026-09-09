@@ -25,6 +25,7 @@ import { BILLING_PLANS } from "./billing";
 import { reserveStockAndPrice, releaseStock } from "./stock";
 import { initiateOrderRefund } from "./refunds";
 import { sendNotificationToUser } from "./notifications";
+import { getEmailLayout, emailButton, emailCallout } from "./email-layout";
 
 admin.initializeApp();
 
@@ -43,7 +44,13 @@ export const onNotificationCreated = onDocumentCreated(
     const userId = data.userId;
     const title = data.title;
     const message = data.message;
-    const orderId = data.orderId;
+    // The real routing payload (orderId/bookingId/screen/etc.) lives
+    // nested under `data.data` — sendNotificationToUser and every client
+    // writer use that shape, never a top-level `orderId` field. Reading
+    // `data.orderId` directly here always resolved to undefined, so a
+    // push sent via this trigger never carried the fields the mobile
+    // notification-routing helpers depend on to deep-link.
+    const notificationData = (data.data || {}) as Record<string, unknown>;
 
     if (!userId || !title || !message) {
       logger.warn("Missing required fields for notification");
@@ -59,7 +66,7 @@ export const onNotificationCreated = onDocumentCreated(
         usersSnapshot.forEach((doc) => {
           const userData = doc.data();
           const token = userData.expoPushToken;
-          
+
           if (token && Expo.isExpoPushToken(token) && !uniqueTokens.has(token)) {
             uniqueTokens.add(token);
             messages.push({
@@ -67,7 +74,7 @@ export const onNotificationCreated = onDocumentCreated(
               sound: "default",
               title: title,
               body: message,
-              data: { orderId: orderId, type: "broadcast" }, // Tag broadcast for routing
+              data: { ...notificationData, type: data.type || "broadcast" },
             });
           }
         });
@@ -124,7 +131,7 @@ export const onNotificationCreated = onDocumentCreated(
         sound: "default",
         title: title,
         body: message,
-        data: { orderId: orderId },
+        data: { ...notificationData, type: data.type },
       });
 
       const chunks = expo.chunkPushNotifications(messages);
@@ -336,7 +343,18 @@ export const onStoreUpdated = onDocumentUpdated(
     // its plan is now — covers upgrades, downgrades, and expiry-driven
     // downgrades alike (all of which land here via the plan fan-out),
     // unlike the block above which only handled the starter->growth case.
-    if (before.plan !== after.plan && after.payoutConfig?.subaccountCode) {
+    // Skipped while a refund debt is still being recovered (see
+    // refunds.ts/wallet.ts) — that intentionally runs the subaccount at an
+    // elevated rate regardless of plan, and a plan change landing mid-
+    // recovery shouldn't silently reset it back down; processOrderWallet
+    // re-syncs to the (by-then-current) plan rate itself once the debt
+    // actually clears.
+    const hasOutstandingRefundDebt = (after.pendingRefundDebt || 0) > 0;
+    if (
+      before.plan !== after.plan &&
+      after.payoutConfig?.subaccountCode &&
+      !hasOutstandingRefundDebt
+    ) {
       try {
         await updateSubaccount(after.payoutConfig.subaccountCode, {
           percentage_charge: getPlatformFeePercentage(after.plan),
@@ -381,15 +399,15 @@ export const onOrderCreated = onDocumentCreated(
       const store = storeDoc.data();
       if (!store || !store.ownerId) return;
 
-      const ownerDoc = await admin
-        .firestore()
-        .collection("users")
-        .doc(store.ownerId)
-        .get();
-      const owner = ownerDoc.data();
-      if (!owner || !owner.email) return;
-
       // 2. Send Notification to Vendor
+      // (Was previously also gated on the owner's Firestore user doc
+      // having an `email` field, left over from when this also sent an
+      // email — that email send is now fully disabled below, but the
+      // guard was never removed, so a vendor whose `users/{uid}` doc has
+      // no `email` field (email lives in Firebase Auth, not always
+      // mirrored to Firestore) silently never got a new-order
+      // notification at all, with no error logged. Same bug existed on
+      // the complaint-created trigger further down.)
       await sendNotificationToUser(
         store.ownerId,
         "New Order! 💰",
@@ -397,34 +415,15 @@ export const onOrderCreated = onDocumentCreated(
           order.customerName || "Customer"
         } (GHS ${order.total.toFixed(2)})`,
         "vendor_order",
-        { screen: "/(vendor)/orders", id: orderId, storeId }
+        {
+          screen: `/(vendor)/orders?orderId=${orderId}`,
+          id: orderId,
+          orderId,
+          storeId,
+        }
       );
 
-      // 3. Send Email to Vendor (DISABLED: Notifications handle this now)
-      // const resend = new Resend(process.env.RESEND_API_KEY);
-      // await resend.emails.send({
-      //   from: "The Drop Orders <orders@copdrop.io>",
-      //   to: [owner.email],
-      //   subject: `New Order: #${orderId.slice(0, 8).toUpperCase()} - ${
-      //     store.name
-      //   }`,
-      //   html: `
-      //     <div style="font-family: sans-serif; padding: 20px;">
-      //       <h2>New Order Received! 💰</h2>
-      //       <p>You have a new order from <strong>${
-      //         order.customerName || "Customer"
-      //       }</strong>.</p>
-      //       <p><strong>Total:</strong> GHS ${order.total.toFixed(2)}</p>
-      //       <p><strong>Items:</strong> ${order.items.length}</p>
-      //       <hr />
-      //       <a href="https://copdrop.io/admin/orders" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View Order</a>
-      //     </div>
-      //   `,
-      // });
-      logger.info(
-        `Order notification sent to vendor ${owner.email} (Email Disabled)`
-      );
-      logger.info(`Order notification sent to vendor ${owner.email}`);
+      logger.info(`Order notification sent to vendor ${store.ownerId}`);
     } catch (err) {
       logger.error("Failed to send order notification", err);
     }
@@ -733,9 +732,14 @@ export const onComplaintCreated = onDocumentCreated(
         .doc(store.ownerId)
         .get();
       const user = userDoc.data();
-      if (!user || !user.email) return;
 
-      // Notify Vendor via Push
+      // Notify Vendor via Push — must not depend on the owner having an
+      // `email` field on their Firestore user doc (that lives in Firebase
+      // Auth and isn't always mirrored to Firestore). This used to be
+      // gated behind an `if (!user || !user.email) return;` guard that
+      // bailed out of the whole function before either the push
+      // notification OR (for a platform-target report, which doesn't even
+      // use the vendor's email) the email below ever ran.
       if (target === "store") {
         await sendNotificationToUser(
           store.ownerId,
@@ -747,35 +751,40 @@ export const onComplaintCreated = onDocumentCreated(
       }
 
       // 2. Prepare Email Content
-      const resend = new Resend(process.env.RESEND_API_KEY);
       const subject =
         target === "platform"
           ? `[Platform Report] Complaint from ${store.name}`
           : `New Complaint: ${complaint.subject}`;
 
       const recipient =
-        target === "platform" ? "safety@copdrop.io" : user.email;
+        target === "platform" ? "safety@copdrop.io" : user?.email;
 
-      // 3. Send Email
-      await resend.emails.send({
-        from: "The Drop Support <complaints@copdrop.io>",
-        to: [recipient],
-        subject,
-        html: `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2>New Complaint Received</h2>
-            <p><strong>Store:</strong> ${store.name}</p>
-            <p><strong>Customer:</strong> ${complaint.customerName} (${complaint.customerEmail})</p>
-            <p><strong>Subject:</strong> ${complaint.subject}</p>
-            <hr />
-            <p style="white-space: pre-wrap;">${complaint.message}</p>
-            <hr />
-            <a href="https://copdrop.io/admin/complaints" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View in Dashboard</a>
-          </div>
-        `,
-      });
+      // 3. Send Email — skip only the email (not the push above) if there's
+      // genuinely no recipient (store-target complaint, owner has no email).
+      if (recipient) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const complaintContent = `
+          <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 30px; text-align: left;">
+            <strong>Store:</strong> ${store.name}<br/>
+            <strong>Customer:</strong> ${complaint.customerName} (${complaint.customerEmail})<br/>
+            <strong>Subject:</strong> ${complaint.subject}
+          </p>
+          ${emailCallout("Message", `<p style="white-space: pre-wrap; margin: 0;">${complaint.message}</p>`)}
+          ${emailButton("https://copdrop.io/admin/complaints", "View in Dashboard")}
+        `;
 
-      logger.info(`Complaint notification sent to ${recipient}`);
+        await resend.emails.send({
+          from: "The Drop Support <complaints@copdrop.io>",
+          to: [recipient],
+          subject,
+          html: getEmailLayout(complaintContent, "New Complaint."),
+        });
+        logger.info(`Complaint notification emailed to ${recipient}`);
+      } else {
+        logger.warn(
+          `Complaint ${complaintId}: no email on file for store owner ${store.ownerId}, skipping email`
+        );
+      }
     } catch (error) {
       logger.error("Error sending complaint notification", error);
     }

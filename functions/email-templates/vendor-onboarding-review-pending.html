@@ -1,0 +1,40 @@
+<!--
+  THE DROP — "Building your brand" email
+  Sent automatically when a vendor registers a new store
+  (functions/src/onboarding.ts, onStoreOnboardingCreated)
+
+  Placeholders to replace before sending manually from Resend:
+    {{fullName}}   -> vendor's name
+    {{storeName}}  -> their store name
+-->
+<div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <img src="https://copdrop.io/assets/landing/drop_logo.svg" alt="THE DROP" style="width: 80px; height: 80px; margin-bottom: 20px;" />
+    <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px; color: #ffffff;">Building your brand.</h1>
+    <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
+
+    <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
+      Hi <strong>{{fullName}}</strong>,<br/><br/>
+      Your store <strong>{{storeName}}</strong> is currently under review by our compliance team.
+    </p>
+    <p style="font-size: 16px; color: #999999; line-height: 1.6; margin-bottom: 30px;">
+      We're checking your details and verification documents to ensure a smooth launch. You'll be notified as soon as your store is approved or if we need more information.
+    </p>
+    <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left; border: 1px solid #333;">
+      <h3 style="margin-top: 0; margin-bottom: 15px; color: #ffffff;">While you wait:</h3>
+      <p style="color: #cccccc; font-size: 14px; margin-bottom: 10px;">You can still log into your dashboard to:</p>
+      <ul style="color: #ccc; padding-left: 20px;">
+        <li style="margin-bottom: 8px;">Complete your store profile</li>
+        <li style="margin-bottom: 8px;">Add your first products or services</li>
+        <li style="margin-bottom: 8px;">Customize your store theme</li>
+      </ul>
+    </div>
+    <a href="https://copdrop.io/admin" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 18px 40px; border-radius: 50px; text-decoration: none; font-weight: 900; font-size: 16px;">
+      Go to Dashboard
+    </a>
+
+    <p style="margin-top: 60px; font-size: 12px; color: #666666;">
+      © 2026 THE DROP. • Accra, Ghana
+    </p>
+  </div>
+</div>

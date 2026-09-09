@@ -11,7 +11,6 @@ import {
   orderBy,
   where,
   Timestamp,
-  addDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
@@ -127,52 +126,16 @@ export default function BookingsPage() {
       status: BookingStatus;
     }) => {
       if (!storeId) return;
+      // The customer notification (confirmed/cancelled/completed/no-show)
+      // is sent server-side by onBookingStatusUpdated, which fires
+      // automatically off this write — a client-side notification used to
+      // be created here too, using a schema ("metadata"/"isRead") the
+      // shop's own notification UI doesn't even read, and duplicating the
+      // server one.
       await updateDoc(doc(db, "stores", storeId, "bookings", booking.id), {
         status,
         updatedAt: Timestamp.now(),
       });
-
-      // Send Notification on Confirmation
-      if (status === "confirmed") {
-        await addDoc(collection(db, "notifications"), {
-          userId: booking.customerId,
-          type: "booking_confirmed",
-          title: "Booking Confirmed! 🎉",
-          message: `Your appointment for ${booking.serviceName} on ${format(
-            parseISO(booking.date),
-            "MMM d",
-          )} at ${booking.startTime} has been confirmed.`,
-          isRead: false,
-          createdAt: Timestamp.now(),
-          metadata: {
-            bookingId: booking.id,
-            storeId: storeId,
-            storeName: storeName || "Store",
-          },
-        });
-      }
-
-      // Send Notification on Cancellation (Admin Cancel)
-      if (status === "cancelled") {
-        await addDoc(collection(db, "notifications"), {
-          userId: booking.customerId,
-          type: "booking_cancelled_admin",
-          title: "Booking Unavailable ❌",
-          message: `Unfortunately, your appointment for ${
-            booking.serviceName
-          } on ${format(
-            parseISO(booking.date),
-            "MMM d",
-          )} is unavailable. Please reschedule at your convenience.`,
-          isRead: false,
-          createdAt: Timestamp.now(),
-          metadata: {
-            bookingId: booking.id,
-            storeId: storeId,
-            storeName: storeName || "Store",
-          },
-        });
-      }
     },
     onSuccess: (_, { booking, status }) => {
       queryClient.invalidateQueries({ queryKey: ["bookings", storeId] });

@@ -66,6 +66,7 @@ const { width } = Dimensions.get("window");
 
 import { useNotifications } from "@/context/notification-context";
 import { useRouter } from "expo-router";
+import { getNotificationRoute } from "@/lib/notification-routing";
 import { cn } from "@/lib/utils";
 
 import { useStore } from "@/context/store-context";
@@ -497,12 +498,9 @@ export default function ShopHome() {
                         onPress={() => {
                           if (!item.read) markAsRead(item.id);
                           setIsNotificationOpen(false); // Close drawer
-                          // if (item.type === "order_update") {
-                          //   router.push({
-                          //     pathname: "/(tabs)/orders",
-                          //     params: { orderId: item.orderId },
-                          //   });
-                          // }
+
+                          const route = getNotificationRoute(item);
+                          if (route) router.push(route);
                         }}
                         className={`bg-zinc-900 p-5 rounded-3xl border ${
                           item.read ? "border-zinc-800" : ""

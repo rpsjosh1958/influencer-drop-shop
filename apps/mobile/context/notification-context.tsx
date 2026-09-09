@@ -24,6 +24,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
+import { getNotificationRoute } from "@/lib/notification-routing";
 import type { FirestoreTimestamp } from "@/types";
 
 Notifications.setNotificationHandler({
@@ -44,11 +45,14 @@ export interface Notification {
     | "broadcast"
     | "booking_confirmed"
     | "booking_cancelled_admin"
+    | "booking_cancelled"
+    | "booking_update"
     | "store_order_received"
     | "store_booking_received"
     | "payout_success"
     | "vendor_order"
     | "vendor_booking"
+    | "vendor_refund"
     | "vendor_complaint";
   title: string;
   message: string;
@@ -115,17 +119,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     });
 
     const sub2 = Notifications.addNotificationResponseReceivedListener((response) => {
-        const data = response.notification.request.content.data;
+        const data = response.notification.request.content.data as
+          | (Notification["data"] & { type?: string })
+          | undefined;
         console.log("Notification Tapped:", data);
 
-        if (data?.screen) {
-          router.push(data.screen as Href);
-        } else if (data?.type === "vendor_order") {
-          router.push("/(vendor)/orders" as Href);
-        } else if (data?.type === "vendor_booking") {
-          router.push("/(vendor)/bookings" as Href);
+        // Order/booking types route via type+id first — the stored `screen`
+        // value isn't always mobile-safe (some backend events set a web
+        // admin path like "/admin/orders") or may be missing the id.
+        const route = getNotificationRoute({
+          type: (data?.type || "") as Notification["type"],
+          data,
+        });
+        if (route) {
+          router.push(route);
         } else if (data?.type === "vendor_complaint") {
           router.push("/(vendor)/(tabs)" as Href);
+        } else if (data?.screen) {
+          router.push(data.screen as Href);
         }
     });
 
@@ -215,6 +226,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       "vendor_order",
       "vendor_booking",
       "vendor_complaint",
+      "booking_cancelled", // customer cancelled — this is vendor-facing
+      "vendor_refund", // refund/dispute updates — also vendor-facing
     ];
 
     let q = query(

@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
-import { createRefund } from "./paystack";
+import { createRefund, updateSubaccount } from "./paystack";
+import { REFUND_DEBT_RECOVERY_PERCENTAGE } from "./fees";
 
 interface OrderRefundData {
   total?: number;
@@ -171,4 +172,41 @@ export const applyProcessedRefund = async (
           : "internal_ledger",
     });
   });
+
+  // Refund-debt recovery — only meaningful for real subaccount-split
+  // orders (legacy internal-ledger orders have no live Paystack
+  // subaccount money flow to recover from this way). Paystack pulled this
+  // refund out of the platform's own main balance, not the vendor's
+  // subaccount, so `vendorDebit` above is a bookkeeping adjustment only —
+  // this is what actually goes after getting real money back, by taking
+  // a bigger share of the vendor's future order splits until it's repaid.
+  if (typeof order.vendorNetAmount === "number") {
+    const storeRef = db.collection("stores").doc(storeId);
+    const storeSnap = await storeRef.get();
+    const store = storeSnap.data();
+    const subaccountCode = store?.payoutConfig?.subaccountCode;
+    const priorDebt = store?.pendingRefundDebt || 0;
+    const newDebt = priorDebt + vendorDebit;
+
+    await storeRef.update({ pendingRefundDebt: newDebt });
+
+    // Only elevate on the transition into debt — if already recovering a
+    // prior refund, the rate is already up; a second refund just adds to
+    // the amount being recovered at that same elevated rate.
+    if (priorDebt <= 0 && newDebt > 0 && subaccountCode) {
+      try {
+        await updateSubaccount(subaccountCode, {
+          percentage_charge: REFUND_DEBT_RECOVERY_PERCENTAGE,
+        });
+      } catch (err) {
+        // Not fatal — the debt is still recorded and will be recovered
+        // (at whatever rate is actually active) as future orders come in;
+        // this only means recovery starts slower than intended.
+        console.error(
+          `Failed to elevate subaccount rate for store ${storeId} after refund debt`,
+          err
+        );
+      }
+    }
+  }
 };

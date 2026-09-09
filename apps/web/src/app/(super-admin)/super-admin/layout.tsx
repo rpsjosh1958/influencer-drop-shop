@@ -4,6 +4,7 @@ import "../../globals.css";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/lib/firebase";
 import Link from "next/link";
 import {
@@ -35,6 +36,7 @@ export default function SuperAdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -71,6 +73,7 @@ export default function SuperAdminLayout({
 
   const handleLogout = async () => {
     await signOut(auth);
+    queryClient.clear();
     router.push("/admin");
   };
 

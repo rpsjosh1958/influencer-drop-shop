@@ -141,8 +141,8 @@ export const paystackWebhook = onRequest(async (req, res) => {
           order.storeId,
           "Refund Completed",
           `A refund of GHS ${refundedAmountGHS.toFixed(2)} for order #${orderRef.id.slice(0, 8).toUpperCase()} has completed — your recorded earnings have been adjusted.`,
-          "order_update",
-          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/orders` }
+          "vendor_refund",
+          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/finance` }
         );
         break;
       }
@@ -173,8 +173,8 @@ export const paystackWebhook = onRequest(async (req, res) => {
           order.storeId,
           "Refund Failed",
           `The refund for order #${orderRef.id.slice(0, 8).toUpperCase()} could not be processed. The funds are back on the platform balance — you can try again.`,
-          "order_update",
-          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/orders` }
+          "vendor_refund",
+          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/finance` }
         );
         break;
       }
@@ -203,8 +203,8 @@ export const paystackWebhook = onRequest(async (req, res) => {
           order.storeId,
           "Refund Needs Attention",
           `The refund for order #${orderRef.id.slice(0, 8).toUpperCase()} needs the customer's payout details to continue. Handle this on the Paystack dashboard.`,
-          "order_update",
-          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/orders` }
+          "vendor_refund",
+          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/finance` }
         );
         break;
       }
@@ -242,8 +242,8 @@ export const paystackWebhook = onRequest(async (req, res) => {
           order.storeId,
           "Order Disputed ⚠️",
           `A customer has disputed the charge for order #${orderRef.id.slice(0, 8).toUpperCase()}. Respond on your Paystack dashboard within 16 hours, or Paystack will automatically refund them from the platform balance.`,
-          "order_update",
-          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/orders` }
+          "vendor_refund",
+          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/finance` }
         );
         break;
       }
@@ -271,8 +271,8 @@ export const paystackWebhook = onRequest(async (req, res) => {
           order.storeId,
           "Dispute Resolved",
           `The dispute on order #${orderRef.id.slice(0, 8).toUpperCase()} has been resolved (${resolution}).`,
-          "order_update",
-          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/orders` }
+          "vendor_refund",
+          { orderId: orderRef.id, storeId: order.storeId, screen: `/admin/finance` }
         );
         break;
       }

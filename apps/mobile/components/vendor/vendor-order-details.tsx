@@ -8,6 +8,7 @@ import {
   Alert,
   ActionSheetIOS,
   Platform,
+  Linking,
 } from "react-native";
 import {
   X,
@@ -16,16 +17,14 @@ import {
   User,
   Phone,
   MoreVertical,
+  RotateCcw,
+  AlertTriangle,
+  Loader2,
+  ExternalLink,
 } from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  doc,
-  updateDoc,
-  Timestamp,
-  addDoc,
-  collection,
-} from "firebase/firestore";
+import { doc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
 import type { Order, FirestoreTimestamp } from "@/types";
@@ -48,6 +47,21 @@ export function VendorOrderDetails({
 
   if (!order) return null;
 
+  // Locked once the order has reached a terminal state — fulfillment
+  // buttons are unrelated to refunds/cancellation but would otherwise stay
+  // clickable and silently overwrite the status back to a shipping state
+  // even though refundedAmount/refundStatus (the real source of truth) is
+  // untouched. Matches the same fix already shipped on the web admin.
+  const isTerminalStatus =
+    order.status === "refunded" ||
+    order.status === "partially_refunded" ||
+    order.status === "cancelled";
+
+  const refundedSoFar = order.refundedAmount || 0;
+  const refundable = Math.max(0, order.total - refundedSoFar);
+  const hasPendingRefund =
+    order.refundStatus === "pending" || order.refundStatus === "processing";
+
   const formatDate = (timestamp: FirestoreTimestamp | undefined) => {
     if (!timestamp) return "";
     return new Date(timestamp.seconds * 1000).toLocaleDateString("en-GB", {
@@ -59,19 +73,27 @@ export function VendorOrderDetails({
     });
   };
 
+  // Matches the web admin's order status colors (getStatusColor in
+  // apps/web/src/app/(admin)/admin/orders/page.tsx) — same color families,
+  // -50/-600/-100 shades instead of web's -100/-700 to match this modal's
+  // existing pill style.
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "open":
+      case "pending":
       case "paid":
-      case "delivered":
-      case "completed":
-        return "bg-green-50 text-green-600 border-green-100";
-      case "sent-out":
-      case "shipped":
         return "bg-blue-50 text-blue-600 border-blue-100";
-      case "cancelled":
+      case "packaged":
+        return "bg-yellow-50 text-yellow-600 border-yellow-100";
+      case "sent-out":
+        return "bg-purple-50 text-purple-600 border-purple-100";
+      case "delivered":
+        return "bg-green-50 text-green-600 border-green-100";
+      case "refunded":
+      case "partially_refunded":
         return "bg-red-50 text-red-600 border-red-100";
       default:
-        return "bg-yellow-50 text-yellow-600 border-yellow-100";
+        return "bg-zinc-50 text-zinc-500 border-zinc-200";
     }
   };
 
@@ -87,42 +109,17 @@ export function VendorOrderDetails({
     if (!order) return;
     setUpdating(true);
     try {
-      // 1. Update Order Status
+      // Update Order Status — the customer notification (with the store
+      // name) is sent server-side by onOrderStatusUpdated, which fires
+      // automatically off this write. A second, client-side notification
+      // used to be created here too, producing two "Order Delivered"
+      // alerts for the same status change — one with the store name (the
+      // server one) and one without (this one). Removed; the server one
+      // is the single source of truth now, same as the web admin.
       await updateDoc(doc(db, "stores", order.storeId, "orders", order.id), {
         status: newStatus,
         updatedAt: Timestamp.now(),
       });
-
-      // 2. Send Notification (Optional but good UX)
-      let title = "Order Update 📦";
-      let message = `Your order #${order.id
-        .slice(0, 5)
-        .toUpperCase()} is now ${newStatus}.`;
-
-      if (newStatus === "shipped") {
-        title = "Order Shipped 🚚";
-        message = "Your order is on its way!";
-      } else if (newStatus === "delivered") {
-        title = "Order Delivered 🎉";
-        message = "Your order has been delivered. Enjoy!";
-      } else if (newStatus === "cancelled") {
-        title = "Order Cancelled ❌";
-        message = "Your order has been cancelled.";
-      }
-
-      const targetUserId = order.userId || order.customerId;
-      if (targetUserId) {
-        await addDoc(collection(db, "notifications"), {
-          userId: targetUserId,
-          type: "order_update",
-          title,
-          message,
-          read: false,
-          createdAt: Timestamp.now(),
-          orderId: order.id,
-          storeId: order.storeId,
-        });
-      }
 
       onUpdate();
       Alert.alert("Success", `Order updated to ${newStatus}`);
@@ -198,17 +195,29 @@ export function VendorOrderDetails({
                     <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
                       Status
                     </P>
-                    <Pressable
-                      onPress={showStatusOptions}
-                      className={`px-4 py-2 rounded-full border flex-row items-center gap-2 ${getStatusColor(
-                        order.status
-                      )}`}
-                    >
-                      <P className="text-xs font-bold uppercase">
-                        {order.status}
-                      </P>
-                      <MoreVertical size={12} color="currentColor" />
-                    </Pressable>
+                    {isTerminalStatus ? (
+                      <View
+                        className={`px-4 py-2 rounded-full border flex-row items-center gap-2 ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        <P className="text-xs font-bold uppercase">
+                          {order.status.replace("_", " ")}
+                        </P>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={showStatusOptions}
+                        className={`px-4 py-2 rounded-full border flex-row items-center gap-2 ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        <P className="text-xs font-bold uppercase">
+                          {order.status}
+                        </P>
+                        <MoreVertical size={12} color="currentColor" />
+                      </Pressable>
+                    )}
                   </View>
                 </View>
                 <View className="items-end">
@@ -220,6 +229,83 @@ export function VendorOrderDetails({
                   </H1>
                 </View>
               </View>
+
+              {/* Dispute banner */}
+              {order.disputeStatus === "open" && (
+                <View className="flex-row items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6">
+                  <AlertTriangle size={18} color="#b45309" />
+                  <P className="flex-1 text-amber-800 text-sm font-medium">
+                    This order&apos;s charge has been disputed by the
+                    customer. Respond on your Paystack dashboard within 16
+                    hours or it will auto-resolve against you.
+                  </P>
+                </View>
+              )}
+
+              {/* Refund Section — hidden for manually-recorded orders,
+                  which have no real Paystack transaction to refund.
+                  Refunds can only be triggered from the web admin, so this
+                  is informational + a handoff link, not a form. */}
+              {order.paymentMethod !== "manual" && (
+                <View className="mb-8">
+                  <P className="text-xs text-zinc-400 font-bold uppercase mb-3 tracking-wider">
+                    Refund
+                  </P>
+                  <View className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 space-y-3">
+                    {refundedSoFar > 0 && (
+                      <P className="text-sm font-medium text-zinc-600">
+                        {formatCurrency(refundedSoFar)} refunded so far
+                        {refundable > 0
+                          ? ` — ${formatCurrency(refundable)} still refundable.`
+                          : "."}
+                      </P>
+                    )}
+                    {hasPendingRefund && (
+                      <View className="flex-row items-center gap-2">
+                        <Loader2 size={14} color="#b45309" />
+                        <P className="text-sm font-bold text-amber-600">
+                          Refund of{" "}
+                          {formatCurrency(order.pendingRefundAmount || 0)} is
+                          processing…
+                        </P>
+                      </View>
+                    )}
+                    {order.refundStatus === "needs-attention" && (
+                      <P className="text-sm font-bold text-red-600">
+                        This refund needs the customer&apos;s payout details —
+                        handle it on the Paystack dashboard.
+                      </P>
+                    )}
+                    {order.refundStatus === "failed" && (
+                      <P className="text-sm font-bold text-red-600">
+                        The last refund attempt failed. You can try again on
+                        the web dashboard.
+                      </P>
+                    )}
+
+                    <View className="bg-blue-50 p-3 rounded-xl flex-row items-start gap-2">
+                      <RotateCcw size={16} color="#2563eb" className="mt-0.5" />
+                      <P className="flex-1 text-blue-800 text-xs font-medium">
+                        {refundable <= 0.005
+                          ? "This order has been fully refunded."
+                          : "Refunds aren't available in the mobile app yet — issue one from the Web Admin Dashboard (Orders)."}
+                      </P>
+                    </View>
+
+                    <Pressable
+                      onPress={() =>
+                        Linking.openURL("https://copdrop.io/admin/orders")
+                      }
+                      className="w-full bg-black py-3 rounded-xl flex-row items-center justify-center gap-2 active:opacity-90 transition-opacity"
+                    >
+                      <P className="text-white font-bold uppercase text-xs">
+                        Manage Refunds on Web Dashboard
+                      </P>
+                      <ExternalLink size={14} color="white" />
+                    </Pressable>
+                  </View>
+                </View>
+              )}
 
               {/* Customer Info (Vendor Only) */}
               <View className="bg-zinc-50 p-5 rounded-2xl space-y-4 mb-8">

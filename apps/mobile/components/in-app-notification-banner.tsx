@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { View, Pressable, Dimensions } from "react-native";
 import { useNotifications, Notification } from "@/context/notification-context";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
+import { getNotificationRoute } from "@/lib/notification-routing";
 import { ShoppingBag, Zap } from "lucide-react-native";
 import { P } from "./ui/text";
 import { MotiView } from "moti";
@@ -10,7 +11,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 
 export function InAppNotificationBanner() {
-  const { latestNotification, markAsRead } = useNotifications();
+  const { latestNotification, markAsRead, mode } = useNotifications();
   const [visible, setVisible] = useState(false);
   const [currentNotif, setCurrentNotif] = useState<Notification | null>(null);
   const insets = useSafeAreaInsets();
@@ -39,14 +40,18 @@ export function InAppNotificationBanner() {
     markAsRead(currentNotif.id);
     setVisible(false);
 
-    if (currentNotif.type === "order_update") {
-      // Pass orderId param to highlight/open
-      router.push({
-        pathname: "/(tabs)/orders",
-        params: { orderId: currentNotif.orderId },
-      });
+    const route = getNotificationRoute(currentNotif);
+    if (route) {
+      router.push(route);
+    } else if (currentNotif.type === "vendor_complaint") {
+      // No dedicated complaints screen — the Alerts tab is where the
+      // complaint modal actually opens, so land there rather than a route
+      // that doesn't exist.
+      router.push(
+        (mode === "vendor" ? "/(vendor)/(tabs)/notifications" : "/(tabs)") as Href
+      );
     } else {
-      router.push("/(tabs)");
+      router.push((mode === "vendor" ? "/(vendor)/(tabs)" : "/(tabs)") as Href);
     }
   };
 

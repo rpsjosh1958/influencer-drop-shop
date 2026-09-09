@@ -89,17 +89,39 @@ export interface StoreConfig {
     fontFamily?: string;
   };
   payoutConfig?: {
+    provider?: "bank" | "momo";
     bankCode?: string;
+    bankName?: string;
     accountNumber?: string;
     accountName?: string;
     subaccountCode?: string;
   };
+  // Real GHS amount still owed to the platform after a refund — see
+  // functions/src/refunds.ts. While > 0, the store's subaccount runs at an
+  // elevated percentage_charge to recover it from future order splits.
+  pendingRefundDebt?: number;
   socials?: {
     instagram?: string;
     twitter?: string;
     tiktok?: string;
     whatsapp?: string;
   };
+}
+
+export interface WalletTransaction {
+  id: string;
+  type: "credit" | "debit" | "payout";
+  amount: number;
+  description: string;
+  status: string;
+  source?: "subaccount_split" | "internal_ledger";
+  createdAt: FirestoreTimestamp;
+}
+
+export interface Wallet {
+  currentBalance: number;
+  pendingBalance: number;
+  totalEarned: number;
 }
 
 export interface ServiceItem {

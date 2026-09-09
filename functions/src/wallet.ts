@@ -1,6 +1,11 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { getPlatformFeeRate } from "./fees";
+import {
+  getPlatformFeeRate,
+  getPlatformFeePercentage,
+  REFUND_DEBT_RECOVERY_PERCENTAGE,
+} from "./fees";
+import { updateSubaccount } from "./paystack";
 
 interface WalletTransaction {
   id: string;
@@ -44,11 +49,53 @@ export const processOrderWallet = async (
     // path below, from before subaccounts existed).
     if (typeof orderData.vendorNetAmount === "number") {
       const vendorNetAmount = orderData.vendorNetAmount;
+
+      // Refund-debt recovery — pendingRefundDebt is signed: positive means
+      // the vendor still owes the platform (subaccount is running at the
+      // elevated REFUND_DEBT_RECOVERY_PERCENTAGE rate, so vendorNetAmount
+      // here is smaller than their fair share); negative means the
+      // PLATFORM owes the vendor (the order that finally cleared a past
+      // debt took slightly more than was actually owed — Paystack's split
+      // rate is fixed on the subaccount ahead of time, not adjustable per
+      // transaction, so there's no way to take *exactly* the remaining
+      // debt and not a cent more — so the subaccount rate gets dropped
+      // below normal afterward to pay that overage back on the next order
+      // instead of just absorbing it as platform revenue).
+      const storeSnap = await db.collection("stores").doc(storeId).get();
+      const store = storeSnap.data();
+      const pendingRefundDebt = store?.pendingRefundDebt || 0;
+
+      let creditAmount = vendorNetAmount;
+      let shortfall = 0; // positive = vendor got less than fair this order; negative = vendor got more than fair
+      let newDebt = pendingRefundDebt;
+
+      if (pendingRefundDebt !== 0 && typeof orderData.total === "number") {
+        const normalNet =
+          orderData.total * (1 - getPlatformFeeRate(store?.plan));
+        shortfall = normalNet - vendorNetAmount;
+        newDebt = pendingRefundDebt - shortfall;
+        // Recovering debt (shortfall > 0): still credit the FAIR amount to
+        // earnings history — what went toward the debt isn't "lost," it's
+        // legitimately owed. Repaying an overshoot (shortfall < 0): credit
+        // the full real vendorNetAmount, which is genuinely higher than
+        // normalNet this order (fair share + the make-whole top-up).
+        creditAmount = shortfall > 0.005 ? normalNet : vendorNetAmount;
+      }
+
+      const hasAdjustment = Math.abs(shortfall) > 0.005;
       const txRef = db
         .collection("stores")
         .doc(storeId)
         .collection("wallet_transactions")
         .doc();
+      const adjustmentTxRef = hasAdjustment
+        ? db
+            .collection("stores")
+            .doc(storeId)
+            .collection("wallet_transactions")
+            .doc()
+        : null;
+
       await db.runTransaction(async (t) => {
         const walletRef = db
           .collection("stores")
@@ -61,7 +108,7 @@ export const processOrderWallet = async (
           : 0;
         const totalEarned =
           (walletDoc.exists ? walletDoc.data()?.totalEarned || 0 : 0) +
-          vendorNetAmount;
+          creditAmount;
         t.set(
           walletRef,
           {
@@ -73,7 +120,7 @@ export const processOrderWallet = async (
         const txData: WalletTransaction = {
           id: txRef.id,
           type: "credit",
-          amount: vendorNetAmount,
+          amount: creditAmount,
           description: `Earnings from Order #${orderId
             .slice(0, 8)
             .toUpperCase()} (auto-settled via Paystack)`,
@@ -87,9 +134,66 @@ export const processOrderWallet = async (
           ...txData,
           source: "subaccount_split",
         });
+
+        if (adjustmentTxRef) {
+          const isRecovery = shortfall > 0;
+          t.set(adjustmentTxRef, {
+            id: adjustmentTxRef.id,
+            type: isRecovery ? "debit" : "credit",
+            amount: Math.abs(shortfall),
+            description: isRecovery
+              ? `Refund debt recovery — Order #${orderId.slice(0, 8).toUpperCase()}`
+              : `Refund overpayment correction — Order #${orderId.slice(0, 8).toUpperCase()}`,
+            orderId: orderId,
+            status: "success",
+            createdAt: admin.firestore.Timestamp.now(),
+            balanceAfter: currentBalance,
+            source: "subaccount_split",
+          });
+        }
       });
+
+      if (hasAdjustment) {
+        await db
+          .collection("stores")
+          .doc(storeId)
+          .update({ pendingRefundDebt: newDebt });
+
+        const subaccountCode = store?.payoutConfig?.subaccountCode;
+        if (subaccountCode) {
+          try {
+            if (Math.abs(newDebt) <= 0.005) {
+              // Settled — back to the plan's normal rate.
+              await updateSubaccount(subaccountCode, {
+                percentage_charge: getPlatformFeePercentage(store?.plan),
+              });
+            } else if (newDebt < 0 && pendingRefundDebt >= 0) {
+              // Just flipped into "platform owes vendor" — give them 100%
+              // of the split until the overage is paid back.
+              await updateSubaccount(subaccountCode, { percentage_charge: 0 });
+            } else if (newDebt > 0 && pendingRefundDebt <= 0) {
+              // Rare: flipped back into "vendor owes platform" (an
+              // overpayment-correction order itself overshot). Re-elevate.
+              await updateSubaccount(subaccountCode, {
+                percentage_charge: REFUND_DEBT_RECOVERY_PERCENTAGE,
+              });
+            }
+            // Otherwise still the same regime — rate is already correct,
+            // no API call needed.
+          } catch (err) {
+            console.error(
+              `Failed to sync subaccount rate for store ${storeId} during refund debt adjustment`,
+              err
+            );
+          }
+        }
+      }
+
       console.log(
-        `Recorded subaccount-split earnings for Order ${orderId}: Net=${vendorNetAmount}`
+        `Recorded subaccount-split earnings for Order ${orderId}: Net=${vendorNetAmount}` +
+          (hasAdjustment
+            ? `, refund debt adjustment ${shortfall.toFixed(2)} (${newDebt.toFixed(2)} remaining)`
+            : "")
       );
       return;
     }

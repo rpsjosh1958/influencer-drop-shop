@@ -175,15 +175,18 @@ export default function FinancePage() {
     refetchInterval: 30000,
   });
 
-  // Recent Settlements — credits only. Without this filter, failed payout
-  // attempts (from the now-removed withdrawal feature, or any future manual
-  // adjustment) drown out actual earnings in this list.
+  // Recent Settlements — credits AND debits (refunds). Excludes only
+  // "payout" (failed payout attempts from the now-removed withdrawal
+  // feature) — that legacy noise was the actual reason this used to
+  // filter down to credit-only, but that also hid every real refund
+  // debit, so a vendor's "recorded earnings have been adjusted" refund
+  // notification pointed here and showed... nothing to explain why.
   const { data: transactions = [] } = useQuery({
     queryKey: ["wallet_transactions", storeId],
     queryFn: async () => {
       const q = query(
         collection(db, "stores", storeId!, "wallet_transactions"),
-        where("type", "==", "credit"),
+        where("type", "in", ["credit", "debit"]),
         orderBy("createdAt", "desc"),
         limit(10),
       );
@@ -196,6 +199,9 @@ export default function FinancePage() {
 
   // This month's earnings — a more immediate, actionable number than
   // lifetime Total Earned, since there's no "current balance" anymore.
+  // Nets out any refund debits from this month too, same reasoning as
+  // the transactions list above — otherwise a refunded order still
+  // counted toward "This Month" even after being refunded.
   const { data: monthEarned = 0 } = useQuery({
     queryKey: ["wallet_transactions_month", storeId],
     queryFn: async () => {
@@ -204,14 +210,15 @@ export default function FinancePage() {
       monthStart.setHours(0, 0, 0, 0);
       const qMonth = query(
         collection(db, "stores", storeId!, "wallet_transactions"),
-        where("type", "==", "credit"),
+        where("type", "in", ["credit", "debit"]),
         where("createdAt", ">=", monthStart),
       );
       const snapshot = await getDocs(qMonth);
-      return snapshot.docs.reduce(
-        (total, d) => total + (d.data().amount || 0),
-        0,
-      );
+      return snapshot.docs.reduce((total, d) => {
+        const tx = d.data();
+        const amount = tx.amount || 0;
+        return tx.type === "debit" ? total - amount : total + amount;
+      }, 0);
     },
     enabled: !!storeId,
     refetchInterval: 30000,
@@ -293,6 +300,29 @@ export default function FinancePage() {
           >
             <Settings2 size={14} /> Set up payouts
           </Link>
+        </div>
+      )}
+
+      {!!storeConfig?.pendingRefundDebt && storeConfig.pendingRefundDebt > 0.005 && (
+        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-3 text-amber-900">
+          <AlertCircle className="shrink-0" size={20} />
+          <div className="text-sm font-medium flex-1">
+            Recovering {formatCurrency(storeConfig.pendingRefundDebt)} from a
+            recent refund — your payout rate is temporarily 80% platform /
+            20% you on new orders until this clears, then it goes back to
+            normal automatically.
+          </div>
+        </div>
+      )}
+
+      {!!storeConfig?.pendingRefundDebt && storeConfig.pendingRefundDebt < -0.005 && (
+        <div className="bg-green-50 border border-green-200 p-4 rounded-2xl flex items-center gap-3 text-green-900">
+          <AlertCircle className="shrink-0" size={20} />
+          <div className="text-sm font-medium flex-1">
+            You're owed {formatCurrency(-storeConfig.pendingRefundDebt)} back
+            from a refund that recovered slightly more than needed —
+            you&apos;ll get 100% of your next order(s) until it's paid back.
+          </div>
         </div>
       )}
 

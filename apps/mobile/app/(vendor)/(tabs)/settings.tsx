@@ -16,6 +16,8 @@ import {
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import * as Linking from "expo-linking";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
 
 export default function VendorSettings() {
   const handleExit = () => {
@@ -30,6 +32,24 @@ export default function VendorSettings() {
         style: "destructive",
         onPress: async () => {
           await signOut(auth);
+          // "appMode" and the active-store id are otherwise never cleared,
+          // so index.tsx's post-login routing would send the NEXT account
+          // that signs in on this device straight into the vendor
+          // dashboard (even a plain customer with no store — they'd land
+          // in vendor mode with nothing to show) just because a vendor
+          // had been signed in before.
+          await AsyncStorage.multiRemove([
+            "appMode",
+            "@vendor_active_store_id",
+          ]).catch(() => {});
+          // router.replace to a root-level sibling from deep inside the
+          // vendor Drawer/Tabs nesting can leave stale screens behind in
+          // the stack (surfaced as a "GO_BACK not handled" warning when
+          // back is pressed on the login screen right after signing out)
+          // — dismiss the nested stack first so login is a clean root.
+          if (router.canDismiss()) {
+            router.dismissAll();
+          }
           router.replace("/(auth)/login");
         },
       },
@@ -38,7 +58,8 @@ export default function VendorSettings() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-      <View className="px-6 py-4 border-b border-zinc-100">
+      <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center gap-3">
+        <VendorDrawerMenuButton />
         <H1 className="text-2xl font-black uppercase">Settings</H1>
       </View>
 

@@ -186,9 +186,9 @@ export function BookingDetailsModal({
           type: "booking_cancelled",
           title: "Booking Cancelled ❌",
           message: `Customer ${booking.customerName} cancelled their appointment for ${booking.serviceName}.`,
-          isRead: false,
+          read: false,
           createdAt: serverTimestamp(),
-          metadata: {
+          data: {
             bookingId: booking.id,
             storeId: booking.storeId,
             storeName: storeData.name,

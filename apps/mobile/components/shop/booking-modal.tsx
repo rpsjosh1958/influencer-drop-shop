@@ -287,22 +287,15 @@ export function BookingModal({
         createdAt: serverTimestamp(),
       };
 
-      // Create Booking
-      const docRef = await addDoc(
+      // Create Booking — the vendor notification is sent server-side by
+      // onBookingCreated, which fires automatically off this write. A
+      // client-side "New Booking!" notification used to be created here
+      // too (wrong schema, and duplicating the server one — the vendor
+      // got two separate push notifications for the same new booking).
+      await addDoc(
         collection(db, "stores", store.id, "bookings"),
         bookingData
       );
-
-      // Notification (Store Owner)
-      await addDoc(collection(db, "notifications"), {
-        userId: store.ownerId,
-        type: "booking_new",
-        title: "New Booking! 📅",
-        message: `${customerName} booked ${service.name}`,
-        isRead: false,
-        createdAt: serverTimestamp(),
-        metadata: { bookingId: docRef.id, storeId: store.id },
-      });
 
       // Close modal first to avoid stacking issues on iOS
       onClose();

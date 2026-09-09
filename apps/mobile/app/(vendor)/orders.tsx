@@ -4,19 +4,54 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
 import { useNavigation, DrawerActions } from "@react-navigation/native";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Filter, Menu, Package, Search, Plus } from "lucide-react-native";
 import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";
 import { formatCurrency } from "@/lib/format";
 import { ManualOrderModal } from "@/components/vendor/manual-order-modal";
+import { useLocalSearchParams } from "expo-router";
+import { getOrderStatusColor } from "@/lib/status-colors";
+import { isToday, isYesterday, format as formatDate } from "date-fns";
 import type { Order } from "@/types";
+
+const getDateLabel = (seconds?: number) => {
+  if (!seconds) return "Unknown";
+  const date = new Date(seconds * 1000);
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  return formatDate(date, "MMM d");
+};
 
 export default function VendorOrders() {
   const navigation = useNavigation();
+  const params = useLocalSearchParams<{ orderId?: string }>();
   const { orders, loading, refreshStore, products, store } = useVendor();
   const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [detailsVisible, setDetailsVisible] = useState(false);
   const [showManualOrder, setShowManualOrder] = useState(false);
+
+  // Deep Link Handling — open the order details modal when arriving from a
+  // notification tap with ?orderId=... (in-app tap or OS push tap).
+  // Visibility is tracked separately from `selectedOrder` (never cleared
+  // back to null on close) — otherwise, since the ?orderId param is never
+  // cleared either, closing the modal (or a status update auto-closing it)
+  // would immediately re-satisfy this effect's guard and reopen it in a
+  // loop.
+  useEffect(() => {
+    if (params.orderId && !detailsVisible && !selectedOrder && orders.length > 0) {
+      const target = orders.find((o) => o.id === params.orderId);
+      if (target) {
+        setSelectedOrder(target);
+        setDetailsVisible(true);
+      }
+    }
+  }, [params.orderId, orders, detailsVisible, selectedOrder]);
+
+  const openOrderDetails = (order: Order) => {
+    setSelectedOrder(order);
+    setDetailsVisible(true);
+  };
 
   const filteredOrders = useMemo(() => {
     if (filter === "all") return orders;
@@ -32,6 +67,22 @@ export default function VendorOrders() {
     }
     return orders;
   }, [orders, filter]);
+
+  // filteredOrders is already sorted desc (from the underlying query), so
+  // consecutive same-day orders naturally land in the same group here.
+  const groupedOrders = useMemo(() => {
+    const groups: { label: string; items: Order[] }[] = [];
+    filteredOrders.forEach((order) => {
+      const label = getDateLabel(order.createdAt?.seconds);
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.label === label) {
+        lastGroup.items.push(order);
+      } else {
+        groups.push({ label, items: [order] });
+      }
+    });
+    return groups;
+  }, [filteredOrders]);
 
   const formatMoney = (amount: number) => formatCurrency(amount);
 
@@ -107,74 +158,69 @@ export default function VendorOrders() {
             <P className="text-zinc-400 font-bold mt-4">No orders found</P>
           </View>
         ) : (
-          filteredOrders.map((order) => (
-            <Pressable
-              key={order.id}
-              onPress={() => setSelectedOrder(order)}
-              className="bg-white p-4 mb-4 rounded-2xl border border-zinc-100 flex-row items-center justify-between shadow-sm active:scale-[0.98] transition-all"
-            >
-              <View className="flex-row items-center gap-4">
-                <View className="w-12 h-12 bg-zinc-50 rounded-full items-center justify-center border border-zinc-100">
-                  <Package size={20} color="#71717a" />
-                </View>
-                <View>
-                  <P className="font-bold text-base">
-                    {order.customerName || "Customer"}
-                  </P>
-                  <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
-                    #{order.id.slice(0, 8).toUpperCase()}
-                  </P>
-                  <View
-                    className={`self-start px-2 py-0.5 rounded-md ${
-                      ["paid", "delivered", "completed"].includes(order.status)
-                        ? "bg-green-100"
-                        : order.status === "sent-out"
-                        ? "bg-blue-100"
-                        : ["processing", "packaged"].includes(order.status)
-                        ? "bg-amber-100"
-                        : "bg-zinc-100"
-                    }`}
+          groupedOrders.map((group) => (
+            <View key={group.label} className="mb-2">
+              <P className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-2 mt-1">
+                {group.label}
+              </P>
+              {group.items.map((order) => {
+                const { bg: statusBg, text: statusText } = getOrderStatusColor(
+                  order.status
+                );
+                return (
+                  <Pressable
+                    key={order.id}
+                    onPress={() => openOrderDetails(order)}
+                    className="bg-white p-4 mb-4 rounded-2xl border border-zinc-100 flex-row items-center justify-between shadow-sm active:scale-[0.98] transition-all"
                   >
-                    <P
-                      className={`text-[10px] font-black uppercase ${
-                        ["paid", "delivered", "completed"].includes(
-                          order.status
-                        )
-                          ? "text-green-700"
-                          : order.status === "sent-out"
-                          ? "text-blue-700"
-                          : ["processing", "packaged"].includes(order.status)
-                          ? "text-amber-700"
-                          : "text-zinc-500"
-                      }`}
-                    >
-                      {order.status}
-                    </P>
-                  </View>
-                </View>
-              </View>
-              <View>
-                <P className="font-bold text-lg">
-                  {formatMoney(order.total || 0)}
-                </P>
-                <P className="text-xs text-zinc-400 text-right">
-                  {new Date(
-                    order.createdAt?.seconds * 1000
-                  ).toLocaleDateString()}
-                </P>
-              </View>
-            </Pressable>
+                    <View className="flex-row items-center gap-4">
+                      <View className="w-12 h-12 bg-zinc-50 rounded-full items-center justify-center border border-zinc-100">
+                        <Package size={20} color="#71717a" />
+                      </View>
+                      <View>
+                        <P className="font-bold text-base">
+                          {order.customerName || "Customer"}
+                        </P>
+                        <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
+                          #{order.id.slice(0, 8).toUpperCase()}
+                        </P>
+                        <View className={`self-start px-2 py-0.5 rounded-md ${statusBg}`}>
+                          <P className={`text-[10px] font-black uppercase ${statusText}`}>
+                            {order.status}
+                          </P>
+                        </View>
+                      </View>
+                    </View>
+                    <View>
+                      <P className="font-bold text-lg">
+                        {formatMoney(order.total || 0)}
+                      </P>
+                      <P className="text-xs text-zinc-400 text-right">
+                        {order.createdAt?.seconds
+                          ? new Date(
+                              order.createdAt.seconds * 1000
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : ""}
+                      </P>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
           ))
         )}
       </ScrollView>
 
       <VendorOrderDetails
         order={selectedOrder}
-        visible={!!selectedOrder}
-        onClose={() => setSelectedOrder(null)}
+        visible={detailsVisible}
+        onClose={() => setDetailsVisible(false)}
         onUpdate={() => {
           refreshStore();
-          setSelectedOrder(null);
+          setDetailsVisible(false);
         }}
       />
 

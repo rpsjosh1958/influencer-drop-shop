@@ -163,7 +163,7 @@ export function VendorStoreSwitcher({ visible, onClose }: VendorStoreSwitcherPro
                 onPress={() => {
                   onClose();
                   alert(userPlan === 'growth' 
-                    ? "Launch New Store coming soon to mobile!" 
+                    ? "Launch New Store coming soon to mobile! Available on web for now." 
                     : "Upgrade to Growth to add more stores.");
                 }}
                 className={cn(

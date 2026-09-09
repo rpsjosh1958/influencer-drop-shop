@@ -1,0 +1,36 @@
+<!--
+  THE DROP — New complaint notification
+  Sent to the vendor (store-target complaints) or safety@copdrop.io
+  (platform-target reports) via functions/src/index.ts, onComplaintCreated.
+  Just restyled today to match the rest of the templates.
+
+  Placeholders:
+    {{storeName}}   {{customerName}}   {{customerEmail}}
+    {{subject}}      {{message}}
+-->
+<div style="font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #000000; color: #ffffff; padding: 60px 20px; text-align: center;">
+  <div style="max-width: 600px; margin: 0 auto;">
+    <img src="https://copdrop.io/assets/landing/drop_logo.svg" alt="THE DROP" style="width: 80px; height: 80px; margin-bottom: 20px;" />
+    <h1 style="font-size: 48px; font-weight: 900; margin-bottom: 10px; letter-spacing: -2px; color: #ffffff;">New Complaint.</h1>
+    <div style="width: 50px; height: 4px; background: linear-gradient(90deg, #A855F7, #EC4899, #F97316); margin: 0 auto 30px;"></div>
+
+    <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 30px; text-align: left;">
+      <strong>Store:</strong> {{storeName}}<br/>
+      <strong>Customer:</strong> {{customerName}} ({{customerEmail}})<br/>
+      <strong>Subject:</strong> {{subject}}
+    </p>
+
+    <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left; border: 1px solid #333;">
+      <h3 style="margin-top: 0; margin-bottom: 15px; color: #ffffff;">Message</h3>
+      <p style="white-space: pre-wrap; margin: 0; color: #ccc;">{{message}}</p>
+    </div>
+
+    <a href="https://copdrop.io/admin/complaints" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 18px 40px; border-radius: 50px; text-decoration: none; font-weight: 900; font-size: 16px;">
+      View in Dashboard
+    </a>
+
+    <p style="margin-top: 60px; font-size: 12px; color: #666666;">
+      © 2026 THE DROP. • Accra, Ghana
+    </p>
+  </div>
+</div>

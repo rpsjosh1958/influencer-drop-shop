@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   createUserWithEmailAndPassword,
   updateProfile,
-  onAuthStateChanged,
 } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
@@ -37,6 +36,10 @@ const getCityOptions = (countryCode: string) => {
 
 export default function ShopSignup() {
   const router = useRouter();
+  const params = useParams();
+  const storeId = (
+    Array.isArray(params?.storeId) ? params.storeId[0] : params?.storeId
+  ) as string;
 
   // Auth State
   const [email, setEmail] = useState("");
@@ -55,14 +58,12 @@ export default function ShopSignup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        router.replace("/");
-      }
-    });
-    return () => unsub();
-  }, [router]);
+  // Note: there's no auth-redirect effect here — ShopLayoutWrapper (the
+  // layout this page renders inside) already owns "already logged in,
+  // bounce off the auth page" as a single source of truth. A duplicate
+  // listener here used to race it and redirect to the site root instead
+  // of this store, which could leave the user stuck looking like they
+  // were still on the signup page after a successful sign-up.
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,7 +101,7 @@ export default function ShopSignup() {
         createdAt: serverTimestamp(),
       });
 
-      router.push("/");
+      router.push(`/shop/${storeId}`);
     } catch (err) {
       if (getErrorCode(err) === "auth/email-already-in-use") {
         setError("Email is already registered.");
@@ -238,10 +239,7 @@ export default function ShopSignup() {
         <p className="text-center text-zinc-500 text-sm">
           Already have an account?{" "}
           <button
-            onClick={() => {
-              const storeIdStr = window.location.pathname.split("/")[2];
-              router.push(`/shop/${storeIdStr}/login`);
-            }}
+            onClick={() => router.push(`/shop/${storeId}/login`)}
             className="text-black font-bold hover:underline"
           >
             Sign in
