@@ -8,6 +8,8 @@ import {
   where,
   getDocs,
   collectionGroup,
+  orderBy,
+  limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
@@ -19,39 +21,76 @@ import {
   Activity,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toJsDate } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
+
+// Orders in any of these statuses represent a real, uncancelled sale — used
+// to sum gross revenue platform-wide. Doesn't subtract partial refunds
+// (see functions/src/refunds.ts) since a partially-refunded order's status
+// flips to "partially_refunded" and drops out of this list entirely,
+// undercounting slightly rather than overcounting — acceptable precision
+// for a dashboard summary, not exact accounting.
+const REVENUE_STATUSES = [
+  "paid",
+  "processing",
+  "packaged",
+  "sent-out",
+  "shipped",
+  "delivered",
+  "completed",
+];
+
+interface RecentActivity {
+  id: string;
+  message: string;
+  createdAt: ReturnType<typeof toJsDate>;
+}
 
 export default function SuperAdminDashboard() {
   const [stats, setStats] = useState({
     totalUsers: 0,
     activeVendors: 0,
-    totalRevenue: 0, // Mocked for now, needs complex aggregation
+    totalRevenue: 0,
     activeTickets: 0,
-    recentLogs: 0,
   });
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        // Parallel fetching
-        const [usersSnap, vendorsSnap, ticketSnap] = await Promise.all([
-          // Total Users (Assuming 'users' collection includes everyone)
-          getCountFromServer(collection(db, "users")),
-          // Active Vendors (Stores)
-          getCountFromServer(collection(db, "stores")),
-          // Active Tickets (Vendor + Platform)
-          getCountFromServer(
-            query(collectionGroup(db, "tickets"), where("status", "==", "open"))
-          ),
-        ]);
+        const [usersSnap, vendorsSnap, ticketSnap, ordersSnap, recentStoresSnap] =
+          await Promise.all([
+            getCountFromServer(collection(db, "users")),
+            getCountFromServer(collection(db, "stores")),
+            getCountFromServer(
+              query(collectionGroup(db, "tickets"), where("status", "==", "open"))
+            ),
+            getDocs(
+              query(collectionGroup(db, "orders"), where("status", "in", REVENUE_STATUSES))
+            ),
+            getDocs(query(collection(db, "stores"), orderBy("createdAt", "desc"), limit(5))),
+          ]);
+
+        const totalRevenue = ordersSnap.docs.reduce(
+          (sum, d) => sum + (d.data().total || 0),
+          0
+        );
 
         setStats({
           totalUsers: usersSnap.data().count,
           activeVendors: vendorsSnap.data().count,
-          totalRevenue: 154200.5, // TODO: Implement Revenue Aggregation
+          totalRevenue,
           activeTickets: ticketSnap.data().count,
-          recentLogs: 0,
         });
+
+        setRecentActivity(
+          recentStoresSnap.docs.map((d) => ({
+            id: d.id,
+            message: `New vendor "${d.data().name || d.id}" registered.`,
+            createdAt: toJsDate(d.data().createdAt),
+          }))
+        );
       } catch (error) {
         console.error("Error fetching admin stats:", error);
       } finally {
@@ -65,8 +104,7 @@ export default function SuperAdminDashboard() {
   const metrics = [
     {
       label: "Total Revenue",
-      value: `GHS ${stats.totalRevenue.toLocaleString()}`,
-      change: "+12%",
+      value: formatCurrency(stats.totalRevenue),
       icon: DollarSign,
       color: "text-emerald-500",
       bg: "bg-emerald-500/10",
@@ -75,7 +113,6 @@ export default function SuperAdminDashboard() {
     {
       label: "Active Vendors",
       value: stats.activeVendors,
-      change: "+5",
       icon: Store,
       color: "text-blue-500",
       bg: "bg-blue-500/10",
@@ -84,7 +121,6 @@ export default function SuperAdminDashboard() {
     {
       label: "Total Users",
       value: stats.totalUsers,
-      change: "+24",
       icon: Users,
       color: "text-purple-500",
       bg: "bg-purple-500/10",
@@ -93,7 +129,6 @@ export default function SuperAdminDashboard() {
     {
       label: "Active Tickets",
       value: stats.activeTickets,
-      change: "Needs Attention",
       icon: Megaphone,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
@@ -126,11 +161,6 @@ export default function SuperAdminDashboard() {
               <div className={`p-3 rounded-xl ${metric.bg}`}>
                 <metric.icon className={`w-6 h-6 ${metric.color}`} />
               </div>
-              <span
-                className={`text-xs font-bold px-2 py-1 rounded-full ${metric.bg} ${metric.color}`}
-              >
-                {metric.change}
-              </span>
             </div>
             <div className="space-y-1">
               <h3 className="text-zinc-400 text-sm font-medium">
@@ -142,7 +172,7 @@ export default function SuperAdminDashboard() {
         ))}
       </div>
 
-      {/* Charts / Activity Feed Placeholder */}
+      {/* Charts / Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 p-6 rounded-2xl border border-zinc-800 bg-zinc-900/50 min-h-[400px]">
           <div className="flex items-center gap-2 mb-6">
@@ -150,30 +180,34 @@ export default function SuperAdminDashboard() {
             <h3 className="font-bold text-white">Revenue Trends</h3>
           </div>
           <div className="h-full flex items-center justify-center text-zinc-500 text-sm">
-            Chart Placeholder
+            Coming soon — needs day-by-day revenue aggregation.
           </div>
         </div>
 
         <div className="p-6 rounded-2xl border border-zinc-800 bg-zinc-900/50">
           <div className="flex items-center gap-2 mb-6">
             <Activity className="w-5 h-5 text-zinc-400" />
-            <h3 className="font-bold text-white">Recent System Activity</h3>
+            <h3 className="font-bold text-white">Recently Registered Vendors</h3>
           </div>
           <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="flex gap-3 items-start p-3 hover:bg-white/5 rounded-lg transition-colors"
-              >
-                <div className="w-2 h-2 mt-2 rounded-full bg-blue-500" />
-                <div>
-                  <p className="text-sm text-zinc-300">
-                    New vendor "Streetwear Co" registered.
-                  </p>
-                  <p className="text-xs text-zinc-500">2 mins ago</p>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-zinc-500">No vendors registered yet.</p>
+            ) : (
+              recentActivity.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex gap-3 items-start p-3 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <div className="w-2 h-2 mt-2 rounded-full bg-blue-500 shrink-0" />
+                  <div>
+                    <p className="text-sm text-zinc-300">{item.message}</p>
+                    <p className="text-xs text-zinc-500">
+                      {item.createdAt?.toLocaleDateString() || "Unknown date"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

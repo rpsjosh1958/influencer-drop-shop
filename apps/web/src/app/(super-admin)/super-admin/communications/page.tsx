@@ -2,32 +2,44 @@
 
 import { useState } from "react";
 import { Send, Users, Megaphone } from "lucide-react";
+import { auth } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/errors";
 
 export default function CommunicationsPage() {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [target, setTarget] = useState<"all" | "basic" | "growth">("all");
+  const [target, setTarget] = useState<"all" | "starter" | "growth">("all");
   const [sending, setSending] = useState(false);
 
   const handleSend = async () => {
     if (!subject || !message) return;
+    if (!auth.currentUser) return;
 
     setSending(true);
     try {
+      const idToken = await auth.currentUser.getIdToken();
       const res = await fetch("/api/admin/broadcast", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${idToken}`,
+        },
         body: JSON.stringify({ subject, message, target }),
       });
 
-      if (!res.ok) throw new Error("Failed to send");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send");
 
-      alert("Broadcast sent successfully");
+      alert(
+        data.count > 0
+          ? `Broadcast sent to ${data.count} of ${data.recipients} vendor(s).`
+          : `No vendors matched "${target}" — nothing was sent.`
+      );
       setSubject("");
       setMessage("");
     } catch (error) {
       console.error("Broadcast failed", error);
-      alert("Failed to send broadcast");
+      alert(`Failed to send broadcast: ${getErrorMessage(error)}`);
     } finally {
       setSending(false);
     }
@@ -48,7 +60,7 @@ export default function CommunicationsPage() {
             Target Audience
           </label>
           <div className="flex gap-2">
-            {(["all", "basic", "growth"] as const).map((t) => (
+            {(["all", "starter", "growth"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTarget(t)}
