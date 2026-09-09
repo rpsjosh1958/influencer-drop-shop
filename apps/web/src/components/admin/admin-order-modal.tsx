@@ -82,6 +82,13 @@ export function AdminOrderModal({
   const hasPendingRefund =
     order.refundStatus === "pending" || order.refundStatus === "processing";
 
+  // Bridges the gap between the callable succeeding and the (async, ~1s)
+  // query refetch actually flowing the real refundStatus back into the
+  // `order` prop — without this, a successful refund showed nothing at
+  // all until that refetch landed, which looked like it silently did
+  // nothing. Clears itself once real data arrives (hasPendingRefund).
+  const [justInitiated, setJustInitiated] = useState<number | null>(null);
+
   const handleRefund = async () => {
     if (!storeId || refunding) return;
     const amount = refundAmount ? parseFloat(refundAmount) : undefined;
@@ -97,9 +104,10 @@ export function AdminOrderModal({
         { storeId: string; orderId: string; amount?: number },
         { status: string; amount: number }
       >(functions, "refundOrder");
-      await refundOrderFn({ storeId, orderId: order.id, amount });
+      const result = await refundOrderFn({ storeId, orderId: order.id, amount });
       setShowRefundForm(false);
       setRefundAmount("");
+      setJustInitiated(result.data.amount);
       if (onUpdate) onUpdate();
     } catch (error) {
       setRefundError(getErrorMessage(error));
@@ -226,6 +234,12 @@ export function AdminOrderModal({
                       Refund
                     </h4>
                     <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 space-y-3">
+                      {justInitiated !== null && !hasPendingRefund && (
+                        <p className="text-sm font-bold text-green-600 flex items-center gap-2">
+                          <CheckCircle2 size={16} />
+                          Refund of {formatCurrency(justInitiated)} initiated — updating status…
+                        </p>
+                      )}
                       {refundedSoFar > 0 && (
                         <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                           {formatCurrency(refundedSoFar)} refunded so far

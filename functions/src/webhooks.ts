@@ -111,8 +111,21 @@ export const paystackWebhook = onRequest(async (req, res) => {
         const orderSnap = await orderRef.get();
         if (!orderSnap.exists) break;
         const order = orderSnap.data()!;
-        const refundedAmountGHS = Number(data.amount) / 100;
 
+        // Idempotency: Paystack retries a webhook delivery that didn't get
+        // a 200 (every 3 min for 4 tries, then hourly for 72h), and could
+        // in principle redeliver the same refund.processed event twice.
+        // applyProcessedRefund clears pendingRefundAmount once it runs, so
+        // its absence means this exact in-flight refund was already
+        // applied — skip re-debiting the vendor for the same refund twice.
+        if (order.pendingRefundAmount === undefined) {
+          logger.info(
+            `refund.processed: no pending refund on ${orderRef.id}, treating as already applied`
+          );
+          break;
+        }
+
+        const refundedAmountGHS = Number(data.amount) / 100;
         await applyProcessedRefund(orderRef, order, refundedAmountGHS);
 
         if (order.userId && order.userId !== "guest") {

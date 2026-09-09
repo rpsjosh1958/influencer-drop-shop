@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   collection,
@@ -98,6 +98,21 @@ export default function OrdersPage() {
 
   // Selected Order for Modal
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  // The modal's `order` prop was a one-time snapshot from whichever click
+  // opened it — onUpdate() only invalidated the background list query, it
+  // never flowed back into this selected copy, so a refund/status change
+  // made *inside* the modal never actually showed up there (only after
+  // closing and reopening it). Keep it synced to the live query data
+  // instead, by id, whenever the list refetches while it's open.
+  useEffect(() => {
+    if (!selectedOrder) return;
+    const fresh = orders.find((o) => o.id === selectedOrder.id);
+    if (fresh && fresh !== selectedOrder) {
+      setSelectedOrder(fresh);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders]);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -199,6 +214,9 @@ export default function OrdersPage() {
         return "bg-purple-100 text-purple-700";
       case "delivered":
         return "bg-green-100 text-green-700";
+      case "refunded":
+      case "partially_refunded":
+        return "bg-red-100 text-red-700";
       default:
         return "bg-zinc-100 text-zinc-700";
     }
@@ -428,6 +446,17 @@ export default function OrdersPage() {
                       >
                         {order.status === "paid" ? "OPEN" : order.status}
                       </span>
+                      {(order.refundStatus === "pending" ||
+                        order.refundStatus === "processing") && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-current opacity-90">
+                          Refund Pending
+                        </span>
+                      )}
+                      {order.refundStatus === "needs-attention" && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-current opacity-90">
+                          Refund Needs Attention
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
