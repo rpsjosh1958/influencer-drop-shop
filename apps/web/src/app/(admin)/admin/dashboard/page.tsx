@@ -497,29 +497,38 @@ export default function AdminDashboard() {
         </div>
         {/* Actions */}
         <div className="flex flex-row items-center gap-3">
-          <select
-            data-tour="dashboard-filter"
-            value={selectedMonth || ""}
-            onChange={(e) => setSelectedMonth(e.target.value || null)}
-            className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black h-12"
-          >
-            <option value="">All Time</option>
-            {Array.from({ length: 12 }).map((_, i) => {
-              const d = new Date();
-              d.setDate(1);
-              d.setMonth(d.getMonth() - i);
-              const value = `${d.getFullYear()}-${d.getMonth()}`;
-              const label = d.toLocaleDateString("default", {
-                month: "short",
-                year: "numeric",
-              });
-              return (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              );
-            })}
-          </select>
+          <div className="relative">
+            <select
+              data-tour="dashboard-filter"
+              value={selectedMonth || ""}
+              onChange={(e) => setSelectedMonth(e.target.value || null)}
+              className={`bg-white dark:bg-zinc-900 border rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black h-12 ${
+                selectedMonth
+                  ? "border-black dark:border-white ring-1 ring-black dark:ring-white"
+                  : "border-zinc-200 dark:border-zinc-800"
+              }`}
+            >
+              <option value="">All Time</option>
+              {Array.from({ length: 12 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(1);
+                d.setMonth(d.getMonth() - i);
+                const value = `${d.getFullYear()}-${d.getMonth()}`;
+                const label = d.toLocaleDateString("default", {
+                  month: "short",
+                  year: "numeric",
+                });
+                return (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+            {selectedMonth && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-black dark:bg-white border-2 border-white dark:border-zinc-950" />
+            )}
+          </div>
 
           {/* The Big Switch */}
           <div 

@@ -111,7 +111,11 @@ export default function Signup() {
       });
 
       console.log("Signup success:", user.uid);
-      // Router replacement is handled by root layout listener usually, but forcing here works too
+      // Same fix as login.tsx's customer branch: don't rely on an ambient
+      // onAuthStateChanged listener elsewhere in the stack to notice this
+      // and redirect — it may not be mounted, leaving the user stuck on
+      // this screen despite a genuinely successful signup.
+      router.replace("/(tabs)");
     } catch (err) {
       if (err instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};

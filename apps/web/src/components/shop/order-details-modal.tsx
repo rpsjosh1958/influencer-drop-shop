@@ -335,6 +335,9 @@ export function OrderDetailsModal() {
                                 ? "bg-blue-100 text-blue-700 border-blue-200"
                                 : order.status === "packaged"
                                 ? "bg-purple-100 text-purple-700 border-purple-200"
+                                : order.status === "refunded" ||
+                                  order.status === "partially_refunded"
+                                ? "bg-red-100 text-red-700 border-red-200"
                                 : "bg-yellow-100 text-yellow-700 border-yellow-200"
                             }`}
                           >

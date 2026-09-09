@@ -75,7 +75,17 @@ service cloud.firestore {
       // just not theme.
       allow update: if isSuperAdmin() || (
         isStoreOwner() &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId'])
+        // plan/planExpiresAt/planChangedAt/isTrial/billingCycle are
+        // server-side only, written by the Cloud Functions plan-sync chain
+        // (onStoreCreated / onUserSubscriptionUpdated / onStoreUpdated)
+        // after a verified Paystack payment (subscriptionPayments.ts). A
+        // direct client write of plan:'growth' here was previously
+        // unblocked, and onStoreUpdated's "before.plan==starter &&
+        // after.plan==growth" upgrade-detection block can't tell a spoofed
+        // write from a real one — it would have set isVerified:true,
+        // released pending funds, and cascaded a free Growth plan to every
+        // store the user owns.
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle'])
         && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
         // onboardingStatus was previously untouched by the blocklist above —
         // an owner could self-write straight to "approved", bypassing admin
@@ -197,32 +207,53 @@ service cloud.firestore {
       match /bookings/{bookingId} {
         // Anyone can create a booking (public checkout)
         allow create: if true;
-        
+
         // Store Owner can read all bookings for their store
         // Authenticated customers can read their own bookings
         allow read: if isParentStoreOwner() ||
           (isAuthenticated() && resource.data.customerId == request.auth.uid) ||
           isSuperAdmin();
-        
+
+        // Reads the vendor's configured cancellation-notice window
+        // (stores/{storeId}/availability/settings.cancellationHours),
+        // defaulting to 24h to match the client's own default
+        // (booking-details-modal.tsx's useState(24)).
+        function cancellationHoursLimit() {
+          return exists(/databases/$(database)/documents/stores/$(storeId)/availability/settings)
+            ? get(/databases/$(database)/documents/stores/$(storeId)/availability/settings).data.get('cancellationHours', 24)
+            : 24;
+        }
+
+        // Reconstructs the appointment's start timestamp from the booking's
+        // date ("2026-01-15") + startTime ("14:00") string fields.
+        function appointmentStart() {
+          let d = resource.data.date.split('-');
+          let t = resource.data.startTime.split(':');
+          return timestamp.date(int(d[0]), int(d[1]), int(d[2]))
+            + duration.value(int(t[0]), 'h')
+            + duration.value(int(t[1]), 'm');
+        }
+
         // Store owner can update anything (confirm, cancel, complete).
         // A customer can also cancel their OWN pending/confirmed booking —
         // both web and mobile's booking-details-modal already call this
-        // directly from the client (no Cloud Function), but this rule only
-        // ever allowed the store owner, so every real customer cancellation
-        // attempt was silently rejected. Scoped tightly: only a pending or
-        // confirmed booking can move to cancelled, and only the
-        // status/cancelledBy/updatedAt fields the client actually writes —
-        // the cancellation-notice-hours window itself stays client-enforced
-        // only (booking-details-modal's canCancel()), same trust level as
-        // other UI-only time checks elsewhere in this app.
+        // directly from the client (no Cloud Function). Scoped tightly:
+        // only a pending or confirmed booking can move to cancelled, only
+        // the status/cancelledBy/updatedAt fields the client actually
+        // writes, AND only while still outside the vendor's cancellation-
+        // notice window — this used to be enforced client-side only
+        // (canCancel()/canCancel() in booking-details-modal.tsx), so a
+        // direct Firestore write could cancel a booking with zero notice
+        // despite the UI hiding that option. Now enforced server-side too.
         allow update: if isParentStoreOwner() || (
           isAuthenticated() &&
           resource.data.customerId == request.auth.uid &&
           (resource.data.status == 'pending' || resource.data.status == 'confirmed') &&
           request.resource.data.status == 'cancelled' &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt'])
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'cancelledBy', 'updatedAt']) &&
+          request.time + duration.value(cancellationHoursLimit(), 'h') <= appointmentStart()
         );
-        
+
         // Store owner can delete bookings
         allow delete: if isParentStoreOwner();
       }

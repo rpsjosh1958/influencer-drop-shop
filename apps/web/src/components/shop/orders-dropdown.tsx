@@ -244,6 +244,9 @@ export function OrdersDropdown({ isOpen, onClose, user }: OrdersDropdownProps) {
                                   ? "bg-green-50 text-green-600 border-green-100"
                                   : order.status === "sent-out"
                                   ? "bg-blue-50 text-blue-600 border-blue-100"
+                                  : order.status === "refunded" ||
+                                    order.status === "partially_refunded"
+                                  ? "bg-red-50 text-red-600 border-red-100"
                                   : "bg-yellow-50 text-yellow-600 border-yellow-100"
                               }`}
                             >

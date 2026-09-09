@@ -45,12 +45,20 @@ export default function Login() {
       // Auth
       await signInWithEmailAndPassword(auth, data.email, data.password);
 
-      // Force navigation if intended (safety fallback if listener is unmounted)
+      // Force navigation — this used to rely on app/index.tsx's own
+      // onAuthStateChanged listener to notice the sign-in and redirect,
+      // but that only works if index.tsx is still mounted somewhere below
+      // this screen in the stack. It commonly isn't (e.g. right after a
+      // vendor logout, which now calls router.dismissAll() before
+      // replacing to this screen) — sign-in would succeed with nothing
+      // left to react to it, leaving the user stuck looking at the login
+      // form despite genuinely being signed in (visible on any other
+      // screen, just never navigated to). The vendor branch below already
+      // had this exact fallback; the customer branch never did.
       if (isVendor) {
         router.replace("/(vendor)/(tabs)/dashboard");
       } else {
-        // Allow root listener or default flow
-        // router.replace("/(tabs)");
+        router.replace("/(tabs)");
       }
     } catch (err) {
       console.log("Login error:", err);

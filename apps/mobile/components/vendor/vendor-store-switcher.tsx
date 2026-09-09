@@ -71,7 +71,7 @@ export function VendorStoreSwitcher({ visible, onClose }: VendorStoreSwitcherPro
           >
             <View className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex-row items-center justify-between">
               <View>
-                <H1 className="text-2xl text-white uppercase tracking-tighter">Your Stores</H1>
+                <H1 className="text-2xl text-black uppercase tracking-tighter">Your Stores</H1>
                 <P className="text-xs text-zinc-500 font-bold uppercase tracking-widest">
                   {userPlan === 'growth' ? 'Growth Plan' : 'Starter Plan'}
                 </P>

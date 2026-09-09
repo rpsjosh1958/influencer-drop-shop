@@ -159,6 +159,9 @@ export default function OrdersScreen() {
         return "text-blue-600 bg-blue-50 border-blue-100";
       case "packaged":
         return "text-purple-600 bg-purple-50 border-purple-100";
+      case "refunded":
+      case "partially_refunded":
+        return "text-red-600 bg-red-50 border-red-100";
       default:
         return "text-yellow-600 bg-yellow-50 border-yellow-100";
     }
