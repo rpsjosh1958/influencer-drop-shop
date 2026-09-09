@@ -265,10 +265,8 @@ export interface AvailabilitySettings {
   updatedAt?: FirestoreTimestampLike;
 }
 
-// Store-scoped vendor support ticket (stores/{storeId}/tickets) — distinct
-// from the separate top-level `tickets` collection used by the
-// super-admin/tickets page, which has its own narrower "open"|"closed"
-// status vocabulary.
+// Store-scoped vendor support ticket (stores/{storeId}/tickets), read
+// platform-wide by super-admin/support via a collectionGroup query.
 export interface Ticket {
   id: string;
   storeId: string;

@@ -19,7 +19,7 @@ export default function VendorsPage() {
   const [vendors, setVendors] = useState<StoreConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "basic" | "growth">("all");
+  const [filter, setFilter] = useState<"all" | "starter" | "growth">("all");
   const [actionOpen, setActionOpen] = useState<string | null>(null);
   const [selectedVendor, setSelectedVendor] = useState<StoreConfig | null>(
     null
@@ -53,11 +53,15 @@ export default function VendorsPage() {
   };
 
   const handleVerify = async (storeId: string, currentStatus: boolean) => {
+    // isVerified is normally derived automatically (Growth plan + approved
+    // onboarding) — this is a manual override, so it can drift from that
+    // rule until the store's next plan change recomputes it. Worth being
+    // explicit about that here rather than a bare yes/no.
     if (
       !confirm(
-        `Are you sure you want to ${
-          currentStatus ? "unverify" : "verify"
-        } this vendor?`
+        currentStatus
+          ? "Remove the Verified badge from this vendor? This is a manual override — it may be reinstated automatically the next time their plan changes, since isVerified is normally derived from Growth plan + approved onboarding."
+          : "Manually grant this vendor the Verified badge? Normally this is automatic (Growth plan + approved onboarding) — only do this as a deliberate override."
       )
     )
       return;
@@ -89,7 +93,7 @@ export default function VendorsPage() {
       slug.toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
 
-    if (filter === "basic") return v.plan !== "growth";
+    if (filter === "starter") return v.plan !== "growth";
     if (filter === "growth") return v.plan === "growth";
     return true;
   });
@@ -120,10 +124,10 @@ export default function VendorsPage() {
             />
           </div>
           <div className="flex bg-zinc-900 rounded-xl p-1 border border-zinc-700">
-            {["all", "basic", "growth"].map((f) => (
+            {["all", "starter", "growth"].map((f) => (
               <button
                 key={f}
-                onClick={() => setFilter(f as "all" | "basic" | "growth")}
+                onClick={() => setFilter(f as "all" | "starter" | "growth")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-all ${
                   filter === f
                     ? "bg-zinc-800 text-white shadow-sm"
@@ -190,7 +194,7 @@ export default function VendorsPage() {
                         : "bg-zinc-800 text-zinc-400 border-zinc-700"
                     }`}
                   >
-                    {vendor.plan === "growth" ? "GROWTH" : "BASIC"}
+                    {vendor.plan === "growth" ? "GROWTH" : "STARTER"}
                   </span>
                 </td>
                 <td className="p-4">

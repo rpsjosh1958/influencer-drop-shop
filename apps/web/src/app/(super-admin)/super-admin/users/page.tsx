@@ -10,7 +10,10 @@ import { toJsDate } from "@/lib/utils";
 interface UserProfile {
   id: string;
   email: string;
-  name?: string;
+  // Customer signups write displayName; vendor signups (create-store) write
+  // fullName instead — this collection holds both, so check both.
+  displayName?: string;
+  fullName?: string;
   phone?: string;
   createdAt?: FirestoreTimestampLike;
 }
@@ -71,7 +74,7 @@ export default function UsersPage() {
                     </div>
                     <div>
                       <div className="font-bold text-white">
-                        {user.name || "Anonymous User"}
+                        {user.displayName || user.fullName || "Anonymous User"}
                       </div>
                       <div className="text-xs text-zinc-500 font-mono">
                         {user.id}

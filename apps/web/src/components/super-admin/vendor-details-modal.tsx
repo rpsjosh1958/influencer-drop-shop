@@ -62,7 +62,12 @@ export function VendorDetailsModal({
     phone?: string;
     vendorType?: "individual" | "company";
     contactPerson?: { name?: string; email?: string; phone?: string };
-    identity?: { ghanaCard?: string; companyDoc?: string };
+    identity?: {
+      ghanaCard?: string;
+      ghanaCardFrontUrl?: string;
+      ghanaCardBackUrl?: string;
+      companyDoc?: string;
+    };
   } | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [updatingOnboarding, setUpdatingOnboarding] = useState(false);
@@ -353,7 +358,7 @@ export function VendorDetailsModal({
               <div className="p-4 flex justify-between">
                 <span className="text-zinc-500 text-sm">Current Plan</span>
                 <span className="text-white text-sm capitalize">
-                  {store.plan || "Basic"}
+                  {store.plan || "Starter"}
                 </span>
               </div>
               <div className="p-4 flex justify-between">
@@ -426,6 +431,60 @@ export function VendorDetailsModal({
                         <span>Card Number</span>
                         <span className="text-white">{ownerData.identity.ghanaCard}</span>
                       </p>
+                    )}
+                    {(ownerData?.identity?.ghanaCardFrontUrl ||
+                      ownerData?.identity?.ghanaCardBackUrl) && (
+                      <div className="mt-2">
+                        <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1.5">
+                          Card Photos
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {ownerData.identity.ghanaCardFrontUrl ? (
+                            <a
+                              href={ownerData.identity.ghanaCardFrontUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block group"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={ownerData.identity.ghanaCardFrontUrl}
+                                alt="Ghana Card — front"
+                                className="w-full h-24 object-cover rounded-lg border border-zinc-800 group-hover:border-blue-500 transition-colors"
+                              />
+                              <p className="text-[9px] text-zinc-500 text-center mt-1 uppercase font-bold">
+                                Front
+                              </p>
+                            </a>
+                          ) : (
+                            <div className="h-24 rounded-lg border border-dashed border-zinc-800 flex items-center justify-center text-[10px] text-zinc-600">
+                              No front
+                            </div>
+                          )}
+                          {ownerData.identity.ghanaCardBackUrl ? (
+                            <a
+                              href={ownerData.identity.ghanaCardBackUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block group"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={ownerData.identity.ghanaCardBackUrl}
+                                alt="Ghana Card — back"
+                                className="w-full h-24 object-cover rounded-lg border border-zinc-800 group-hover:border-blue-500 transition-colors"
+                              />
+                              <p className="text-[9px] text-zinc-500 text-center mt-1 uppercase font-bold">
+                                Back
+                              </p>
+                            </a>
+                          ) : (
+                            <div className="h-24 rounded-lg border border-dashed border-zinc-800 flex items-center justify-center text-[10px] text-zinc-600">
+                              No back
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                     {ownerData?.identity?.companyDoc && (
                       <a 
