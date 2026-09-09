@@ -1170,6 +1170,7 @@ export const refundOrder = onCall(async (request) => {
 });
 
 export { paystackWebhook } from "./webhooks";
+export { resendWebhook } from "./inbound";
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
 export { checkSubscriptionExpiry };
 export { sendPasswordReset } from "./auth";

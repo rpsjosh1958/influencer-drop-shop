@@ -56,6 +56,12 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
+    // --- Inbound Emails (received via Resend Inbound, written server-side
+    // only by resendWebhook) ---
+    match /inbound_emails/{emailId} {
+      allow read: if isSuperAdmin();
+    }
+
     // --- Stores ---
     match /stores/{storeId} {
       // Public can view stores (for shopping)
