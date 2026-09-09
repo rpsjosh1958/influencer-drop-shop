@@ -15,8 +15,6 @@ import {
   Sparkles,
   Zap,
   Star,
-  Chrome,
-  Apple,
   Truck,
   Trophy,
   Gift,
@@ -196,34 +194,6 @@ export default function AdminLogin() {
               {loading ? <Loader2 className="animate-spin text-black" /> : "LOGIN"}
             </button>
           </form>
-
-          {/* Social Sign In Options */}
-          <div className="mt-8 space-y-6">
-            <div className="relative">
-              <div className="relative flex justify-center text-[10px] uppercase">
-                <span className="px-2 bg-transparent text-zinc-500 font-black tracking-widest">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-zinc-800/50 hover:bg-zinc-800 text-white border border-white/5 transition-all duration-300"
-              >
-                <Chrome size={16} />
-                <span>GOOGLE</span>
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-zinc-800/50 hover:bg-zinc-800 text-white border border-white/5 transition-all duration-300"
-              >
-                <Apple size={16} />
-                <span>APPLE</span>
-              </button>
-            </div>
-          </div>
 
           <div className="text-center mt-8 space-y-4">
             <p className="text-zinc-500 text-xs">

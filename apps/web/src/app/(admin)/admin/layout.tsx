@@ -22,6 +22,7 @@ import {
   Briefcase,
   Clock,
   Loader2,
+  Store,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, onAuthStateChanged } from "firebase/auth";
@@ -66,6 +67,21 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showBroadcast, setShowBroadcast] = useState(false);
   const [loading, setLoading] = useState(true);
+  // A logged-in account with no owned stores used to be silently redirected
+  // straight into the /create-store vendor-registration wizard — no
+  // explanation, and that page had no way to leave either. Show an
+  // explicit choice instead, since this is often just a customer who
+  // logged into the wrong portal by mistake, not someone who actually
+  // wants to register as a vendor right now.
+  const [showVendorPrompt, setShowVendorPrompt] = useState(false);
+  const [lastVisitedStore, setLastVisitedStore] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("copdrop_last_visited_store");
+      if (saved) setLastVisitedStore(saved);
+    }
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -120,9 +136,10 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
             const ownedStores = userData?.ownedStores || [];
 
             if (ownedStores.length > 0) {
+              setShowVendorPrompt(false);
               setLoading(false);
             } else {
-              router.push("/create-store");
+              setShowVendorPrompt(true);
               setLoading(false);
             }
           } else {
@@ -167,6 +184,52 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
         disableTransitionOnChange
       >
         {children}
+      </ThemeProvider>
+    );
+  }
+
+  // Logged in, but this account doesn't own a store — most often a
+  // customer account that ended up here by mistake, not necessarily
+  // someone who wants to register as a vendor right now.
+  if (showVendorPrompt) {
+    return (
+      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false} disableTransitionOnChange>
+        <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white p-6">
+          <div className="max-w-md w-full text-center space-y-6">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+              <Store className="w-8 h-8 text-zinc-500" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">No store linked to this account</h1>
+              <p className="text-zinc-400 text-sm mt-2">
+                This is the vendor admin portal, and this account isn&apos;t
+                registered as a vendor yet. Want to set one up?
+              </p>
+            </div>
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => router.push("/create-store")}
+                className="w-full py-3 bg-white text-black rounded-xl font-bold hover:bg-zinc-200 transition-colors"
+              >
+                Create a Store
+              </button>
+              <button
+                onClick={() =>
+                  router.push(lastVisitedStore ? `/shop/${lastVisitedStore}` : "/")
+                }
+                className="w-full py-3 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl font-bold hover:bg-zinc-800 transition-colors"
+              >
+                {lastVisitedStore ? "Back to Shopping" : "Back Home"}
+              </button>
+              <button
+                onClick={handleLogout}
+                className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest transition-colors mt-2"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
       </ThemeProvider>
     );
   }

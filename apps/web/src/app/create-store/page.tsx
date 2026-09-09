@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { auth, db, storage } from "@/lib/firebase"; 
 import {
   doc,
@@ -33,8 +34,6 @@ import {
   Sparkles,
   Zap,
   Star,
-  Chrome,
-  Apple,
   Truck,
   Trophy,
   Gift,
@@ -45,7 +44,8 @@ import {
   Gem,
   BadgePercent,
   Heart,
-  ChevronDown
+  ChevronDown,
+  ArrowLeft,
 } from "lucide-react";
 import { PasswordInput } from "@/components/ui/password-input";
 import { StoreSuccessModal } from "@/components/onboarding/store-success-modal";
@@ -91,6 +91,18 @@ export default function CreateStoreWizard() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // A real way out — this page previously had zero navigation at all, so
+  // anyone landing here who didn't actually want to register as a vendor
+  // (e.g. a customer redirected here by mistake) had no way to leave
+  // except closing the tab.
+  const [lastVisitedStore, setLastVisitedStore] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("copdrop_last_visited_store");
+      if (saved) setLastVisitedStore(saved);
+    }
+  }, []);
 
   // Wizard Step: 1 (Vendor) -> 2 (Store)
   const [step, setStep] = useState(1);
@@ -429,33 +441,16 @@ export default function CreateStoreWizard() {
   const inputClasses = "w-full p-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:ring-2 focus:ring-black outline-none font-medium text-black placeholder-zinc-400 transition-all text-sm";
   const labelClasses = "block text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 ml-1";
 
-  const SocialOptions = () => (
-    <div className="space-y-6 mb-8">
-      <div className="grid grid-cols-2 gap-4">
-        <button type="button" className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-zinc-50 hover:bg-zinc-100 text-black border border-zinc-200 transition-all">
-          <Chrome size={16} /> <span>GOOGLE</span>
-        </button>
-        <button type="button" className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-xs bg-zinc-50 hover:bg-zinc-100 text-black border border-zinc-200 transition-all">
-          <Apple size={16} /> <span>APPLE</span>
-        </button>
-      </div>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-zinc-100" />
-        </div>
-        <div className="relative flex justify-center text-[10px] uppercase">
-          <span className="px-2 bg-white text-zinc-400 font-black tracking-widest">
-            Or use email
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-screen w-full bg-white text-zinc-900 relative overflow-hidden flex items-center justify-center p-6">
-      
+      <Link
+        href={lastVisitedStore ? `/shop/${lastVisitedStore}` : "/"}
+        className="fixed top-6 left-6 z-20 flex items-center gap-2 text-xs font-black text-zinc-400 hover:text-black uppercase tracking-widest transition-colors"
+      >
+        <ArrowLeft size={16} />
+        {lastVisitedStore ? "Back to Shop" : "Back Home"}
+      </Link>
+
       {/* Floating E-commerce Icons */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <FloatingIcon icon={Package} x="10%" y="15%" delay={0} size={32} />
@@ -533,7 +528,6 @@ export default function CreateStoreWizard() {
                     onSubmit={handleLoginSubmit}
                     className="space-y-6"
                   >
-                    <SocialOptions />
 
                     <div className="space-y-4">
                       <div className="space-y-1">
@@ -689,7 +683,6 @@ export default function CreateStoreWizard() {
                       </div>
                     )}
 
-                    <SocialOptions />
 
                     {!user && (
                       <div className=" space-y-4">
