@@ -448,7 +448,7 @@ export function ProductForm({
                   {options.map((opt, idx) => (
                     <div
                       key={opt.id}
-                      className="flex flex-col md:flex-row items-start gap-3 p-3 bg-zinc-50 rounded-xl border border-zinc-100"
+                      className="flex flex-col md:flex-row items-start gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700"
                     >
                       <div className="w-full md:w-1/3">
                         <label className="text-[10px] font-bold uppercase text-zinc-400 mb-1 block">
@@ -460,7 +460,7 @@ export function ProductForm({
                             updateOptionName(idx, e.target.value)
                           }
                           placeholder="e.g. Size"
-                          className="w-full p-2 text-sm text-black border border-zinc-200 rounded-lg"
+                          className="w-full p-2 text-sm bg-white dark:bg-zinc-900 dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
                         />
                       </div>
                       <div className="flex-1 w-full">
@@ -478,7 +478,7 @@ export function ProductForm({
                               }
                             }}
                             placeholder="S, M, L, XL"
-                            className="flex-1 p-2 text-sm text-black border border-zinc-200 rounded-lg outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                            className="flex-1 p-2 text-sm bg-white dark:bg-zinc-900 dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
                           />
                           <button
                             type="button"
@@ -513,9 +513,9 @@ export function ProductForm({
 
                 {/* Variants Table */}
                 {variants.length > 0 && (
-                  <div className="border border-zinc-200 rounded-xl overflow-x-auto">
+                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="bg-zinc-50 border-b border-zinc-200">
+                      <thead className="bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700">
                         <tr>
                           <th className="p-3 font-bold text-zinc-500">
                             Variant
@@ -528,9 +528,9 @@ export function ProductForm({
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-100">
+                      <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                         {variants.map((v) => (
-                          <tr key={v.id} className="group hover:bg-zinc-20">
+                          <tr key={v.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                             <td className="p-3 font-bold">{v.name}</td>
                             <td className="p-3">
                               <input
@@ -540,7 +540,7 @@ export function ProductForm({
                                 onChange={(e) =>
                                   updateVariant(v.id, "price", e.target.value)
                                 }
-                                className="w-full p-2 bg-transparent border border-zinc-200 rounded-lg  ring-black"
+                                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
                               />
                             </td>
                             <td className="p-3">
@@ -550,7 +550,7 @@ export function ProductForm({
                                 onChange={(e) =>
                                   updateVariant(v.id, "stock", e.target.value)
                                 }
-                                className="w-full p-2 bg-transparent border border-zinc-200 rounded-lg ring-black"
+                                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
                               />
                             </td>
                           </tr>

@@ -550,7 +550,7 @@ export default function ProductFormScreen() {
                             onChangeText={(txt) => updateOptionName(idx, txt)}
                             placeholder="Option Name (e.g. Size)"
                             placeholderTextColor="#a1a1aa"
-                            className="bg-white border text-zinc-900 border-zinc-200 rounded-lg p-3 font-bold text-sm"
+                            className="bg-white border text-zinc-900 border-zinc-200 rounded-xl p-3 font-bold text-sm"
                           />
                         </View>
                         <View>
@@ -559,7 +559,7 @@ export default function ProductFormScreen() {
                             onChangeText={(txt) => updateOptionValues(idx, txt)}
                             placeholder="Values (e.g. S, M, L)"
                             placeholderTextColor="#a1a1aa"
-                            className="bg-white border text-zinc-900 border-zinc-200 rounded-lg p-3 font-bold text-sm"
+                            className="bg-white border text-zinc-900 border-zinc-200 rounded-xl p-3 font-bold text-sm"
                           />
                           <P className="text-[10px] text-zinc-400 mt-1 ml-1">
                             Separate values with commas
@@ -600,7 +600,7 @@ export default function ProductFormScreen() {
                     {variants.map((v) => (
                       <View
                         key={v.id}
-                        className="flex-row items-center bg-zinc-50 border border-zinc-100 p-3 rounded-xl mb-2 gap-3"
+                        className="flex-row items-center bg-white border border-zinc-100 p-3 rounded-xl mb-2 gap-3"
                       >
                         <View className="flex-1">
                           <P className="font-bold text-sm" numberOfLines={1}>
@@ -618,7 +618,7 @@ export default function ProductFormScreen() {
                               updateVariant(v.id, "price", txt)
                             }
                             keyboardType="numeric"
-                            className="bg-white border border-zinc-200 rounded-lg p-2 text-xs font-bold text-center"
+                            className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm font-bold text-center"
                             placeholder="0.00"
                           />
                         </View>
@@ -633,7 +633,7 @@ export default function ProductFormScreen() {
                               updateVariant(v.id, "stock", txt)
                             }
                             keyboardType="numeric"
-                            className="bg-white border border-zinc-200 rounded-lg p-2 text-xs font-bold text-center"
+                            className="bg-zinc-50 border border-zinc-200 rounded-xl p-3 text-sm font-bold text-center"
                             placeholder="0"
                           />
                         </View>
