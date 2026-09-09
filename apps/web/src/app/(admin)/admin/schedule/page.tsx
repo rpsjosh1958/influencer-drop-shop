@@ -10,6 +10,7 @@ import { DaySchedule, TimeSlot, AvailabilitySettings } from "@/types";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { LoadingState } from "@/components/admin/loading-state";
 
 const DAYS = [
   "monday",
@@ -171,11 +172,7 @@ export default function SchedulePage() {
     };
 
   if (storeLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-zinc-400" size={32} />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (

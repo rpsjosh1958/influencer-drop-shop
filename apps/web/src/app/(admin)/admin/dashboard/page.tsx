@@ -32,6 +32,7 @@ import {
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { LoadingState } from "@/components/admin/loading-state";
 import { formatCurrency, cn, toJsDate, getTimestampSeconds } from "@/lib/utils";
 import type { OrderItem, FirestoreTimestampLike } from "@/types";
 
@@ -402,11 +403,7 @@ export default function AdminDashboard() {
   };
 
   if (storeLoading || !storeId) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-zinc-900 dark:border-white"></div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (

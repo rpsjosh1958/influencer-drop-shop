@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { LoadingState } from "@/components/admin/loading-state";
+import { EmptyState } from "@/components/admin/empty-state";
 import { formatCurrency } from "@/lib/utils";
 import { Portal } from "@/components/ui/portal";
 import {
@@ -189,11 +191,7 @@ export default function BookingsPage() {
   };
 
   if (storeLoading || loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-zinc-400" size={32} />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
@@ -380,13 +378,11 @@ export default function BookingsPage() {
         /* List View */
         <div className="bg-white rounded-3xl border border-zinc-200 overflow-hidden">
           {bookings.length === 0 ? (
-            <div className="p-12 text-center">
-              <Calendar className="mx-auto text-zinc-300 mb-4" size={48} />
-              <h3 className="text-lg font-bold mb-2">No bookings yet</h3>
-              <p className="text-zinc-500">
-                Bookings will appear here when customers make appointments.
-              </p>
-            </div>
+            <EmptyState
+              icon={Calendar}
+              title="No bookings yet"
+              description="Bookings will appear here when customers make appointments."
+            />
           ) : (
             <table className="w-full">
               <thead className="bg-zinc-50 border-b border-zinc-100">

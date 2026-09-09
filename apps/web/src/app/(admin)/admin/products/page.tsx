@@ -28,7 +28,8 @@ import { AdminProductTable } from "@/components/admin/product-table";
 import { AdminProductCardMobile } from "@/components/admin/product-card-mobile";
 
 // Lucide Icons Import Fix
-import { Plus as PlusIcon, Trash2 as TrashIcon, Download as DownloadIcon, Share2 as ShareIcon, Loader2, Search } from "lucide-react";
+import { Plus as PlusIcon, Trash2 as TrashIcon, Download as DownloadIcon, Share2 as ShareIcon, Loader2, Search, Package } from "lucide-react";
+import { EmptyState } from "@/components/admin/empty-state";
 
 export default function ProductsPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -320,14 +321,15 @@ export default function ProductsPage() {
            ))}
         </div>
       ) : products.length === 0 ? (
-        <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
-          <p className="text-zinc-500">No products yet.</p>
-          <button
-            onClick={handleAdd}
-            className="mt-4 text-blue-500 hover:underline"
-          >
-            Create your first drop item
-          </button>
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
+          <EmptyState icon={Package} title="No products yet">
+            <button
+              onClick={handleAdd}
+              className="text-blue-500 hover:underline font-medium"
+            >
+              Create your first drop item
+            </button>
+          </EmptyState>
         </div>
       ) : (
         <div data-tour="products-table">

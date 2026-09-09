@@ -21,10 +21,12 @@ import {
   MoreHorizontal,
   Mail,
   MessageCircle,
+  Loader2,
 } from "lucide-react";
 import { Complaint } from "@/types";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { toJsDate } from "@/lib/utils";
+import { EmptyState } from "@/components/admin/empty-state";
 
 export default function AdminComplaintsPage() {
   const { storeId } = useAdminStore();
@@ -130,16 +132,15 @@ export default function AdminComplaintsPage() {
           {/* List */}
           <div className="flex-1 overflow-y-auto p-2 space-y-2">
             {loading ? (
-              <div className="p-4 text-center text-zinc-400">Loading...</div>
-            ) : filteredComplaints.length === 0 ? (
-              <div className="p-8 text-center">
-                <div className="h-10 w-10 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-3 text-zinc-400">
-                  <CheckCircle2 size={20} />
-                </div>
-                <p className="text-zinc-500 font-medium">
-                  No complaints found.
-                </p>
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="animate-spin text-zinc-400" size={24} />
               </div>
+            ) : filteredComplaints.length === 0 ? (
+              <EmptyState
+                icon={CheckCircle2}
+                title="No complaints found"
+                description="Customer inquiries will show up here."
+              />
             ) : (
               filteredComplaints.map((complaint) => (
                 <button

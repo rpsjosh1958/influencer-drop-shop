@@ -16,6 +16,8 @@ import { Loader2, Send, Plus, MessageSquare } from "lucide-react";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { Ticket } from "@/types";
 import { toJsDate } from "@/lib/utils";
+import { LoadingState } from "@/components/admin/loading-state";
+import { EmptyState } from "@/components/admin/empty-state";
 
 export default function VendorSupportPage() {
   const { storeId, userPlan, loading: storeLoading } = useAdminStore();
@@ -75,11 +77,7 @@ export default function VendorSupportPage() {
   };
 
   if (storeLoading || ticketsLoading) {
-    return (
-      <div className="h-96 flex items-center justify-center">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
@@ -175,12 +173,12 @@ export default function VendorSupportPage() {
 
       <div data-tour="support-tickets" className="space-y-4">
         {tickets.length === 0 ? (
-          <div className="text-center py-20 bg-zinc-50 rounded-3xl border-2 border-dashed border-zinc-200">
-            <MessageSquare className="mx-auto text-zinc-300 mb-4" size={48} />
-            <h3 className="font-bold text-zinc-400">No tickets yet</h3>
-            <p className="text-sm text-zinc-400">
-              Need help? Create a new ticket above.
-            </p>
+          <div className="bg-zinc-50 dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
+            <EmptyState
+              icon={MessageSquare}
+              title="No tickets yet"
+              description="Need help? Create a new ticket above."
+            />
           </div>
         ) : (
           tickets.map((ticket) => (

@@ -31,6 +31,8 @@ import { generateFinanceExcel } from "@/lib/excel-generator";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { formatCurrency, toJsDate } from "@/lib/utils";
 import type { StoreConfig, FirestoreTimestampLike } from "@/types";
+import { LoadingState } from "@/components/admin/loading-state";
+import { EmptyState } from "@/components/admin/empty-state";
 
 interface WalletTransaction {
   id: string;
@@ -216,11 +218,7 @@ export default function FinancePage() {
   });
 
   if (storeLoading || walletLoading || !wallet) {
-    return (
-      <div className="h-96 flex items-center justify-center">
-        <Loader2 className="animate-spin" />
-      </div>
-    );
+    return <LoadingState />;
   }
 
 
@@ -449,9 +447,11 @@ export default function FinancePage() {
 
         <div className="space-y-4">
           {transactions.length === 0 ? (
-            <div className="text-center py-10 text-zinc-400">
-              No transactions yet.
-            </div>
+            <EmptyState
+              icon={History}
+              title="No transactions yet"
+              description="Earnings from verified sales will show up here."
+            />
           ) : (
             transactions.map((tx) => (
               <div

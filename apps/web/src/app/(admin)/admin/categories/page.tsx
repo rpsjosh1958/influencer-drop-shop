@@ -14,9 +14,11 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Category } from "@/types";
-import { Plus, Trash2, Tag, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Tag, AlertCircle, Loader2 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { LoadingState } from "@/components/admin/loading-state";
+import { EmptyState } from "@/components/admin/empty-state";
 
 export default function CategoriesPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
@@ -89,11 +91,7 @@ export default function CategoriesPage() {
   const adding = addMutation.isPending;
 
   if (storeLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black dark:border-white"></div>
-      </div>
-    );
+    return <LoadingState />;
   }
 
   if (!storeId) {
@@ -158,13 +156,16 @@ export default function CategoriesPage() {
         {/* List */}
         <div data-tour="categories-list" className="lg:col-span-2">
           {loading ? (
-            <div className="text-center py-12 text-zinc-500">Loading...</div>
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="animate-spin text-zinc-400" size={24} />
+            </div>
           ) : categories.length === 0 ? (
-            <div className="text-center py-12 bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
-              <Tag className="mx-auto text-zinc-300 mb-2" size={32} />
-              <p className="text-zinc-500">
-                No categories found in this store.
-              </p>
+            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800">
+              <EmptyState
+                icon={Tag}
+                title="No categories yet"
+                description="Add your first category using the form."
+              />
             </div>
           ) : (
             <div className="space-y-3">

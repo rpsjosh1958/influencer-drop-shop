@@ -25,6 +25,7 @@ import { AdminOrderModal } from "@/components/admin/admin-order-modal";
 import { ManualOrderModal } from "@/components/admin/manual-order-modal";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { EmptyState } from "@/components/admin/empty-state";
 import { formatCurrency, toJsDate } from "@/lib/utils";
 import { startOfDay, endOfDay, isBefore, isAfter } from "date-fns";
 import "react-datepicker/dist/react-datepicker.css";
@@ -369,10 +370,12 @@ export default function OrdersPage() {
           Loading orders...
         </div>
       ) : filteredOrders.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200">
-          <ShoppingBag className="w-12 h-12 text-zinc-300 mb-4" />
-          <h3 className="text-lg font-medium">No orders found</h3>
-          <p className="text-zinc-500">Try adjusting your filters</p>
+        <div className="flex-1 flex items-center justify-center bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">
+          <EmptyState
+            icon={ShoppingBag}
+            title="No orders found"
+            description="Try adjusting your filters."
+          />
         </div>
       ) : (
         <>

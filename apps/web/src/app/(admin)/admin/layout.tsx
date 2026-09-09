@@ -21,6 +21,7 @@ import {
   Calendar,
   Briefcase,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut, onAuthStateChanged } from "firebase/auth";
@@ -48,7 +49,7 @@ export default function AdminLayout({
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+          <Loader2 className="animate-spin text-white" size={32} />
         </div>
       }
     >
@@ -151,7 +152,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <Loader2 className="animate-spin text-white" size={32} />
       </div>
     );
   }

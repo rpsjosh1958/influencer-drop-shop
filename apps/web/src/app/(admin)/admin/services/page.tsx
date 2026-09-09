@@ -32,6 +32,8 @@ import { ImageUpload } from "@/components/admin/image-upload";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Portal } from "@/components/ui/portal";
 import { HelpTrigger } from "@/context/onboarding-context";
+import { LoadingState } from "@/components/admin/loading-state";
+import { EmptyState } from "@/components/admin/empty-state";
 import { formatCurrency } from "@/lib/utils";
 
 interface ServiceFormPayload {
@@ -203,11 +205,7 @@ export default function ServicesPage() {
   );
 
   if (storeLoading || servicesLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-zinc-400" size={32} />
-      </div>
-    );
+    return <LoadingState />;
   }
 
   return (
@@ -247,18 +245,19 @@ export default function ServicesPage() {
 
       {/* Services Grid */}
       {filteredServices.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-zinc-200 p-12 text-center">
-          <Briefcase className="mx-auto text-zinc-300 mb-4" size={48} />
-          <h3 className="text-lg font-bold mb-2">No services yet</h3>
-          <p className="text-zinc-500 mb-6">
-            Create your first bookable service to get started.
-          </p>
-          <button
-            onClick={() => openModal()}
-            className="px-5 py-3 bg-black text-white rounded-xl font-bold"
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800">
+          <EmptyState
+            icon={Briefcase}
+            title="No services yet"
+            description="Create your first bookable service to get started."
           >
-            Add Your First Service
-          </button>
+            <button
+              onClick={() => openModal()}
+              className="px-5 py-3 bg-black text-white rounded-xl font-bold"
+            >
+              Add Your First Service
+            </button>
+          </EmptyState>
         </div>
       ) : (
         <div
