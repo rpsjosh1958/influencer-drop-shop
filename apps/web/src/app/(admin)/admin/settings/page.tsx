@@ -1030,7 +1030,7 @@ export default function StoreSettingsPage() {
                       <input
                         type="checkbox"
                         disabled={isFreePlan}
-                        checked={config.theme.hero.enabled}
+                        checked={isFreePlan ? true : config.theme.hero.enabled}
                         onChange={(e) =>
                           setNested(
                             ["theme", "hero", "enabled"],
@@ -1257,17 +1257,19 @@ export default function StoreSettingsPage() {
                     </div>
                   )}
 
+                  <div className={isFreePlan ? "opacity-50 pointer-events-none select-none space-y-6" : "space-y-6"}>
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-900">
                       Footer Text
                     </label>
                     <input
                       type="text"
+                      disabled={isFreePlan}
                       value={config.theme.footer.text}
                       onChange={(e) =>
                         setNested(["theme", "footer", "text"], e.target.value)
                       }
-                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 disabled:cursor-not-allowed"
                       placeholder="© 2025 My Store."
                     />
                   </div>
@@ -1280,6 +1282,7 @@ export default function StoreSettingsPage() {
                       <input
                         type="email"
                         placeholder="Contact Email"
+                        disabled={isFreePlan}
                         value={config.theme.footer.contact.email}
                         onChange={(e) =>
                           setNested(
@@ -1287,11 +1290,12 @@ export default function StoreSettingsPage() {
                             e.target.value
                           )
                         }
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 disabled:cursor-not-allowed"
                       />
                       <input
                         type="text"
                         placeholder="Store Address / Location"
+                        disabled={isFreePlan}
                         value={config.theme.footer.contact.address}
                         onChange={(e) =>
                           setNested(
@@ -1299,7 +1303,7 @@ export default function StoreSettingsPage() {
                             e.target.value
                           )
                         }
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 disabled:cursor-not-allowed"
                       />
                     </div>
 
@@ -1310,6 +1314,7 @@ export default function StoreSettingsPage() {
                       <input
                         type="text"
                         placeholder="Instagram (@username)"
+                        disabled={isFreePlan}
                         value={config.theme.footer.socials.instagram}
                         onChange={(e) =>
                           setNested(
@@ -1317,11 +1322,12 @@ export default function StoreSettingsPage() {
                             e.target.value
                           )
                         }
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 disabled:cursor-not-allowed"
                       />
                       <input
                         type="text"
                         placeholder="Twitter (@username)"
+                        disabled={isFreePlan}
                         value={config.theme.footer.socials.twitter}
                         onChange={(e) =>
                           setNested(
@@ -1329,9 +1335,10 @@ export default function StoreSettingsPage() {
                             e.target.value
                           )
                         }
-                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                        className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 disabled:cursor-not-allowed"
                       />
                     </div>
+                  </div>
                   </div>
                 </motion.div>
               )}
@@ -1465,7 +1472,7 @@ export default function StoreSettingsPage() {
                                 "Unlimited Stores (Pro Sync)",
                                 "2% Transaction Fee (Reduced from 8%)",
                                 "Verified Account Badge",
-                                "Instant Withdrawals & Advanced Styling",
+                                "Full Brand Customization",
                               ].map((item, i) => (
                                 <li
                                   key={i}
