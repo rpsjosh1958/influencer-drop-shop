@@ -198,6 +198,8 @@ export function BookingModal({
 
     const slots: string[] = [];
     const serviceDuration = service.duration;
+    const bufferTime = service.bufferTime || 0;
+    const totalSlotTime = serviceDuration + bufferTime;
 
     // We assume simple 30min intervals logic from web or use slots directly if defined
     // Web implementation iterates logic:
@@ -222,14 +224,23 @@ export function BookingModal({
           }
         }
 
-        // 2. Conflict Check
+        // 2. Conflict Check — extended by bufferTime on both sides so
+        // back-to-back bookings still leave the configured gap.
+        // slotStartTime/slotEndTime above stay buffer-free (the real
+        // appointment length shown to the customer and stored as the
+        // booking's endTime); the padded times here are only used for
+        // overlap math.
         const hasConflict = existingBookings.some((booking) => {
           const bookingStart = parse(booking.startTime, "HH:mm", selectedDate);
-          const bookingEnd = parse(booking.endTime, "HH:mm", selectedDate);
+          const bookingEnd = addMinutes(
+            parse(booking.endTime, "HH:mm", selectedDate),
+            bufferTime,
+          );
+          const paddedSlotEndTime = addMinutes(current, totalSlotTime);
 
           return (
             (isBefore(slotStartTime, bookingEnd) &&
-              isAfter(slotEndTime, bookingStart)) ||
+              isAfter(paddedSlotEndTime, bookingStart)) ||
             format(slotStartTime, "HH:mm") === booking.startTime
           );
         });

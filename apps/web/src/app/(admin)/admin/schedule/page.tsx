@@ -443,7 +443,7 @@ export default function SchedulePage() {
                 ))}
               </div>
             ) : (
-              <div className="h-90% flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-100 rounded-2xl p-8">
+              <div className="h-full flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-100 rounded-2xl p-8">
                 <Calendar size={32} className="mb-2 opacity-50" />
                 <p className="text-sm">No dates blocked yet</p>
               </div>

@@ -214,12 +214,21 @@ export function BookingModal({
           }
         }
 
-        // Check if slot conflicts with existing bookings
+        // Check if slot conflicts with existing bookings — extended by
+        // bufferTime on both sides so back-to-back bookings still leave the
+        // configured gap. serviceDuration/slotEnd above stay buffer-free
+        // (that's the real appointment length shown to the customer and
+        // stored as the booking's endTime); totalSlotTime is only used here
+        // to keep the next slot from starting inside another booking's
+        // buffer window.
         const hasConflict = existingBookings.some((booking) => {
           const bookingStart = parse(booking.startTime, "HH:mm", selectedDate);
-          const bookingEnd = parse(booking.endTime, "HH:mm", selectedDate);
+          const bookingEnd = addMinutes(
+            parse(booking.endTime, "HH:mm", selectedDate),
+            bufferTime,
+          );
           const slotStartTime = current;
-          const slotEndTime = addMinutes(current, serviceDuration);
+          const slotEndTime = addMinutes(current, totalSlotTime);
 
           return (
             (isBefore(slotStartTime, bookingEnd) &&

@@ -649,6 +649,21 @@ export default function StoreSettingsPage() {
                     >
                       <option value="live">Live (Open)</option>
                       <option value="maintenance">Maintenance (Closed)</option>
+                      {/* Not vendor-selectable — shown only so the dropdown
+                          doesn't silently fall back to displaying "Live" as
+                          selected when the real value is neither of the two
+                          options above (e.g. a brand-new store defaults to
+                          "closed" until approved, or "unpaid" after a lapsed
+                          plan). Switching to Live/Maintenance still requires
+                          picking one of those normally. */}
+                      {config.status !== "live" &&
+                        config.status !== "maintenance" && (
+                          <option value={config.status} disabled>
+                            {config.status === "unpaid"
+                              ? "Unpaid (Plan Lapsed)"
+                              : "Closed (Pending Setup)"}
+                          </option>
+                        )}
                     </select>
                   </div>
 
