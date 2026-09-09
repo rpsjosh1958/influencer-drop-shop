@@ -81,6 +81,10 @@ export function AdminOrderModal({
   const refundable = Math.max(0, order.total - refundedSoFar);
   const hasPendingRefund =
     order.refundStatus === "pending" || order.refundStatus === "processing";
+  const isTerminalStatus =
+    currentStatus === "refunded" ||
+    currentStatus === "partially_refunded" ||
+    currentStatus === "cancelled";
 
   // Bridges the gap between the callable succeeding and the (async, ~1s)
   // query refetch actually flowing the real refundStatus back into the
@@ -182,36 +186,49 @@ export function AdminOrderModal({
 
               {/* Scrollable Content */}
               <div className="p-6 overflow-y-auto space-y-8 custom-scrollbar">
-                {/* Status Section */}
+                {/* Status Section — fulfillment buttons (Open/Packaged/
+                    Sent Out/Delivered) are unrelated to refunds/cancellation
+                    and previously stayed clickable regardless, so clicking
+                    one after a refund silently overwrote the order's status
+                    back to a shipping state even though refundedAmount/
+                    refundStatus (the actual source of truth) were untouched
+                    and still correct. Locked once the order has reached a
+                    terminal state. */}
                 <div>
                   <h4 className="text-xs font-bold uppercase text-zinc-400 mb-3 tracking-wider">
                     Order Status
                   </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {STATUSES.map((status) => {
-                      const Icon = status.icon;
-                      const isActive =
-                        currentStatus === status.id ||
-                        (status.id === "open" && currentStatus === "paid");
-                      return (
-                        <button
-                          key={status.id}
-                          onClick={() => handleStatusChange(status.id)}
-                          disabled={updating}
-                          className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
-                            isActive
-                              ? `border-transparent ring-2 ring-offset-2 ring-black ${status.color}`
-                              : "border-zinc-200 hover:border-zinc-300 text-zinc-500"
-                          } ${updating ? "opacity-50 cursor-not-allowed" : ""}`}
-                        >
-                          <Icon size={20} />
-                          <span className="text-xs font-bold">
-                            {status.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {isTerminalStatus ? (
+                    <div className="p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-100 dark:border-zinc-800 text-sm text-zinc-500">
+                      This order is <span className="font-bold capitalize">{currentStatus?.replace("_", " ")}</span> — fulfillment status can no longer be changed.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {STATUSES.map((status) => {
+                        const Icon = status.icon;
+                        const isActive =
+                          currentStatus === status.id ||
+                          (status.id === "open" && currentStatus === "paid");
+                        return (
+                          <button
+                            key={status.id}
+                            onClick={() => handleStatusChange(status.id)}
+                            disabled={updating}
+                            className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl border transition-all ${
+                              isActive
+                                ? `border-transparent ring-2 ring-offset-2 ring-black ${status.color}`
+                                : "border-zinc-200 hover:border-zinc-300 text-zinc-500"
+                            } ${updating ? "opacity-50 cursor-not-allowed" : ""}`}
+                          >
+                            <Icon size={20} />
+                            <span className="text-xs font-bold">
+                              {status.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Dispute banner */}
