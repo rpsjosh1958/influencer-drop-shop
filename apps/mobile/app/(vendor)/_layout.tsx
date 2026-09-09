@@ -11,7 +11,7 @@ import {
   Wallet,
 } from "lucide-react-native";
 import { useNotifications } from "@/context/notification-context";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -89,11 +89,23 @@ function VendorLayout() {
   const { setMode } = useNotifications();
   const { badgeCounts, store, ownedStores, loading } = useVendor();
   const router = useRouter();
+  // Tracks only the FIRST time loading resolves, not every subsequent
+  // flip. `loading` legitimately goes true→false repeatedly for the
+  // entire lifetime of this screen (pull-to-refresh, switching stores,
+  // any query invalidation) — gating the early-return below on raw
+  // `loading` unmounted the whole <Drawer> on every one of those, and a
+  // remounted Drawer navigator always resets to its first screen
+  // (Dashboard), discarding whatever screen the vendor had actually
+  // navigated to. This was the cause of "tapping Products in the drawer
+  // just shows the dashboard" — a refetch race right after navigating
+  // flipped `loading` again and blew away the navigation state.
+  const [initiallyResolved, setInitiallyResolved] = useState(false);
 
   const hasNoStores = !loading && ownedStores.length === 0;
 
   useEffect(() => {
     if (loading) return;
+    setInitiallyResolved(true);
 
     if (hasNoStores) {
       // A signed-in user with zero owned stores landed here — most likely
@@ -110,7 +122,7 @@ function VendorLayout() {
     AsyncStorage.setItem("appMode", "vendor");
   }, [loading, hasNoStores]);
 
-  if (loading || hasNoStores) {
+  if (!initiallyResolved || hasNoStores) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
         <ActivityIndicator color="black" />
