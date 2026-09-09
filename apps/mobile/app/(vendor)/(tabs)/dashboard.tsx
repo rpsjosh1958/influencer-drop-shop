@@ -7,6 +7,7 @@ import {
   Dimensions,
   Text,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
@@ -64,7 +65,7 @@ export default function VendorDashboard() {
 
   const formatMoney = (amount: number) => formatCurrency(amount);
 
-  const handleToggleStatus = async () => {
+  const doToggleStatus = async () => {
     setToggling(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -74,6 +75,24 @@ export default function VendorDashboard() {
     } finally {
       setToggling(false);
     }
+  };
+
+  const handleToggleStatus = () => {
+    // Only confirm the destructive direction (taking a live store
+    // offline) — going live is the expected/positive action and doesn't
+    // need a safety check.
+    if (store?.status === "live") {
+      Alert.alert(
+        "Close your storefront?",
+        "Customers won't be able to browse or check out until you switch it back to Live.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Close Store", style: "destructive", onPress: doToggleStatus },
+        ],
+      );
+      return;
+    }
+    doToggleStatus();
   };
 
   // Rotating Insights Logic

@@ -399,6 +399,17 @@ export default function AdminDashboard() {
 
   const toggleStore = () => {
     if (!storeId || toggling || onboardingBlocked) return;
+    // Only confirm the destructive direction (taking a live store
+    // offline) — going live is the expected/positive action and doesn't
+    // need a safety check.
+    if (
+      isLive &&
+      !confirm(
+        "Close your storefront? Customers won't be able to browse or check out until you switch it back to Live.",
+      )
+    ) {
+      return;
+    }
     toggleMutation.mutate();
   };
 

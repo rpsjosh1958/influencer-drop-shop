@@ -67,7 +67,7 @@ export default function VendorInventory() {
   };
 
   const handleProductPress = (product: Product) => {
-    if (store?.status === "open") {
+    if (store?.status === "live") {
       Alert.alert(
         "Store is Open",
         "You must close your store before editing products."
