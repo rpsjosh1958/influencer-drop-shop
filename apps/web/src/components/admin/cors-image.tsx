@@ -31,9 +31,17 @@ export const CorsImage = ({
         const blob = await res.blob();
         const reader = new FileReader();
         reader.onloadend = () => {
+          // Only sets the base64 source here — does NOT call onLoad.
+          // onLoad fires from the actual rendered <img> element below
+          // once the browser has genuinely decoded it. Calling it here
+          // instead (right when the base64 string exists, before the
+          // <img> tag has even been created by the next render) was a
+          // real bug: html-to-image's rasterization was allowed to fire
+          // before some images had actually painted, leaving them blank
+          // in the exported PNG — worse the more images a card had
+          // (Rack's logo + up to 3 product photos, all racing).
           if (mounted && reader.result) {
             setBase64(reader.result as string);
-            onLoad?.();
           }
         };
         reader.readAsDataURL(blob);
@@ -41,7 +49,6 @@ export const CorsImage = ({
         console.error("CorsImage load failed", e);
         if (mounted) {
           setBase64(src);
-          onLoad?.();
         }
       }
     };
@@ -59,5 +66,7 @@ export const CorsImage = ({
       />
     );
 
-  return <img src={base64} alt={alt} className={className} style={style} />;
+  return (
+    <img src={base64} alt={alt} className={className} style={style} onLoad={onLoad} />
+  );
 };

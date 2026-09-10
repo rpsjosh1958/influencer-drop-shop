@@ -387,31 +387,26 @@ export const StorePromoCard = ({
             </span>
           </div>
 
-          <div
-            style={{
-              flex: 1,
-              display: "grid",
-              gridTemplateColumns: rackProducts.length > 1 ? "1fr 1fr" : "1fr",
-              gridTemplateRows:
-                rackProducts.length > 2
-                  ? format === "story"
-                    ? "1.55fr 1fr"
-                    : "1.15fr 1fr"
-                  : "1fr",
-              gap: "10px",
-              minHeight: 0,
-            }}
-          >
-            {rackProducts.map((p, i) => (
+          {(() => {
+            // Flexbox, not CSS Grid — html-to-image's SVG-based
+            // rasterizer doesn't reliably preserve grid track sizing
+            // (the rest of this codebase's rasterized cards stick to
+            // flex/absolute positioning for the same reason), which was
+            // silently collapsing these tiles to zero height in the
+            // exported PNG even though the images themselves had loaded.
+            const heroFlex = format === "story" ? 1.55 : 1.15;
+            const tile = (p: Product) => (
               <div
                 key={p.id}
                 style={{
+                  flex: 1,
+                  minWidth: 0,
+                  minHeight: 0,
                   position: "relative",
                   borderRadius: "16px",
                   overflow: "hidden",
                   boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.09)",
                   backgroundColor: "#202020",
-                  gridColumn: i === 0 && rackProducts.length > 2 ? "1 / 3" : undefined,
                 }}
               >
                 <CorsImage
@@ -452,8 +447,43 @@ export const StorePromoCard = ({
                   </span>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+
+            return (
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                  minHeight: 0,
+                }}
+              >
+                {rackProducts.length >= 3 && (
+                  <>
+                    <div style={{ display: "flex", flex: heroFlex, minHeight: 0 }}>
+                      {tile(rackProducts[0])}
+                    </div>
+                    <div style={{ display: "flex", flex: 1, gap: "10px", minHeight: 0 }}>
+                      {tile(rackProducts[1])}
+                      {tile(rackProducts[2])}
+                    </div>
+                  </>
+                )}
+                {rackProducts.length === 2 && (
+                  <div style={{ display: "flex", flex: 1, gap: "10px", minHeight: 0 }}>
+                    {tile(rackProducts[0])}
+                    {tile(rackProducts[1])}
+                  </div>
+                )}
+                {rackProducts.length === 1 && (
+                  <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+                    {tile(rackProducts[0])}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div
             style={{

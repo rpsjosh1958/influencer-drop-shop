@@ -59,11 +59,26 @@ export const StoreShareModal = ({
     setGenerating(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      const dataUrl = await toPng(element, {
-        quality: 1.0,
-        pixelRatio: 2,
-        backgroundColor: "#000000",
-      });
+
+      // WebKit (iOS Safari) has a documented html-to-image bug: capturing
+      // a subtree with large images intermittently comes back with just
+      // those images blank, even after they've genuinely loaded — a
+      // WebKit SVG-image-loader quirk, not a timing issue on our side
+      // (confirmed against real device testing in html-to-image's own
+      // issue tracker, bubkoo/html-to-image#591). A single retry isn't
+      // reliable either — it can come back blank again. The only thing
+      // that reliably works is re-capturing until two consecutive
+      // results are byte-identical (usually converges by attempt 2-3).
+      // Cheap on browsers that don't have the bug — they converge on the
+      // first comparison.
+      const toPngOptions = { quality: 1.0, pixelRatio: 2, backgroundColor: "#000000" };
+      let dataUrl = await toPng(element, toPngOptions);
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const next = await toPng(element, toPngOptions);
+        if (next === dataUrl) break;
+        dataUrl = next;
+      }
+
       const link = document.createElement("a");
       link.download = `${storeSlug}-${template}-${format}.png`;
       link.href = dataUrl;
