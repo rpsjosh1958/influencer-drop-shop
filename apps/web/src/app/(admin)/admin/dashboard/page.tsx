@@ -511,19 +511,19 @@ export default function AdminDashboard() {
                 href={`/shop/${storeId}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900 ml-1"
+                className="inline-flex items-center gap-1 px-2 md:px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900 ml-1"
               >
                 <ExternalLink size={12} />
-                <span>View Store</span>
+                <span className="hidden md:inline">View Store</span>
               </a>
             )}
             {storeId && (
               <button
                 onClick={() => setShowShareStore(true)}
-                className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900"
+                className="inline-flex items-center gap-1 px-2 md:px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900"
               >
                 <Share2 size={12} />
-                <span>Share Store</span>
+                <span className="hidden md:inline">Share Store</span>
               </button>
             )}
           </h1>
