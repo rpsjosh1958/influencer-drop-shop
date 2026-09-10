@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Product } from "@/types";
-import { Zap } from "lucide-react";
+import { CorsImage } from "./cors-image";
 
 interface PromoCardProps {
   product: Product;
@@ -8,69 +8,6 @@ interface PromoCardProps {
   storeLogo?: string;
   onImageLoad?: () => void;
 }
-
-// Helper to bypass CORS by fetching and converting to Base64
-const CorsImage = ({
-  src,
-  alt,
-  className,
-  style,
-  onLoad,
-}: {
-  src: string;
-  alt: string;
-  className?: string;
-  style?: React.CSSProperties;
-  onLoad?: () => void;
-}) => {
-  const [base64, setBase64] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!src) return;
-    let mounted = true;
-
-    const load = async () => {
-      try {
-        // Use our own proxy to fetch the image server-side
-        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(src)}`;
-        const res = await fetch(proxyUrl);
-        if (!res.ok) throw new Error("Proxy fetch failed");
-
-        const blob = await res.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          if (mounted && reader.result) {
-            setBase64(reader.result as string);
-            onLoad?.(); // Notify parent
-          }
-        };
-        reader.readAsDataURL(blob);
-      } catch (e) {
-        console.error("CorsImage load failed", e);
-        // Fallback to original src
-        if (mounted) {
-          setBase64(src);
-          onLoad?.(); // Notify parent even on fallback
-        }
-      }
-    };
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [src]);
-
-  // If we haven't loaded base64 yet, render a placeholder
-  if (!base64)
-    return (
-      <div
-        className={className}
-        style={{ ...style, backgroundColor: "#222" }}
-      />
-    );
-
-  return <img src={base64} alt={alt} className={className} style={style} />;
-};
 
 // Fixed dimensions for 9:16 aspect ratio.
 // NOTE: We use EXPLICIT HEX COLORS & INLINE STYLES because Tailwind v4 uses OKLCH/LAB which html2canvas crashes on.

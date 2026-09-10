@@ -28,13 +28,15 @@ import {
   TrendingUp,
   ExternalLink,
   Sparkles,
+  Share2,
 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
+import { StoreShareModal } from "@/components/admin/store-share-modal";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { LoadingState } from "@/components/admin/loading-state";
 import { formatCurrency, cn, toJsDate, getTimestampSeconds } from "@/lib/utils";
-import type { OrderItem, FirestoreTimestampLike } from "@/types";
+import type { OrderItem, FirestoreTimestampLike, Product } from "@/types";
 
 interface OrderData {
   id: string;
@@ -87,6 +89,7 @@ export default function AdminDashboard() {
   } = useAdminStore();
   const queryClient = useQueryClient();
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showShareStore, setShowShareStore] = useState(false);
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [activeSalesIndex, setActiveSalesIndex] = useState(0);
@@ -118,6 +121,30 @@ export default function AdminDashboard() {
     };
     return typeMap[storeData?.type] || "both";
   }, [storeData?.type]);
+
+  // Products — same query key products.tsx uses, so the cache is shared
+  // when that page has already been visited. Only used by the Share Store
+  // modal's "Rack" template.
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ["products", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      })) as Product[];
+    },
+    enabled: !!storeId,
+  });
+  const shareableProducts = useMemo(
+    () => allProducts.filter((p) => !!p.imageUrl).slice(0, 3),
+    [allProducts]
+  );
 
   // Orders
   const { data: allOrders = [] } = useQuery({
@@ -490,6 +517,15 @@ export default function AdminDashboard() {
                 <span>View Store</span>
               </a>
             )}
+            {storeId && (
+              <button
+                onClick={() => setShowShareStore(true)}
+                className="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900"
+              >
+                <Share2 size={12} />
+                <span>Share Store</span>
+              </button>
+            )}
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">
             Real-time command center
@@ -696,6 +732,17 @@ export default function AdminDashboard() {
          products={products}
          bookings={recentBookings}
        />
+
+       {storeId && (
+         <StoreShareModal
+           isOpen={showShareStore}
+           onClose={() => setShowShareStore(false)}
+           storeSlug={storeId}
+           storeName={storeName}
+           storeLogo={storeData?.logo}
+           products={shareableProducts}
+         />
+       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto md:h-96">
          <div 

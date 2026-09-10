@@ -47,7 +47,9 @@ interface Order {
     | "packaged"
     | "sent-out"
     | "delivered"
-    | "completed";
+    | "completed"
+    | "refunded"
+    | "partially_refunded";
   createdAt: FirestoreTimestampLike;
   items: OrderItem[];
   shippingAddress: {
