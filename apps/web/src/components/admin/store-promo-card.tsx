@@ -118,7 +118,10 @@ export const StorePromoCard = ({
   // PromoCard). The header logo always counts now — real logo or the
   // Drop-mark fallback, both are real <img> loads.
   const [loadedCount, setLoadedCount] = useState(0);
-  const requiredImages = 1 + (template === "rack" ? rackProducts.length : 0);
+  const requiredImages =
+    1 + // header logo (real or fallback)
+    (format === "story" ? 1 : 0) + // corner watermark, story only
+    (template === "rack" ? rackProducts.length : 0);
 
   const signalNameStyle = useMemo(
     () =>
@@ -513,6 +516,22 @@ export const StorePromoCard = ({
       >
         Powered by CopDrop.io
       </p>
+
+      {format === "story" && (
+        <img
+          src={FALLBACK_LOGO_SRC}
+          alt="The Drop"
+          onLoad={handleImgLoad}
+          style={{
+            position: "absolute",
+            bottom: 14,
+            right: 14,
+            width: 22,
+            height: 22,
+            opacity: 0.9,
+          }}
+        />
+      )}
     </div>
   );
 };

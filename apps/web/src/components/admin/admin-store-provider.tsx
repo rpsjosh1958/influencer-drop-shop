@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 interface StoreListItem {
   id: string;
   name: string;
+  logo?: string;
   plan: "starter" | "growth";
   status: string;
   isLocked?: boolean;
@@ -28,6 +29,7 @@ interface StoreListItem {
 interface OwnedStoreDoc {
   id: string;
   name?: string;
+  logo?: string;
   plan?: "starter" | "growth";
   status?: string;
   createdAt?: FirestoreTimestampLike;
@@ -36,6 +38,7 @@ interface OwnedStoreDoc {
 interface AdminStoreContextType {
   storeId: string | null;
   storeName: string | null;
+  storeLogo: string | null;
   userPlan: "starter" | "growth" | null;
   planExpiresAt: FirestoreTimestampLike | null;
   storeType: StoreType | null;
@@ -61,6 +64,7 @@ export function AdminStoreProvider({
 }) {
   const [activeStoreId, setActiveStoreId] = useState<string | null>(null);
   const [storeName, setStoreName] = useState<string | null>(null);
+  const [storeLogo, setStoreLogo] = useState<string | null>(null);
   const [userPlan, setUserPlan] = useState<"starter" | "growth" | null>(null);
   const [planExpiresAt, setPlanExpiresAt] = useState<FirestoreTimestampLike | null>(null);
   const [storeType, setStoreType] = useState<StoreType | null>(null);
@@ -142,6 +146,7 @@ export function AdminStoreProvider({
                 storeList.push({
                   id: sData.id,
                   name: sData.name || "Unnamed Store",
+                  logo: sData.logo,
                   plan: sData.plan || "starter",
                   status: sData.status || "live",
                   isLocked,
@@ -185,6 +190,7 @@ export function AdminStoreProvider({
           const data = doc.data();
           
           setStoreName(data?.name || "Store");
+          setStoreLogo(data?.logo || null);
           setStoreType(data?.type || "product");
           setOnboardingStatus(data?.onboardingStatus || "approved");
           setOnboardingNotes(data?.onboardingNotes || null);
@@ -225,6 +231,7 @@ export function AdminStoreProvider({
       value={{
         storeId: activeStoreId,
         storeName,
+        storeLogo,
         userPlan,
         planExpiresAt,
         storeType,

@@ -2,12 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAdminStore } from "./admin-store-provider";
-import { 
-  ChevronDown, 
-  Plus, 
-  Check, 
-  Store, 
-  Lock, 
+import {
+  ChevronDown,
+  Plus,
+  Check,
+  Lock,
   BadgeCheck,
   AlertCircle,
   X
@@ -28,13 +27,18 @@ import {
 import { db, auth } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
 
+// Same fallback used on the Share Store flyers — The Drop's own mark,
+// not a generic icon, for any store that hasn't uploaded a logo yet.
+const FALLBACK_LOGO_SRC = "/assets/landing/drop_logo.svg";
+
 export function StoreSwitcher({ collapsed }: { collapsed?: boolean }) {
-  const { 
-    storeId, 
-    storeName, 
-    userPlan, 
-    ownedStores, 
-    switchStore 
+  const {
+    storeId,
+    storeName,
+    storeLogo,
+    userPlan,
+    ownedStores,
+    switchStore
   } = useAdminStore();
   
   const [isOpen, setIsOpen] = useState(false);
@@ -68,8 +72,12 @@ export function StoreSwitcher({ collapsed }: { collapsed?: boolean }) {
   if (collapsed) {
     return (
       <div className="flex justify-center">
-        <div className="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center border border-zinc-200 dark:border-zinc-700">
-          <Store size={22} className="text-zinc-600 dark:text-zinc-400" />
+        <div className="w-12 h-12 rounded-2xl overflow-hidden border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800">
+          <img
+            src={storeLogo || FALLBACK_LOGO_SRC}
+            alt={storeName || "Store"}
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
     );
@@ -87,8 +95,12 @@ export function StoreSwitcher({ collapsed }: { collapsed?: boolean }) {
         )}
       >
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 dark:bg-white flex items-center justify-center flex-shrink-0">
-            <Store size={16} className="text-white dark:text-zinc-900" />
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-100 dark:bg-zinc-800">
+            <img
+              src={storeLogo || FALLBACK_LOGO_SRC}
+              alt={storeName || "Store"}
+              className="w-full h-full object-cover"
+            />
           </div>
           <div className="text-left overflow-hidden">
             <div className="flex items-center gap-1">
@@ -137,11 +149,17 @@ export function StoreSwitcher({ collapsed }: { collapsed?: boolean }) {
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center",
-                        isSelected ? "bg-zinc-900 dark:bg-white" : "bg-zinc-100 dark:bg-zinc-800"
-                      )}>
-                        <Store size={14} className={isSelected ? "text-white dark:text-zinc-900" : "text-zinc-500"} />
+                      <div
+                        className={cn(
+                          "w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-zinc-100 dark:bg-zinc-800",
+                          isLocked && "grayscale opacity-60"
+                        )}
+                      >
+                        <img
+                          src={item.logo || FALLBACK_LOGO_SRC}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
                       <div>
                         <span className={cn(
