@@ -424,6 +424,77 @@ export const onOrderCreated = onDocumentCreated(
       );
 
       logger.info(`Order notification sent to vendor ${store.ownerId}`);
+
+      // 3. Email the Vendor — was push-only until now (no email code ever
+      // existed for this trigger, unlike the disabled-but-present blocks
+      // on bookings/complaints). Skip for a vendor's own manually-logged
+      // sale (paymentMethod: "manual", cash/DM order entry) — emailing
+      // someone about an order they just typed in themselves is just noise.
+      if (order.paymentMethod !== "manual") {
+        const userDoc = await admin
+          .firestore()
+          .collection("users")
+          .doc(store.ownerId)
+          .get();
+        const recipient = userDoc.data()?.email;
+
+        if (recipient) {
+          const items = (order.items || []) as Array<{
+            name?: string;
+            quantity?: number;
+            price?: number;
+            selectedVariant?: { name?: string } | null;
+          }>;
+          const itemsList = items
+            .map(
+              (item) =>
+                `<tr>
+                  <td style="padding: 8px 0; color: #e4e4e7; text-align: left;">
+                    ${item.name || "Item"}${item.selectedVariant?.name ? ` (${item.selectedVariant.name})` : ""}
+                    <span style="color: #a1a1aa;"> × ${item.quantity || 1}</span>
+                  </td>
+                  <td style="padding: 8px 0; color: #e4e4e7; text-align: right;">
+                    GHS ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                  </td>
+                </tr>`
+            )
+            .join("");
+
+          const shipping = order.shipping as
+            | { fullName?: string; phone?: string; address?: string }
+            | undefined;
+
+          const orderContent = `
+            <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 20px; text-align: left;">
+              <strong>Order #${orderId.slice(0, 8).toUpperCase()}</strong><br/>
+              <strong>Customer:</strong> ${order.customerName || "Customer"}${shipping?.phone ? ` (${shipping.phone})` : ""}
+              ${shipping?.address ? `<br/><strong>Ships to:</strong> ${shipping.address}` : ""}
+            </p>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+              ${itemsList}
+              <tr>
+                <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: left; border-top: 1px solid rgba(255,255,255,0.15);">Total</td>
+                <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: right; border-top: 1px solid rgba(255,255,255,0.15);">GHS ${order.total.toFixed(2)}</td>
+              </tr>
+            </table>
+            ${order.customerNote ? emailCallout("Customer Note", `<p style="margin: 0;">${order.customerNote}</p>`) : ""}
+            ${emailButton("https://copdrop.io/admin/orders", "View Order")}
+          `;
+
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: "The Drop <orders@copdrop.io>",
+            to: [recipient],
+            subject: `New Order! GHS ${order.total.toFixed(2)} from ${order.customerName || "a customer"}`,
+            html: getEmailLayout(orderContent, "New Order."),
+          });
+          logger.info(`Order notification emailed to ${recipient}`);
+        } else {
+          logger.warn(
+            `Order ${orderId}: no email on file for store owner ${store.ownerId}, skipping email`
+          );
+        }
+      }
     } catch (err) {
       logger.error("Failed to send order notification", err);
     }
