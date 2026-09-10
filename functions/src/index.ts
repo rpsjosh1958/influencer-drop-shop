@@ -302,7 +302,20 @@ export const onStoreUpdated = onDocumentUpdated(
     const ownerId = after.ownerId;
 
     // Check for Plan Upgrade: Starter -> Growth
-    if (before.plan === "starter" && after.plan === "growth") {
+    // Gated on isTrial !== true because onStoreCreated's own trial-grant
+    // write (a brand-new store going starter -> growth the moment it's
+    // created, to hand out the 30-day trial) is indistinguishable from a
+    // real paid upgrade by the plan transition alone — both produce the
+    // exact same before/after diff. Without this guard, every single
+    // new-vendor trial activation was mistaken for a paid upgrade here,
+    // which clobbered the correct isTrial:true back to false (killing the
+    // "You've unlocked a 30-Day Free Trial" block in the approval email),
+    // AND prematurely set isVerified:true on a store that hadn't been
+    // through onboarding review yet. A real paid upgrade (via
+    // subscriptionPayments.ts -> onUserSubscriptionUpdated's cascade)
+    // always writes isTrial:false, so this still fires correctly for
+    // genuine upgrades.
+    if (before.plan === "starter" && after.plan === "growth" && after.isTrial !== true) {
       logger.info(
         `Detected Plan Upgrade for Store ${storeId}. Updating User document ${ownerId}...`
       );

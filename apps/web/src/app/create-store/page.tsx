@@ -107,6 +107,12 @@ export default function CreateStoreWizard() {
   // Wizard Step: 1 (Vendor) -> 2 (Store)
   const [step, setStep] = useState(1);
 
+  // Must both be checked before the store can actually be created —
+  // enforced both via the submit button's disabled state and a guard at
+  // the top of handleStoreSubmit, in case that's ever bypassed.
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
+
   // Vendor Type: Individual vs Company
   const [vendorType, setVendorType] = useState<"individual" | "company">(
     "individual",
@@ -369,6 +375,10 @@ export default function CreateStoreWizard() {
   const handleStoreSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser) return;
+    if (!agreedToTerms || !agreedToPrivacy) {
+      setError("Please accept the Terms of Service and Privacy Policy to continue.");
+      return;
+    }
     setLoading(true);
     setError("");
 
@@ -761,9 +771,42 @@ export default function CreateStoreWizard() {
                     <p className="text-xs text-zinc-500 leading-relaxed">You are starting on the free plan (8% fee). You can upgrade to Growth later for lower fees and a verified badge.</p>
                   </div>
 
+                  <div className="space-y-3">
+                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={agreedToTerms}
+                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                        required
+                        className="mt-0.5 w-4 h-4 rounded accent-black shrink-0"
+                      />
+                      <span className="text-xs text-zinc-600 leading-relaxed">
+                        I agree to The Drop&apos;s{" "}
+                        <Link href="/terms" target="_blank" className="font-bold text-black underline underline-offset-2">
+                          Terms of Service
+                        </Link>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-3 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={agreedToPrivacy}
+                        onChange={(e) => setAgreedToPrivacy(e.target.checked)}
+                        required
+                        className="mt-0.5 w-4 h-4 rounded accent-black shrink-0"
+                      />
+                      <span className="text-xs text-zinc-600 leading-relaxed">
+                        I have read and accept the{" "}
+                        <Link href="/privacy" target="_blank" className="font-bold text-black underline underline-offset-2">
+                          Privacy Policy
+                        </Link>
+                      </span>
+                    </label>
+                  </div>
+
                   <div className="flex gap-4 pt-4">
                     <button type="button" onClick={() => setStep(1)} className="px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-black transition-all">Back</button>
-                    <button type="submit" disabled={loading} className="flex-1 bg-black text-white py-4 rounded-2xl font-black text-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10 uppercase tracking-widest">
+                    <button type="submit" disabled={loading || !agreedToTerms || !agreedToPrivacy} className="flex-1 bg-black text-white py-4 rounded-2xl font-black text-lg hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10 uppercase tracking-widest disabled:opacity-40 disabled:hover:scale-100">
                       {loading ? <Loader2 className="animate-spin" /> : "LAUNCH STORE"}
                     </button>
                   </div>
