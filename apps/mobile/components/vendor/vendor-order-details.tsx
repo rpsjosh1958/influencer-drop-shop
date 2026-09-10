@@ -166,9 +166,18 @@ export function VendorOrderDetails({
             {/* Header */}
             <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between">
               <View>
-                <H1 className="text-xl font-black uppercase">
-                  Order Management
-                </H1>
+                <View className="flex-row items-center gap-2">
+                  <H1 className="text-xl font-black uppercase">
+                    Order Management
+                  </H1>
+                  {order.paymentMethod === "manual" && (
+                    <View className="px-2 py-0.5 rounded-md bg-zinc-100">
+                      <P className="text-[10px] font-black uppercase text-zinc-500">
+                        Manual
+                      </P>
+                    </View>
+                  )}
+                </View>
                 <P className="text-zinc-400 text-xs font-bold tracking-wider">
                   #{order.id.slice(0, 8).toUpperCase()}
                 </P>

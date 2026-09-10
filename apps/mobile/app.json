@@ -41,7 +41,15 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow The Drop to access your photos so you can save store flyers.",
+          "savePhotosPermission": "Allow The Drop to save store flyers to your photos.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

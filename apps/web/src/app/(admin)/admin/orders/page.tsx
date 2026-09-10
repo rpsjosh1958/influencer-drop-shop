@@ -446,6 +446,11 @@ export default function OrdersPage() {
                       >
                         {order.status === "paid" ? "OPEN" : order.status}
                       </span>
+                      {order.paymentMethod === "manual" && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-current opacity-90">
+                          Manual
+                        </span>
+                      )}
                       {(order.refundStatus === "pending" ||
                         order.refundStatus === "processing") && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-current opacity-90">

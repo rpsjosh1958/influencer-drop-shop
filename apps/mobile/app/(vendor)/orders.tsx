@@ -184,10 +184,19 @@ export default function VendorOrders() {
                         <P className="text-xs text-zinc-400 font-bold uppercase mb-1">
                           #{order.id.slice(0, 8).toUpperCase()}
                         </P>
-                        <View className={`self-start px-2 py-0.5 rounded-md ${statusBg}`}>
-                          <P className={`text-[10px] font-black uppercase ${statusText}`}>
-                            {order.status}
-                          </P>
+                        <View className="flex-row items-center gap-1.5">
+                          <View className={`self-start px-2 py-0.5 rounded-md ${statusBg}`}>
+                            <P className={`text-[10px] font-black uppercase ${statusText}`}>
+                              {order.status}
+                            </P>
+                          </View>
+                          {order.paymentMethod === "manual" && (
+                            <View className="self-start px-2 py-0.5 rounded-md bg-zinc-100">
+                              <P className="text-[10px] font-black uppercase text-zinc-500">
+                                Manual
+                              </P>
+                            </View>
+                          )}
                         </View>
                       </View>
                     </View>

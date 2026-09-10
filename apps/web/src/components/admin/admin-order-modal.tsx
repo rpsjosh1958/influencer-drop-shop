@@ -169,8 +169,13 @@ export function AdminOrderModal({
               {/* Header */}
               <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
                 <div>
-                  <h3 className="text-xl font-black uppercase tracking-tighter">
+                  <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                     Order Details
+                    {order.paymentMethod === "manual" && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-current opacity-90">
+                        Manual
+                      </span>
+                    )}
                   </h3>
                   <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest mt-1">
                     #{order.id.slice(0, 8)}

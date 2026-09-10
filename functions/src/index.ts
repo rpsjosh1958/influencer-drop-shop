@@ -508,6 +508,65 @@ export const onOrderCreated = onDocumentCreated(
           );
         }
       }
+
+      // 4. Email the Customer — order confirmation/receipt. Never existed
+      // before (only a push/in-app notification does, and that requires an
+      // account + push token). Fires for manual/cash sales too, unlike the
+      // vendor email above — a customer's receipt isn't noise just because
+      // the vendor logged the sale by hand — but skips the manual-order
+      // form's placeholder address (not a real customer-supplied email).
+      if (order.customerEmail && order.customerEmail !== "manual@store.com") {
+        const items = (order.items || []) as Array<{
+          name?: string;
+          quantity?: number;
+          price?: number;
+          selectedVariant?: { name?: string } | null;
+        }>;
+        const itemsList = items
+          .map(
+            (item) =>
+              `<tr>
+                <td style="padding: 8px 0; color: #e4e4e7; text-align: left;">
+                  ${item.name || "Item"}${item.selectedVariant?.name ? ` (${item.selectedVariant.name})` : ""}
+                  <span style="color: #a1a1aa;"> × ${item.quantity || 1}</span>
+                </td>
+                <td style="padding: 8px 0; color: #e4e4e7; text-align: right;">
+                  GHS ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                </td>
+              </tr>`
+          )
+          .join("");
+
+        const storeIdentity = `
+          ${store.logo ? `<img src="${store.logo}" alt="${store.name || "Store"}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;margin:0 auto 16px;display:block;" />` : ""}
+          <p style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 20px;">${store.name || "Your Store"}</p>
+        `;
+
+        const customerContent = `
+          ${storeIdentity}
+          <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 20px; text-align: left;">
+            Hi <strong>${order.customerName || "there"}</strong>,<br/><br/>
+            Thanks for your order! Here's your receipt.
+          </p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+            ${itemsList}
+            <tr>
+              <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: left; border-top: 1px solid rgba(255,255,255,0.15);">Total</td>
+              <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: right; border-top: 1px solid rgba(255,255,255,0.15);">GHS ${order.total.toFixed(2)}</td>
+            </tr>
+          </table>
+          ${emailButton(`https://copdrop.io/shop/${storeId}`, "Visit Store")}
+        `;
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: "The Drop <orders@copdrop.io>",
+          to: [order.customerEmail],
+          subject: `Order Confirmed! Thanks for shopping with ${store.name || "us"} 🎉`,
+          html: getEmailLayout(customerContent, "Order Confirmed."),
+        });
+        logger.info(`Order confirmation emailed to ${order.customerEmail}`);
+      }
     } catch (err) {
       logger.error("Failed to send order notification", err);
     }
@@ -535,7 +594,6 @@ export const onOrderStatusUpdated = onDocumentUpdated(
     const orderId = event.params.orderId;
 
     if (before.status === after.status) return;
-    if (!after.userId || after.userId === "guest") return;
 
     try {
       const storeDoc = await admin
@@ -543,7 +601,8 @@ export const onOrderStatusUpdated = onDocumentUpdated(
         .collection("stores")
         .doc(storeId)
         .get();
-      const storeName = storeDoc.data()?.name || "the store";
+      const store = storeDoc.data();
+      const storeName = store?.name || "the store";
 
       let title = "Order Update";
       let body = `Your order from ${storeName} is now "${after.status}".`;
@@ -563,14 +622,45 @@ export const onOrderStatusUpdated = onDocumentUpdated(
           break;
       }
 
-      // type/data field names match what the web notification dropdown and
-      // toast already expect (order_update / data.orderId) — mobile only
-      // uses data.screen, so this is compatible with both.
-      await sendNotificationToUser(after.userId, title, body, "order_update", {
-        screen: `/(tabs)/orders?orderId=${orderId}`,
-        orderId,
-        storeId,
-      });
+      // Push — only for real accounts (guests have no account/token to
+      // notify). type/data field names match what the web notification
+      // dropdown and toast already expect (order_update / data.orderId) —
+      // mobile only uses data.screen, so this is compatible with both.
+      if (after.userId && after.userId !== "guest") {
+        await sendNotificationToUser(after.userId, title, body, "order_update", {
+          screen: `/(tabs)/orders?orderId=${orderId}`,
+          orderId,
+          storeId,
+        });
+      }
+
+      // Email — address-based, not account-based, so this reaches guest
+      // checkouts too (the one channel that can). Never existed before —
+      // customers previously only found out by reopening the app.
+      if (after.customerEmail) {
+        const storeIdentity = `
+          ${store?.logo ? `<img src="${store.logo}" alt="${storeName}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;margin:0 auto 16px;display:block;" />` : ""}
+          <p style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 20px;">${storeName}</p>
+        `;
+
+        const statusContent = `
+          ${storeIdentity}
+          <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 30px; text-align: left;">
+            Hi <strong>${after.customerName || "there"}</strong>,<br/><br/>
+            ${body}
+          </p>
+          ${emailButton(`https://copdrop.io/shop/${storeId}`, "Visit Store")}
+        `;
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: "The Drop <orders@copdrop.io>",
+          to: [after.customerEmail],
+          subject: `${title} — ${storeName}`,
+          html: getEmailLayout(statusContent, title),
+        });
+        logger.info(`Order status update (${after.status}) emailed to ${after.customerEmail}`);
+      }
     } catch (err) {
       logger.error("Failed to send order status notification", err);
     }

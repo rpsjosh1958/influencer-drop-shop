@@ -9,6 +9,7 @@ import {
   Settings,
   Clock,
   Wallet,
+  Share2,
 } from "lucide-react-native";
 import { useNotifications } from "@/context/notification-context";
 import { useEffect, useState } from "react";
@@ -254,6 +255,14 @@ function VendorLayout() {
             drawerLabel: "Finance",
             title: "Finance",
             drawerIcon: ({ color, size }) => <Wallet size={22} color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="share-store"
+          options={{
+            drawerLabel: "Share Store",
+            title: "Share Store",
+            drawerIcon: ({ color, size }) => <Share2 size={22} color={color} />,
           }}
         />
 
