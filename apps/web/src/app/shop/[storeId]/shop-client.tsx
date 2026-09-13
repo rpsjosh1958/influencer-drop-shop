@@ -205,6 +205,7 @@ export default function ShopClient({
         isFilterOpen={isFilterOpen}
         setIsFilterOpen={setIsFilterOpen}
         primaryColor={primaryColor}
+        showTypeToggle={store?.type === "hybrid"}
       />
 
       <ProductFeed

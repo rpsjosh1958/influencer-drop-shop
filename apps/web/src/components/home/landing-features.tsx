@@ -44,7 +44,7 @@ export function LandingFeatures() {
         </div>
         <div className="min-w-0 rounded-[14px] overflow-hidden border border-[#14130F]/16 shadow-[0_30px_60px_-34px_rgba(20,19,15,0.38)]">
           <Image
-            src="/assets/landing/adminDashboard.png"
+            src="/assets/landing/new-dashboard.png"
             alt="The Drop admin dashboard"
             width={2560}
             height={1310}

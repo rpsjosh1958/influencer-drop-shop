@@ -8,7 +8,7 @@ import Image from "next/image";
 // gets the first impression before it cycles to the storefront.
 const HERO_SCENES = [
   {
-    image: "/assets/landing/adminDashboard.png",
+    image: "/assets/landing/new-Dashboard.png",
     alt: "The Drop admin dashboard",
     addressBar: "copdrop.io/admin/dashboard",
   },

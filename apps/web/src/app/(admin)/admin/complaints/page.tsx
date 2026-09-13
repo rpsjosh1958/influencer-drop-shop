@@ -253,7 +253,7 @@ export default function AdminComplaintsPage() {
                         Reported to Platform
                       </p>
                       <p className="text-xs text-red-600">
-                        This complaint has been cc'd to the Super Admin.
+                        The Drop team can see this case too. Resolve it before they follow up.
                       </p>
                     </div>
                   </div>

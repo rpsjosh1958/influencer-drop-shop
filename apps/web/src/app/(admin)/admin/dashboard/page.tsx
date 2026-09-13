@@ -9,6 +9,7 @@ import {
   getDocs,
   query,
   orderBy,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -26,7 +27,10 @@ import {
   Award,
   TrendingUp,
   Sparkles,
+  MessageCircle,
+  ArrowRight,
 } from "lucide-react";
+import Link from "next/link";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
 import {
@@ -65,6 +69,16 @@ interface BookingData {
   name?: string;
   email?: string;
   serviceName?: string;
+  date?: string; // "YYYY-MM-DD"
+  startTime?: string; // "HH:MM"
+  createdAt?: FirestoreTimestampLike;
+}
+
+interface ComplaintData {
+  id: string;
+  status: "unread" | "read" | "resolved";
+  subject?: string;
+  customerName?: string;
   createdAt?: FirestoreTimestampLike;
 }
 
@@ -224,6 +238,32 @@ export default function AdminDashboard() {
     enabled: !!storeId,
   });
 
+  // Open complaints — for the "Needs you today" queue. "Unread" is the
+  // only status the Complaints page itself treats as needing attention
+  // (its mutation only ever sets "resolved", never "read").
+  //
+  // Single-field where() only, no orderBy — combining an equality filter
+  // with orderBy on a different field needs a composite index that
+  // doesn't exist here, which fails silently (FAILED_PRECONDITION,
+  // swallowed since there's no onError), so this used to just show
+  // nothing. Sort client-side instead.
+  const { data: openComplaints = [] } = useQuery({
+    queryKey: ["complaints_unread", storeId],
+    queryFn: async () => {
+      if (!storeId) return [];
+      const q = query(
+        collection(db, "stores", storeId, "complaints"),
+        where("status", "==", "unread"),
+      );
+      const snapshot = await getDocs(q);
+      const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() })) as ComplaintData[];
+      return docs.sort(
+        (a, b) => getTimestampSeconds(a.createdAt) - getTimestampSeconds(b.createdAt),
+      );
+    },
+    enabled: !!storeId,
+  });
+
    // Insights Logic (Matching Mobile)
    const insights = useMemo(() => {
      const activeOrdersCount = allOrders.filter(o => ["paid", "processing", "packaged"].includes(o.status)).length;
@@ -284,6 +324,119 @@ export default function AdminDashboard() {
 
      return list;
    }, [allOrders, products, recentBookings, bookingsCount]);
+
+   // "Needs you today" — a short, clickable action queue. Each row only
+   // appears if its count is > 0; if everything's empty the card shows a
+   // plain "caught up" state instead of four zeroes.
+   const needsAttention = useMemo(() => {
+     const rows: {
+       key: string;
+       count: number;
+       title: string;
+       detail: string;
+       href: string;
+       icon: React.ReactNode;
+     }[] = [];
+
+     // Orders to pack — paid but not yet packaged/shipped.
+     const toPack = allOrders.filter((o) => o.status === "paid");
+     if (toPack.length > 0) {
+       const oldest = toPack.reduce((a, b) =>
+         getTimestampSeconds(a.createdAt) < getTimestampSeconds(b.createdAt) ? a : b,
+       );
+       const oldestDate = toJsDate(oldest.createdAt);
+       const daysAgo = oldestDate
+         ? Math.max(0, Math.floor((Date.now() - oldestDate.getTime()) / 86400000))
+         : null;
+       const heldAmount = toPack.reduce((sum, o) => sum + (o.total || 0), 0);
+       rows.push({
+         key: "orders",
+         count: toPack.length,
+         title: "Orders to pack",
+         detail:
+           (daysAgo === null
+             ? "Oldest paid order is unpacked"
+             : daysAgo === 0
+               ? "Oldest paid today"
+               : `Oldest paid ${daysAgo} day${daysAgo === 1 ? "" : "s"} ago`) +
+           ` · ${formatCurrency(heldAmount)} held`,
+         href: "/admin/orders",
+         icon: <ShoppingBag size={18} />,
+       });
+     }
+
+     // Bookings waiting on vendor confirmation.
+     const toConfirm = allBookings.filter((b) => b.status === "pending");
+     if (toConfirm.length > 0) {
+       const parseSlot = (b: BookingData) =>
+         b.date ? new Date(`${b.date}T${b.startTime || "00:00"}:00`) : null;
+       const now = new Date();
+       const withSlot = toConfirm
+         .map((b) => ({ b, slot: parseSlot(b) }))
+         .filter((x): x is { b: BookingData; slot: Date } => !!x.slot);
+       const upcoming = withSlot.filter((x) => x.slot >= now);
+       const next = (upcoming.length > 0 ? upcoming : withSlot).sort(
+         (a, b) => a.slot.getTime() - b.slot.getTime(),
+       )[0];
+
+       let detail = "Check the schedule for details";
+       if (next) {
+         const dayMs = 86400000;
+         const startOfDay = (d: Date) =>
+           new Date(d.getFullYear(), d.getMonth(), d.getDate());
+         const diffDays = Math.round(
+           (startOfDay(next.slot).getTime() - startOfDay(now).getTime()) / dayMs,
+         );
+         const dayLabel =
+           diffDays === 0
+             ? "today"
+             : diffDays === 1
+               ? "tomorrow"
+               : next.slot.toLocaleDateString(undefined, { weekday: "short" });
+         detail = `Next slot is ${dayLabel} ${next.b.startTime || ""}`.trim();
+       }
+
+       rows.push({
+         key: "bookings",
+         count: toConfirm.length,
+         title: "Bookings to confirm",
+         detail,
+         href: "/admin/bookings",
+         icon: <Calendar size={18} />,
+       });
+     }
+
+     // Items nearly out of stock (same threshold the Insights card uses).
+     const lowStock = products
+       .filter((p) => p.stock > 0 && p.stock <= 5)
+       .sort((a, b) => a.stock - b.stock);
+     if (lowStock.length > 0) {
+       rows.push({
+         key: "stock",
+         count: lowStock.length,
+         title: "Items nearly out",
+         detail: `${lowStock[0].name} down to ${lowStock[0].stock}`,
+         href: "/admin/products",
+         icon: <AlertTriangle size={18} />,
+       });
+     }
+
+     // Open (unread) complaints.
+     if (openComplaints.length > 0) {
+       const oldest = openComplaints[0];
+       rows.push({
+         key: "complaints",
+         count: openComplaints.length,
+         title: openComplaints.length === 1 ? "Complaint open" : "Complaints open",
+         detail: [oldest.subject, oldest.customerName].filter(Boolean).join(" · ") ||
+           "Opened by a customer",
+         href: "/admin/complaints",
+         icon: <MessageCircle size={18} />,
+       });
+     }
+
+     return rows;
+   }, [allOrders, allBookings, products, openComplaints]);
 
    const salesViews = useMemo(
      () => {
@@ -592,10 +745,10 @@ export default function AdminDashboard() {
          bookings={recentBookings}
        />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto md:h-96">
-         <div 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-auto lg:h-[640px]">
+         <div
           data-tour="dashboard-activity"
-          className="lg:col-span-2 bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group h-[500px] md:h-full"
+          className="bg-gradient-to-br from-zinc-900 to-black text-white rounded-3xl p-8 relative overflow-hidden group h-[500px] lg:h-full"
         >
           <div className="relative z-10 h-full flex flex-col">
             <h3 className="text-2xl font-bold mb-2 uppercase tracking-tight">Store Activity</h3>
@@ -645,51 +798,102 @@ export default function AdminDashboard() {
           <Zap className="absolute -bottom-10 -right-10 w-64 h-64 text-zinc-800/50 group-hover:text-zinc-800/80 transition-colors pointer-events-none" />
         </div>
 
-        <div 
-          data-tour="dashboard-inventory"
-          className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 flex flex-col relative overflow-hidden h-[400px] md:h-full"
-        >
-          <h3 className="font-black text-lg text-zinc-900 dark:text-zinc-50 mb-4 flex items-center gap-2 uppercase tracking-tight">
-            <Package className="w-5 h-5 text-blue-500" />
-            Inventory Status
-          </h3>
-
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2">
-            {products.length === 0 ? (
-              <p className="text-zinc-500 text-center py-10 font-bold uppercase text-xs tracking-widest">No items.</p>
+        <div className="flex flex-col gap-6 h-auto lg:h-full min-h-0">
+          {/* Needs You Today */}
+          <div
+            data-tour="dashboard-needs-attention"
+            className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 flex flex-col shrink-0 max-h-[300px]"
+          >
+            <h3 className="font-black text-lg text-zinc-900 dark:text-zinc-50 mb-4 uppercase tracking-tight shrink-0">
+              Needs You Today
+            </h3>
+            {needsAttention.length === 0 ? (
+              <div className="py-6 text-center">
+                <p className="text-zinc-500 font-bold text-sm">
+                  You&apos;re all caught up 🎉
+                </p>
+              </div>
             ) : (
-              products.map((product) => (
-                <div
-                  key={product.id}
-                  className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800"
-                >
-                  <span className="font-bold text-sm truncate max-w-[120px] uppercase tracking-tight">
-                    {product.name}
-                  </span>
-                  <span
-                    className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${
-                      (product.stock || 0) < 10
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                        : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    }`}
+              <div className="space-y-2 overflow-y-auto pr-1">
+                {needsAttention.map((row) => (
+                  <Link
+                    key={row.key}
+                    href={row.href}
+                    className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors group"
                   >
-                    {product.stock || 0} left
-                  </span>
-                </div>
-              ))
+                    <div className="w-10 h-10 shrink-0 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-700 dark:text-zinc-300">
+                      {row.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-zinc-900 dark:text-zinc-50">
+                          {row.title}
+                        </span>
+                        <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+                          {row.count}
+                        </span>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                        {row.detail}
+                      </p>
+                    </div>
+                    <ArrowRight
+                      size={16}
+                      className="shrink-0 text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors"
+                    />
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
 
-          <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
-            <a
-              href="/admin/products"
-              className="block w-full py-2 text-center text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:text-zinc-50 dark:hover:text-white transition-colors"
-              >
-                Manage All Items →
-              </a>
+          {/* Inventory Status */}
+          <div
+            data-tour="dashboard-inventory"
+            className="bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-3xl p-8 flex flex-col relative overflow-hidden flex-1 min-h-[300px] lg:min-h-0"
+          >
+            <h3 className="font-black text-lg text-zinc-900 dark:text-zinc-50 mb-4 flex items-center gap-2 uppercase tracking-tight">
+              <Package className="w-5 h-5 text-blue-500" />
+              Inventory Status
+            </h3>
+
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+              {products.length === 0 ? (
+                <p className="text-zinc-500 text-center py-10 font-bold uppercase text-xs tracking-widest">No items.</p>
+              ) : (
+                products.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800"
+                  >
+                    <span className="font-bold text-sm truncate max-w-[120px] uppercase tracking-tight">
+                      {product.name}
+                    </span>
+                    <span
+                      className={`text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${
+                        (product.stock || 0) < 10
+                          ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                      }`}
+                    >
+                      {product.stock || 0} left
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
+
+            <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+              <a
+                href="/admin/products"
+                className="block w-full py-2 text-center text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:text-zinc-50 dark:hover:text-white transition-colors"
+                >
+                  Manage All Items →
+                </a>
+              </div>
+             </div>
            </div>
-         </div>
-       
        </div>
-     )}
+    </div>
+  );
+}

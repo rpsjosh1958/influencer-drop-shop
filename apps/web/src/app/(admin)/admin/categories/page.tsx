@@ -71,6 +71,10 @@ export default function CategoriesPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["categories", storeId] });
     },
+    onError: (e) => {
+      console.error(e);
+      alert("Failed to delete category");
+    },
   });
 
   const handleAddKey = (e: React.KeyboardEvent) => {
@@ -173,7 +177,7 @@ export default function CategoriesPage() {
               {categories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="group flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl hover:border-zinc-300 transition-colors"
+                  className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl hover:border-zinc-300 transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div className="h-10 w-10 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-zinc-400">
@@ -188,7 +192,8 @@ export default function CategoriesPage() {
                   </div>
                   <button
                     onClick={() => handleDelete(cat.id)}
-                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                    disabled={deleteMutation.isPending}
+                    className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                   >
                     <Trash2 size={18} />
                   </button>
