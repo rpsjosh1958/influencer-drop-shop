@@ -19,11 +19,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Download,
 } from "lucide-react";
 import ReactDatePicker from "react-datepicker";
 import { AdminOrderModal } from "@/components/admin/admin-order-modal";
 import { ManualOrderModal } from "@/components/admin/manual-order-modal";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { EmptyState } from "@/components/admin/empty-state";
 import { formatCurrency, toJsDate } from "@/lib/utils";
@@ -247,97 +249,87 @@ export default function OrdersPage() {
 
   return (
     <div className="flex flex-col h-full min-h-[calc(100vh-8rem)] space-y-4">
+      <AdminPageHeader
+        title={
+          <>
+            Orders
+            <HelpTrigger category="orders" />
+          </>
+        }
+        subtitle="Manage customer orders"
+      />
+
       <div
         data-tour="orders-header"
-        className="flex flex-col gap-4 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm shrink-0"
+        className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm shrink-0"
       >
-        {/* Top row: title + actions */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              Orders
-              <HelpTrigger category="orders" />
-            </h1>
-            <p className="text-zinc-500 text-sm">Manage customer orders</p>
-          </div>
-          {/* Action Buttons: Add + Export */}
-          <div className="flex items-center gap-2">
+        {/* Toolbar row: Add Order + Export — first in the DOM so mobile
+            stacking keeps it on top (unchanged), but visually pushed to the
+            right on desktop via md:order-2. */}
+        <div className="flex items-center justify-end gap-2 md:order-2 md:shrink-0">
+          <button
+            onClick={() => setShowManualOrderModal(true)}
+            className="h-9 px-3 md:px-4 flex items-center justify-center gap-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-white rounded-lg transition-colors whitespace-nowrap"
+          >
+            <ShoppingBag size={16} />
+            <span className="text-xs font-bold uppercase">Add Order</span>
+          </button>
+          <div data-tour="orders-export" className="relative z-30 flex items-center">
             <button
-              onClick={() => setShowManualOrderModal(true)}
-              className="h-9 w-9 xl:w-auto xl:px-4 flex items-center justify-center gap-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-white rounded-lg transition-colors"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="h-9 px-3 md:px-4 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
             >
-              <ShoppingBag size={16} />
-              <span className="hidden xl:inline text-xs font-bold uppercase">Add Order</span>
+              <Download size={14} />
+              <span className="hidden sm:inline">Export PDF</span>
+              <span className="sm:hidden">Export</span>
             </button>
-            <div data-tour="orders-export" className="relative z-20 flex items-center">
-              <button
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                className="h-9 px-4 bg-black hover:bg-zinc-800 text-white text-xs font-bold uppercase rounded-lg transition-colors flex items-center gap-2"
-              >
-                <span className="hidden sm:inline">Export PDF</span>
-                <span className="sm:hidden">Export</span>
-              </button>
 
-              {showExportMenu && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl p-1 flex flex-col gap-1 z-50">
-                  <button
-                    onClick={() => {
-                      handleExportPDF("current");
-                      setShowExportMenu(false);
-                    }}
-                    className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
-                  >
-                    <span>Current Page</span>
-                    <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
-                      {paginatedOrders.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleExportPDF("filtered");
-                      setShowExportMenu(false);
-                    }}
-                    className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
-                  >
-                    <span>Filtered Results</span>
-                    <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
-                      {filteredOrders.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleExportPDF("all");
-                      setShowExportMenu(false);
-                    }}
-                    className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
-                  >
-                    <span>All Orders (Total)</span>
-                    <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
-                      {orders.length}
-                    </span>
-                  </button>
-                </div>
-              )}
-            </div>
+            {showExportMenu && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl shadow-xl p-1 flex flex-col gap-1 z-50">
+                <button
+                  onClick={() => {
+                    handleExportPDF("current");
+                    setShowExportMenu(false);
+                  }}
+                  className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
+                >
+                  <span>Current Page</span>
+                  <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                    {paginatedOrders.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleExportPDF("filtered");
+                    setShowExportMenu(false);
+                  }}
+                  className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
+                >
+                  <span>Filtered Results</span>
+                  <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                    {filteredOrders.length}
+                  </span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleExportPDF("all");
+                    setShowExportMenu(false);
+                  }}
+                  className="text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-black dark:text-zinc-200 flex justify-between"
+                >
+                  <span>All Orders (Total)</span>
+                  <span className="text-zinc-400 text-xs text-right bg-zinc-100 dark:bg-zinc-800 px-1 rounded">
+                    {orders.length}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Filters row: search, status, date range */}
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full">
-          {/* Search - Takes full width on mobile, flexible on desktop */}
-          {/* <div className="relative flex-1 h-10 md:h-9">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
-              size={14}
-            />
-            <input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search customers, email, city..."
-              className="h-full w-full pl-9 pr-3 rounded-lg border border-zinc-200 bg-zinc-50 text-sm text-black outline-none focus:ring-2 focus:ring-black transition-all"
-            />
-          </div> */}
-
+        {/* Filters row: status, date range — visually first/left on desktop
+            via md:order-1, so the whole card reads as one line. */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto md:order-1">
           <div className="flex items-center gap-2 h-10 md:h-9">
             {/* Status Filter */}
             <select
@@ -354,7 +346,7 @@ export default function OrdersPage() {
             </select>
 
             {/* Date Range */}
-            <div className="flex flex-1 md:flex-none items-center gap-1 bg-zinc-50 border border-zinc-200 rounded-lg px-2 h-full z-20">
+            <div className="flex flex-1 md:flex-none items-center gap-1 bg-zinc-50 border border-zinc-200 rounded-lg px-2 h-full z-10">
               <ReactDatePicker
                 selected={startDate}
                 onChange={(date) => setStartDate(date)}
@@ -400,7 +392,7 @@ export default function OrdersPage() {
           {/* Scrollable List Container */}
           <div
             data-tour="orders-list"
-            className="flex-1 overflow-y-auto min-h-0 border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900 scrollbar-thin scrollbar-thumb-zinc-200"
+            className="flex-1 overflow-y-auto min-h-[50vh] border border-zinc-200 dark:border-zinc-800 rounded-2xl bg-zinc-50/50 dark:bg-zinc-900 scrollbar-thin scrollbar-thumb-zinc-200"
           >
             {/* Table Header (Sticky) */}
             <div className="sticky top-0 z-10 px-6 py-3 flex items-center justify-between text-xs font-bold uppercase text-zinc-400 tracking-wider bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">

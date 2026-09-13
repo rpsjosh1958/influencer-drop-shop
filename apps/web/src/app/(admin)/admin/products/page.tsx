@@ -16,12 +16,12 @@ import { db } from "@/lib/firebase";
 import { Product } from "@/types";
 import { ProductForm } from "@/components/admin/product-form";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 import { ShareModal } from "@/components/admin/share-modal";
 import { toPng } from "html-to-image";
 import { PromoCard } from "@/components/admin/promo-card";
-import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
-import { cn } from "@/lib/utils";
+import { HelpTrigger } from "@/context/onboarding-context";
 
 // New Refactored Components
 import { AdminProductTable } from "@/components/admin/product-table";
@@ -33,7 +33,6 @@ import { EmptyState } from "@/components/admin/empty-state";
 
 export default function ProductsPage() {
   const { storeId, loading: storeLoading } = useAdminStore();
-  const { currentStepTarget } = useOnboarding();
   const queryClient = useQueryClient();
 
   // 1. Fetch Store Status (Query)
@@ -239,67 +238,74 @@ export default function ProductsPage() {
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+      <AdminPageHeader
+        title={
+          <>
             Inventory
             <HelpTrigger category="products" />
-          </h1>
-          <p className="text-zinc-500">Manage your drop items</p>
+          </>
+        }
+        subtitle="Manage your drop items"
+      />
+
+      <div className="flex items-center justify-end gap-1.5 md:gap-3">
+        {/* Desktop search */}
+        <div className="hidden md:block relative w-48 md:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+          <input
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search products..."
+            className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-black text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
+          />
         </div>
-        <div className="flex items-center gap-4 md:gap-6">
-            {/* Desktop search */}
-            <div className="hidden md:block relative w-48 md:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-              <input
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search products..."
-                className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
-              />
-            </div>
-           {(selectedIds.length > 0 || currentStepTarget === "products-bulk") && (
-             <div 
-               data-tour="products-bulk"
-               className={cn(
-                 "flex items-center gap-2 transition-all",
-                 selectedIds.length === 0 && "opacity-50 pointer-events-none"
-               )}
-             >
-               <button
-                 onClick={handleBulkDownload}
-                 disabled={generatingBulk}
-                 className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 text-white px-4 py-2 rounded-xl font-bold hover:bg-black transition-colors animate-in fade-in zoom-in disabled:opacity-50"
-               >
-                 <DownloadIcon
-                   size={18}
-                   className={generatingBulk ? "animate-bounce" : ""}
-                 />
-                 {generatingBulk
-                   ? "Generating..."
-                   : `Download Images (${selectedIds.length})`}
-               </button>
- 
-               <button
-                 onClick={handleBulkDelete}
-                 disabled={isBulkDeleting}
-                 className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold hover:bg-red-100 transition-colors animate-in fade-in zoom-in"
-               >
-                 {isBulkDeleting ? <Loader2 className="animate-spin" size={18} /> : <TrashIcon size={18} />}
-                 Delete ({selectedIds.length})
-               </button>
-             </div>
-           )}
-           <button
-             data-tour="products-add"
-             onClick={handleAdd}
-             className="flex items-center gap-2 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-xl font-medium hover:opacity-90 transition-opacity"
-           >
-             <PlusIcon size={20} />
-             Add Product
-           </button>
-          </div>
-       </div>
+       <button
+         data-tour="products-bulk"
+         onClick={handleBulkDownload}
+         disabled={generatingBulk || selectedIds.length === 0}
+         className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-zinc-900 border border-zinc-800 text-white px-2.5 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-colors hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-900"
+       >
+         <DownloadIcon
+           size={15}
+           className={generatingBulk ? "animate-bounce shrink-0" : "shrink-0"}
+         />
+         {generatingBulk ? (
+           <span>Generating…</span>
+         ) : (
+           <>
+             <span className="md:hidden">
+               Download{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+             </span>
+             <span className="hidden md:inline">
+               Download Images{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+             </span>
+           </>
+         )}
+       </button>
+
+       <button
+         onClick={handleBulkDelete}
+         disabled={isBulkDeleting || selectedIds.length === 0}
+         className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-red-50 text-red-600 px-2.5 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-colors hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-50"
+       >
+         {isBulkDeleting ? (
+           <Loader2 className="animate-spin shrink-0" size={15} />
+         ) : (
+           <TrashIcon size={15} className="shrink-0" />
+         )}
+         <span>Delete{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}</span>
+       </button>
+
+       <button
+         data-tour="products-add"
+         onClick={handleAdd}
+         className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-black dark:bg-white text-white dark:text-black px-2.5 md:px-4 py-2 rounded-xl font-medium text-xs md:text-sm whitespace-nowrap hover:opacity-90 transition-opacity"
+       >
+         <PlusIcon size={17} className="shrink-0" />
+         <span className="md:hidden">Add</span>
+         <span className="hidden md:inline">Add Product</span>
+       </button>
+      </div>
 
        {/* Mobile search: under header, before mobile select-all */}
        <div className="md:hidden mt-2">
@@ -309,7 +315,7 @@ export default function ProductsPage() {
              value={searchTerm}
              onChange={(e) => setSearchTerm(e.target.value)}
              placeholder="Search products..."
-             className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
+             className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-black text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
            />
          </div>
        </div>

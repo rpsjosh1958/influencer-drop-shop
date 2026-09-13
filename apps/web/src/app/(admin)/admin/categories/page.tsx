@@ -16,6 +16,7 @@ import { db } from "@/lib/firebase";
 import { Category } from "@/types";
 import { Plus, Trash2, Tag, AlertCircle, Loader2 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { LoadingState } from "@/components/admin/loading-state";
 import { EmptyState } from "@/components/admin/empty-state";
@@ -108,15 +109,15 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          Categories
-          <HelpTrigger category="categories" />
-        </h1>
-        <p className="text-zinc-500">
-          Manage product categories for this store
-        </p>
-      </div>
+      <AdminPageHeader
+        title={
+          <>
+            Categories
+            <HelpTrigger category="categories" />
+          </>
+        }
+        subtitle="Manage product categories for this store"
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Create Form */}

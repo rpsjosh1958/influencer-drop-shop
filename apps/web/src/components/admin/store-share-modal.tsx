@@ -248,7 +248,7 @@ export const StoreShareModal = ({
                   <input
                     readOnly
                     value={shareUrl}
-                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 rounded-lg px-3 text-sm font-medium"
+                    className="flex-1 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-black dark:text-white rounded-lg px-3 text-sm font-medium"
                   />
                   <button
                     onClick={copyLink}

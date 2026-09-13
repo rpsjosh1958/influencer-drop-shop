@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { db } from "@/lib/firebase";
 import {
   doc,
@@ -17,7 +18,6 @@ import {
 import {
   Loader2,
   ArrowUpRight,
-  Wallet,
   History,
   AlertCircle,
   Download,
@@ -253,39 +253,16 @@ export default function FinancePage() {
     : "";
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+    <div className="space-y-8 pb-20">
+      <AdminPageHeader
+        title={
+          <>
             Finance & Payouts
             <HelpTrigger category="finance" />
-          </h1>
-          <p className="text-zinc-500">Track your earnings.</p>
-        </div>
-        {hasSubaccount ? (
-          <Link
-            href="/admin/settings?tab=payouts"
-            data-tour="finance-payout-method"
-            className="bg-white border border-zinc-200 px-5 py-3 rounded-xl font-bold hover:border-zinc-300 transition-colors flex items-center gap-3 group"
-          >
-            <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center">
-              <Wallet size={14} className="text-zinc-600" />
-            </div>
-            <div className="text-left">
-              <p className="text-xs text-zinc-400 font-medium leading-none mb-1">
-                Payout method
-              </p>
-              <p className="text-sm text-zinc-900 leading-none">
-                {payout?.bankName || "Not set"}
-                {maskedAccount && ` ${maskedAccount}`}
-              </p>
-            </div>
-            <span className="text-xs font-bold text-zinc-400 group-hover:text-zinc-900 transition-colors ml-1">
-              Change
-            </span>
-          </Link>
-        ) : null}
-      </div>
+          </>
+        }
+        subtitle="Track your earnings."
+      />
 
       {!hasSubaccount && (
         <div className="bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-3 text-red-800">
@@ -329,19 +306,19 @@ export default function FinancePage() {
       {/* Reports Section */}
       <div
         data-tour="finance-statements"
-        className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col md:flex-row md:items-center justify-between gap-4"
+        className="bg-white p-6 rounded-3xl border border-zinc-200 flex flex-col md:flex-row md:items-center gap-4"
       >
-        <div>
+        <div className="md:w-64 shrink-0">
           <h3 className="font-bold text-lg text-black">Monthly Statements</h3>
           <p className="text-sm text-zinc-500">
             Download PDF reports for your financial records.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 mt-4 md:mt-0">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-black text-sm font-medium outline-none focus:ring-2 focus:ring-black flex-1 md:flex-none min-w-[100px]"
+            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-black text-sm font-medium outline-none focus:ring-2 focus:ring-black flex-1 min-w-[45%] sm:min-w-[130px] sm:flex-none"
           >
             {months.map((m, i) => (
               <option key={m} value={i}>
@@ -352,7 +329,7 @@ export default function FinancePage() {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(Number(e.target.value))}
-            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-black font-medium outline-none focus:ring-2 focus:ring-black flex-1 md:flex-none min-w-[80px]"
+            className="h-10 px-3 rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-black font-medium outline-none focus:ring-2 focus:ring-black flex-1 min-w-[45%] sm:min-w-[90px] sm:flex-none"
           >
             {years.map((y) => (
               <option key={y} value={y}>
@@ -363,7 +340,7 @@ export default function FinancePage() {
           <button
             onClick={handleExportStatement}
             disabled={exporting}
-            className="h-10 px-4 bg-zinc-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 flex-1 md:flex-none justify-center whitespace-nowrap"
+            className="h-10 px-4 bg-zinc-900 hover:bg-black text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 flex-1 min-w-[45%] sm:min-w-0 sm:flex-none whitespace-nowrap"
           >
             {exporting ? (
               <Loader2 className="animate-spin" size={16} />
@@ -375,7 +352,7 @@ export default function FinancePage() {
           <button
             onClick={handleExportExcel}
             disabled={exporting}
-            className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95 disabled:opacity-50 flex-1 md:flex-none justify-center whitespace-nowrap"
+            className="h-10 px-4 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 flex-1 min-w-[45%] sm:min-w-0 sm:flex-none whitespace-nowrap"
           >
             {exporting ? (
               <Loader2 className="animate-spin" size={16} />
@@ -407,9 +384,20 @@ export default function FinancePage() {
       >
         <div className="bg-zinc-900 text-white p-8 rounded-3xl relative overflow-hidden">
           <div className="relative z-10">
-            <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] mb-2 flex items-center gap-2">
-              <CalendarClock size={12} /> Settlement
-            </p>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <p className="text-zinc-400 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                <CalendarClock size={12} /> Settlement
+              </p>
+              {hasSubaccount && (
+                <Link
+                  href="/admin/settings?tab=payouts"
+                  data-tour="finance-payout-method"
+                  className="text-zinc-400 hover:text-white font-bold uppercase tracking-widest text-[10px] transition-colors whitespace-nowrap"
+                >
+                  Change
+                </Link>
+              )}
+            </div>
             {hasSubaccount ? (
               <>
                 <h2 className="text-2xl font-black tracking-tight leading-tight">
@@ -486,46 +474,47 @@ export default function FinancePage() {
             transactions.map((tx) => (
               <div
                 key={tx.id}
-                className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-100"
+                className="flex items-start gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100"
               >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      tx.type === "credit"
-                        ? "bg-green-100 text-green-600"
-                        : tx.type === "debit" || tx.type === "payout"
-                          ? "bg-red-100 text-red-600"
-                          : "bg-gray-100"
-                    }`}
-                  >
-                    {tx.type === "credit" ? (
-                      <ArrowUpRight className="rotate-180" size={18} />
-                    ) : (
-                      <ArrowUpRight size={18} />
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-bold text-zinc-900 flex items-center gap-2">
-                      {tx.description}
-                      {tx.source === "subaccount_split" && (
-                        <span className="text-[10px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
-                          Auto-settled
-                        </span>
-                      )}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {toJsDate(tx.createdAt)?.toLocaleDateString()} •{" "}
-                      {tx.status}
-                    </p>
-                  </div>
-                </div>
                 <div
-                  className={`font-black ${
-                    tx.type === "credit" ? "text-green-600" : "text-zinc-900"
+                  className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
+                    tx.type === "credit"
+                      ? "bg-green-100 text-green-600"
+                      : tx.type === "debit" || tx.type === "payout"
+                        ? "bg-red-100 text-red-600"
+                        : "bg-gray-100"
                   }`}
                 >
-                  {tx.type === "credit" ? "+" : "-"}
-                  {formatCurrency(tx.amount)}
+                  {tx.type === "credit" ? (
+                    <ArrowUpRight className="rotate-180" size={18} />
+                  ) : (
+                    <ArrowUpRight size={18} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-bold text-zinc-900 text-sm leading-snug">
+                      {tx.description}
+                    </p>
+                    <div
+                      className={`shrink-0 font-black text-sm whitespace-nowrap ${
+                        tx.type === "credit" ? "text-green-600" : "text-zinc-900"
+                      }`}
+                    >
+                      {tx.type === "credit" ? "+" : "-"}
+                      {formatCurrency(tx.amount)}
+                    </div>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-2 mt-1.5">
+                    {tx.source === "subaccount_split" && (
+                      <span className="text-[9px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                        Auto-settled
+                      </span>
+                    )}
+                    <p className="text-xs text-zinc-500 whitespace-nowrap">
+                      {toJsDate(tx.createdAt)?.toLocaleDateString()} • {tx.status}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))

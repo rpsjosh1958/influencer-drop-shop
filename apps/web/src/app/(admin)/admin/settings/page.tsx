@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase"; // Added auth
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import {
   EmailAuthProvider,
   reauthenticateWithCredential,
@@ -546,48 +547,70 @@ export default function StoreSettingsPage() {
     );
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-20">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-          Store Settings
-          <HelpTrigger 
-            category={activeTab === "billing" || activeTab === "payouts" ? "settings-pro" : "settings"} 
-            target={activeTab === "billing" ? "settings-billing" : activeTab === "payouts" ? "settings-payouts" : undefined}
-          />
-        </h1>
-        <p className="text-zinc-500">Manage your store's brand and layout.</p>
-      </div>
+    <div className="space-y-8 pb-20">
+      <AdminPageHeader
+        title={
+          <>
+            Store Settings
+            <HelpTrigger
+              category={activeTab === "billing" || activeTab === "payouts" ? "settings-pro" : "settings"}
+              target={activeTab === "billing" ? "settings-billing" : activeTab === "payouts" ? "settings-payouts" : undefined}
+            />
+          </>
+        }
+        subtitle="Manage your store's brand and layout."
+      />
 
-      <div className="flex flex-col lg:flex-row gap-8">
-        {/* Sidebar Tabs */}
-        <div 
+      <div className="space-y-6">
+        {/* Horizontal Tabs — active tab expands to icon+label, inactive
+            tabs collapse to icon-only. `layout` on each button plus the
+            AnimatePresence'd label lets framer-motion animate the width
+            change (and reflow neighbouring tabs) whenever the active tab
+            changes, instead of an instant jump. */}
+        <div
           data-tour="settings-tabs"
-          className="w-full lg:w-64 flex-shrink-0 space-y-2"
+          className="flex flex-wrap gap-2"
         >
           {TABS.map((tab) => {
             const isLocked = (tab.id === "billing" || tab.id === "payouts") && !isTypeSelected;
+            const isActive = activeTab === tab.id;
             return (
-              <button
+              <motion.button
                 key={tab.id}
+                layout
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 onClick={() => !isLocked && setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
-                  activeTab === tab.id
+                disabled={isLocked}
+                className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full font-medium text-sm transition-colors ${
+                  isActive
                     ? "bg-black text-white shadow-lg"
-                    : isLocked 
+                    : isLocked
                       ? "bg-zinc-50 text-zinc-300 cursor-not-allowed"
-                      : "bg-white text-zinc-500 hover:bg-zinc-100"
+                      : "bg-white border border-zinc-200 text-zinc-500 hover:bg-zinc-100"
                 }`}
               >
-                <tab.icon size={18} />
-                {tab.label}
-                {isLocked && <Lock size={14} className="ml-auto" />}
-              </button>
+                <tab.icon size={18} className="shrink-0" />
+                <AnimatePresence initial={false}>
+                  {isActive && (
+                    <motion.span
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: "auto" }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="whitespace-nowrap overflow-hidden"
+                    >
+                      {tab.label}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+                {isLocked && <Lock size={14} className="shrink-0" />}
+              </motion.button>
             );
           })}
         </div>
 
         {/* Content Area */}
-        <div className="flex-1">
+        <div>
           <div className="space-y-6">
             {onboardingStatus === "needs_more_info" && (
               <div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl space-y-3">
@@ -629,107 +652,107 @@ export default function StoreSettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <ImageUpload
-                      label="Store Logo"
-                      value={config.logo}
-                      onChange={(val) => setNested(["logo"], val)}
-                      maxSizeMB={2}
-                    />
-                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8 items-start">
+                    <div className="space-y-2">
+                      <ImageUpload
+                        label="Store Logo"
+                        value={config.logo}
+                        onChange={(val) => setNested(["logo"], val)}
+                        maxSizeMB={2}
+                        compact
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-900">
-                      Store Status
-                    </label>
-                    <select
-                      value={config.status}
-                      onChange={(e) => setNested(["status"], e.target.value)}
-                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
-                    >
-                      <option value="live">Live (Open)</option>
-                      <option value="maintenance">Maintenance (Closed)</option>
-                      {/* Not vendor-selectable — shown only so the dropdown
-                          doesn't silently fall back to displaying "Live" as
-                          selected when the real value is neither of the two
-                          options above (e.g. a brand-new store defaults to
-                          "closed" until approved, or "unpaid" after a lapsed
-                          plan). Switching to Live/Maintenance still requires
-                          picking one of those normally. */}
-                      {config.status !== "live" &&
-                        config.status !== "maintenance" && (
-                          <option value={config.status} disabled>
-                            {config.status === "unpaid"
-                              ? "Unpaid (Plan Lapsed)"
-                              : "Closed (Pending Setup)"}
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-sm font-bold text-zinc-900">
+                          Store Status
+                        </label>
+                        <select
+                          value={config.status}
+                          onChange={(e) => setNested(["status"], e.target.value)}
+                          className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                        >
+                          <option value="live">Live (Open)</option>
+                          <option value="maintenance">Maintenance (Closed)</option>
+                          {/* Not vendor-selectable — shown only so the dropdown
+                              doesn't silently fall back to displaying "Live" as
+                              selected when the real value is neither of the two
+                              options above (e.g. a brand-new store defaults to
+                              "closed" until approved, or "unpaid" after a lapsed
+                              plan). Switching to Live/Maintenance still requires
+                              picking one of those normally. */}
+                          {config.status !== "live" &&
+                            config.status !== "maintenance" && (
+                              <option value={config.status} disabled>
+                                {config.status === "unpaid"
+                                  ? "Unpaid (Plan Lapsed)"
+                                  : "Closed (Pending Setup)"}
+                              </option>
+                            )}
+                        </select>
+                      </div>
+
+                      {/* Store Type Section */}
+                      <div
+                        data-tour="settings-type"
+                        className="space-y-2 pt-6 border-t border-zinc-100"
+                      >
+                        <label className="text-sm font-bold text-zinc-900">
+                          Store Type
+                        </label>
+                        <p className="text-xs text-zinc-500 mb-3">
+                          This determines what features are available in your admin
+                          portal.
+                        </p>
+                        <select
+                          value={config.type || ""}
+                          onChange={(e) => {
+                            const newType = e.target.value as
+                              | "product"
+                              | "service"
+                              | "hybrid";
+                            if (!newType) return;
+                            const newFeatures = {
+                              hasProducts:
+                                newType === "product" || newType === "hybrid",
+                              hasServices:
+                                newType === "service" || newType === "hybrid",
+                              hasPreorders: newType === "hybrid",
+                            };
+                            setNested(["type"], newType);
+                            setNested(["features"], newFeatures);
+                          }}
+                          className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                        >
+                          <option value="" disabled>
+                            Select Store Type
                           </option>
-                        )}
-                    </select>
-                  </div>
+                          <option value="product">
+                            Products Only (Physical goods)
+                          </option>
+                          <option value="service">
+                            Services Only (Appointments/Bookings)
+                          </option>
+                          <option value="hybrid">Both (Products + Services)</option>
+                        </select>
 
-                  {/* Store Type Section */}
-                  <div 
-                    data-tour="settings-type"
-                    className="space-y-2 pt-6 border-t border-zinc-100"
-                  >
-                    <label className="text-sm font-bold text-zinc-900">
-                      Store Type
-                    </label>
-                    <p className="text-xs text-zinc-500 mb-3">
-                      This determines what features are available in your admin
-                      portal.
-                    </p>
-                    <select
-                      value={config.type || ""}
-                      onChange={(e) => {
-                        const newType = e.target.value as
-                          | "product"
-                          | "service"
-                          | "hybrid";
-                        if (!newType) return;
-                        const newFeatures = {
-                          hasProducts:
-                            newType === "product" || newType === "hybrid",
-                          hasServices:
-                            newType === "service" || newType === "hybrid",
-                          hasPreorders: newType === "hybrid",
-                        };
-                        setNested(["type"], newType);
-                        setNested(["features"], newFeatures);
-                      }}
-                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
-                    >
-                      <option value="" disabled>
-                        Select Store Type
-                      </option>
-                      <option value="product">
-                        Products Only (Physical goods)
-                      </option>
-                      <option value="service">
-                        Services Only (Appointments/Bookings)
-                      </option>
-                      <option value="hybrid">Both (Products + Services)</option>
-                    </select>
-
-                    {config.features && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {config.features.hasProducts && (
-                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
-                            Products ✓
-                          </span>
-                        )}
-                        {config.features.hasServices && (
-                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
-                            Services ✓
-                          </span>
-                        )}
-                        {config.features.hasPreorders && (
-                          <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
-                            Pre-orders ✓
-                          </span>
+                        {config.features && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {config.features.hasProducts && (
+                              <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full">
+                                Products ✓
+                              </span>
+                            )}
+                            {config.features.hasServices && (
+                              <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                                Services ✓
+                              </span>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -1361,8 +1384,8 @@ export default function StoreSettingsPage() {
                     <>
                       {/* Current Plan Card */}
                       <div className="flex flex-col gap-1 mb-4">
-                        <h2 className="text-xl font-bold text-white">Account Subscription</h2>
-                        <p className="text-xs text-zinc-400 font-medium">One plan. All your stores.</p>
+                        <h2 className="text-xl font-bold text-zinc-900">Account Subscription</h2>
+                        <p className="text-xs text-zinc-500 font-medium">One plan. All your stores.</p>
                       </div>
                       
                       <div className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-4 text-zinc-900 flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -1697,7 +1720,7 @@ export default function StoreSettingsPage() {
           )}
             </AnimatePresence>
 
-            <div className="sticky bottom-6 flex justify-end">
+            <div className="flex justify-end pt-2">
               <div className="bg-white/80 backdrop-blur p-2 rounded-2xl shadow-xl border border-zinc-200">
                 {success && (
                   <span className="text-green-600 font-bold text-sm mr-4">

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   doc,
   getDoc,
-  updateDoc,
   collection,
   getDocs,
   query,
@@ -26,13 +25,15 @@ import {
   ShoppingBag,
   Award,
   TrendingUp,
-  ExternalLink,
   Sparkles,
-  Share2,
 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AnalyticsModal } from "@/components/admin/analytics-modal";
-import { StoreShareModal } from "@/components/admin/store-share-modal";
+import {
+  AdminPageHeader,
+  getPresetRange,
+  type DateRangeValue,
+} from "@/components/admin/admin-page-header";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { LoadingState } from "@/components/admin/loading-state";
 import { formatCurrency, cn, toJsDate, getTimestampSeconds } from "@/lib/utils";
@@ -87,17 +88,17 @@ export default function AdminDashboard() {
     isSuspended,
     userPlan,
   } = useAdminStore();
-  const queryClient = useQueryClient();
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showShareStore, setShowShareStore] = useState(false);
   const [activeInsightIndex, setActiveInsightIndex] = useState(0);
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() =>
+    getPresetRange("30d"),
+  );
   const [activeSalesIndex, setActiveSalesIndex] = useState(0);
 
   const onboardingBlocked = onboardingStatus !== "approved" || isSuspended;
 
   // Store config
-  const { data: storeData, isLoading: loading } = useQuery({
+  const { data: storeData } = useQuery({
     queryKey: ["store", storeId],
     queryFn: async () => {
       if (!storeId) return null;
@@ -107,7 +108,6 @@ export default function AdminDashboard() {
     enabled: !!storeId,
   });
 
-  const isLive = storeData?.status === "live";
   const storeName = storeData?.name || "";
   // Real field is `type` ("product"|"service"|"hybrid") — `storeType`
   // is never actually set anywhere, so this always silently fell back
@@ -121,30 +121,6 @@ export default function AdminDashboard() {
     };
     return typeMap[storeData?.type] || "both";
   }, [storeData?.type]);
-
-  // Products — same query key products.tsx uses, so the cache is shared
-  // when that page has already been visited. Only used by the Share Store
-  // modal's "Rack" template.
-  const { data: allProducts = [] } = useQuery({
-    queryKey: ["products", storeId],
-    queryFn: async () => {
-      if (!storeId) return [];
-      const q = query(
-        collection(db, "stores", storeId, "products"),
-        orderBy("createdAt", "desc")
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Product[];
-    },
-    enabled: !!storeId,
-  });
-  const shareableProducts = useMemo(
-    () => allProducts.filter((p) => !!p.imageUrl).slice(0, 3),
-    [allProducts]
-  );
 
   // Orders
   const { data: allOrders = [] } = useQuery({
@@ -178,14 +154,13 @@ export default function AdminDashboard() {
       ].includes(data.status);
 
       if (isPaidOrFulfilled) {
-        let matchesMonth = true;
+        let matchesRange = true;
         const date = toJsDate(data.createdAt);
-        if (selectedMonth && date) {
-          const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
-          if (monthKey !== selectedMonth) matchesMonth = false;
+        if (date && (date < dateRange.from || date > dateRange.to)) {
+          matchesRange = false;
         }
 
-        if (matchesMonth) {
+        if (matchesRange) {
           totalRev += data.total || 0;
           count++;
         }
@@ -197,7 +172,7 @@ export default function AdminDashboard() {
     });
 
     return { revenue: totalRev, ordersCount: count, recentOrders: recent };
-  }, [allOrders, selectedMonth]);
+  }, [allOrders, dateRange]);
 
   // Bookings
   const { data: allBookings = [] } = useQuery({
@@ -407,39 +382,6 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, [insights.length]);
 
-  const toggleMutation = useMutation({
-    mutationFn: async () => {
-      if (!storeId) return;
-      await updateDoc(doc(db, "stores", storeId), {
-        status: isLive ? "maintenance" : "live",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["store", storeId] });
-    },
-    onError: (err) => {
-      console.error("Failed to toggle status", err);
-    },
-  });
-
-  const toggling = toggleMutation.isPending;
-
-  const toggleStore = () => {
-    if (!storeId || toggling || onboardingBlocked) return;
-    // Only confirm the destructive direction (taking a live store
-    // offline) — going live is the expected/positive action and doesn't
-    // need a safety check.
-    if (
-      isLive &&
-      !confirm(
-        "Close your storefront? Customers won't be able to browse or check out until you switch it back to Live.",
-      )
-    ) {
-      return;
-    }
-    toggleMutation.mutate();
-  };
-
   if (storeLoading || !storeId) {
     return <LoadingState />;
   }
@@ -498,103 +440,20 @@ export default function AdminDashboard() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-            {storeName || "Store"} 
+      <AdminPageHeader
+        title={
+          <>
+            {storeName || "Store"}
             {userPlan === "growth" && (
               <BadgeCheck className="w-6 h-6 text-blue-500 fill-blue-500/10" />
             )}
             <HelpTrigger category="dashboard" />
-            {storeId && (
-              <a
-                href={`/shop/${storeId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-2 md:px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900 ml-1"
-              >
-                <ExternalLink size={12} />
-                <span className="hidden md:inline">View Store</span>
-              </a>
-            )}
-            {storeId && (
-              <button
-                onClick={() => setShowShareStore(true)}
-                className="inline-flex items-center gap-1 px-2 md:px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900"
-              >
-                <Share2 size={12} />
-                <span className="hidden md:inline">Share Store</span>
-              </button>
-            )}
-          </h1>
-          <p className="text-zinc-500 dark:text-zinc-400">
-            Real-time command center
-          </p>
-        </div>
-        {/* Actions */}
-        <div className="flex flex-row items-center gap-3">
-          <div className="relative">
-            <select
-              data-tour="dashboard-filter"
-              value={selectedMonth || ""}
-              onChange={(e) => setSelectedMonth(e.target.value || null)}
-              className={`bg-white dark:bg-zinc-900 border rounded-xl px-4 py-2 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-black h-12 ${
-                selectedMonth
-                  ? "border-black dark:border-white ring-1 ring-black dark:ring-white"
-                  : "border-zinc-200 dark:border-zinc-800"
-              }`}
-            >
-              <option value="">All Time</option>
-              {Array.from({ length: 12 }).map((_, i) => {
-                const d = new Date();
-                d.setDate(1);
-                d.setMonth(d.getMonth() - i);
-                const value = `${d.getFullYear()}-${d.getMonth()}`;
-                const label = d.toLocaleDateString("default", {
-                  month: "short",
-                  year: "numeric",
-                });
-                return (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
-            {selectedMonth && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-black dark:bg-white border-2 border-white dark:border-zinc-950" />
-            )}
-          </div>
-
-          {/* The Big Switch */}
-          <div 
-            data-tour="dashboard-status"
-            className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2 pr-6 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-800 h-12"
-          >
-            <div
-              className={`h-3 w-3 rounded-full animate-pulse ${
-                isLive ? "bg-green-500" : "bg-red-500"
-              }`}
-            />
-            <span className="font-bold text-xs text-zinc-600 dark:text-zinc-300 uppercase tracking-widest">
-              Store is {isLive ? "OPEN" : "CLOSED"}
-            </span>
-            <button
-              onClick={toggleStore}
-              disabled={loading || toggling || onboardingBlocked}
-              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 dark:focus:ring-zinc-50 ${
-                isLive ? "bg-green-500" : "bg-zinc-200 dark:bg-zinc-700"
-              } ${onboardingBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
-            >
-              <span
-                className={`${
-                  isLive ? "translate-x-7" : "translate-x-1"
-                } inline-block h-6 w-6 transform rounded-full bg-white transition-transform shadow-sm`}
-              />
-            </button>
-          </div>
-        </div>
-      </div>
+          </>
+        }
+        subtitle="Real-time command center"
+        showDateFilter
+        onDateRangeChange={setDateRange}
+      />
 
        {/* Metrics Grid */}
        <div 
@@ -732,17 +591,6 @@ export default function AdminDashboard() {
          products={products}
          bookings={recentBookings}
        />
-
-       {storeId && (
-         <StoreShareModal
-           isOpen={showShareStore}
-           onClose={() => setShowShareStore(false)}
-           storeSlug={storeId}
-           storeName={storeName}
-           storeLogo={storeData?.logo}
-           products={shareableProducts}
-         />
-       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-auto md:h-96">
          <div 

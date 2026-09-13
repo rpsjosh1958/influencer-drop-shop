@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { format } from "date-fns";
 import {
   Search,
@@ -90,17 +91,17 @@ export default function AdminComplaintsPage() {
   });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight mb-2 flex items-center gap-2">
-            Complaints & Support
-            <HelpTrigger category="complaints" />
-          </h1>
-          <p className="text-zinc-500">
-            Manage customer inquiries and resolve issues.
-          </p>
-        </div>
+    <div>
+      <div className="mb-8">
+        <AdminPageHeader
+          title={
+            <>
+              Complaints & Support
+              <HelpTrigger category="complaints" />
+            </>
+          }
+          subtitle="Manage customer inquiries and resolve issues."
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-auto lg:h-[calc(100vh-200px)]">

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { Loader2, Clock, Calendar, Plus, Trash2, Save, X, Copy } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DaySchedule, TimeSlot, AvailabilitySettings } from "@/types";
@@ -176,17 +177,18 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-20">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+    <div className="space-y-8 pb-20">
+      <AdminPageHeader
+        title={
+          <>
             Schedule
             <HelpTrigger category="schedule" />
-          </h1>
-          <p className="text-zinc-500">
-            Set your working hours and blocked dates.
-          </p>
-        </div>
+          </>
+        }
+        subtitle="Set your working hours and blocked dates."
+      />
+
+      <div className="flex justify-end">
         <button
           onClick={handleSave}
           disabled={saving}
@@ -266,60 +268,59 @@ export default function SchedulePage() {
                     </span>
                   </div>
 
-                  {daySchedule.enabled && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    {daySchedule.enabled && (
+                      <button
+                        onClick={() => addSlot(day)}
+                        className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1 whitespace-nowrap"
+                      >
+                        <Plus size={14} /> Add Slot
+                      </button>
+                    )}
                     <button
-                      onClick={() => addSlot(day)}
-                      className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                      onClick={() => copyDayToOthers(day)}
+                      disabled={!daySchedule.enabled || daySchedule.slots.length === 0}
+                      title="Copy to all days"
+                      className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg hover:text-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                     >
-                      <Plus size={14} /> Add Slot
+                      <Copy size={14} />
                     </button>
-                  )}
+                  </div>
                 </div>
 
-                 <div className="flex items-center justify-between mb-2">
-                   <div className="flex items-center gap-2">
-                     {daySchedule.enabled && daySchedule.slots.length > 0 && (
-                       <div className="mt-3 space-y-2">
-                         {daySchedule.slots.map((slot, idx) => (
-                           <div key={idx} className="flex items-center gap-2">
-                             <input
-                               type="time"
-                               value={slot.start}
-                               onChange={(e) =>
-                                 updateSlot(day, idx, "start", e.target.value)
-                               }
-                               className="px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
-                             />
-                             <span className="text-zinc-400">to</span>
-                             <input
-                               type="time"
-                               value={slot.end}
-                               onChange={(e) =>
-                                 updateSlot(day, idx, "end", e.target.value)
-                               }
-                               className="px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
-                             />
-                             {daySchedule.slots.length > 1 && (
-                               <button
-                                 onClick={() => removeSlot(day, idx)}
-                                 className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                               >
-                                 <Trash2 size={16} />
-                               </button>
-                             )}
-                           </div>
-                         ))}
-                       </div>
-                     )}
-                   </div>
-                   <button
-                     onClick={() => copyDayToOthers(day)}
-                     disabled={!daySchedule.enabled || daySchedule.slots.length === 0}
-                     className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded hover:text-blue-800 transition-colors disabled:opacity-50"
-                   >
-                     <Copy size={16} />
-                   </button>
-                 </div>
+                {daySchedule.enabled && daySchedule.slots.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {daySchedule.slots.map((slot, idx) => (
+                      <div key={idx} className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="time"
+                          value={slot.start}
+                          onChange={(e) =>
+                            updateSlot(day, idx, "start", e.target.value)
+                          }
+                          className="flex-1 min-w-[110px] px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
+                        />
+                        <span className="text-zinc-400 shrink-0">to</span>
+                        <input
+                          type="time"
+                          value={slot.end}
+                          onChange={(e) =>
+                            updateSlot(day, idx, "end", e.target.value)
+                          }
+                          className="flex-1 min-w-[110px] px-3 py-2 border text-black border-zinc-200 rounded-lg text-sm bg-white"
+                        />
+                        {daySchedule.slots.length > 1 && (
+                          <button
+                            onClick={() => removeSlot(day, idx)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -443,7 +444,7 @@ export default function SchedulePage() {
                 ))}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-zinc-400 border-2 border-dashed border-zinc-100 rounded-2xl p-8">
+              <div className="h-full flex flex-col items-center justify-center text-zinc-400 p-8">
                 <Calendar size={32} className="mb-2 opacity-50" />
                 <p className="text-sm">No dates blocked yet</p>
               </div>

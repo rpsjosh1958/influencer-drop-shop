@@ -55,7 +55,7 @@ export function HeroNotificationLoop() {
   }, []);
 
   return (
-    <div className="mt-1 max-w-[360px] ml-auto flex flex-col gap-2.5 h-[210px] overflow-hidden relative">
+    <div className="mt-1 max-w-[360px] mx-auto md:mx-0 md:ml-auto flex flex-col gap-2.5 h-[210px] overflow-hidden relative">
       <AnimatePresence initial={false}>
         {queue.map((item) => (
           <motion.div

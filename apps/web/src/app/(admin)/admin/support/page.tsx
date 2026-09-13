@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { db } from "@/lib/firebase";
 import {
   collection,
@@ -81,17 +82,18 @@ export default function VendorSupportPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+    <div className="space-y-8">
+      <AdminPageHeader
+        title={
+          <>
             Support & Help
             <HelpTrigger category="support" />
-          </h1>
-          <p className="text-zinc-500">
-            Contact the platform team for assistance.
-          </p>
-        </div>
+          </>
+        }
+        subtitle="Contact the platform team for assistance."
+      />
+
+      <div className="flex justify-end">
         <button
           data-tour="support-new-ticket"
           onClick={() => setShowForm(!showForm)}

@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { Booking, BookingStatus } from "@/types";
 import {
   Loader2,
@@ -158,17 +159,18 @@ export default function BookingsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-20">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+    <div className="space-y-6 pb-20">
+      <AdminPageHeader
+        title={
+          <>
             Bookings
             <HelpTrigger category="bookings" />
-          </h1>
-          <p className="text-zinc-500">Manage customer appointments.</p>
-        </div>
+          </>
+        }
+        subtitle="Manage customer appointments."
+      />
 
-        {/* View Toggle */}
+      <div className="flex justify-end">
         <div
           data-tour="bookings-view-toggle"
           className="flex bg-zinc-100 p-1 rounded-xl"

@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { ServiceItem } from "@/types";
 import {
   Loader2,
@@ -209,38 +210,41 @@ export default function ServicesPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-20">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+    <div className="space-y-8 pb-20">
+      <AdminPageHeader
+        title={
+          <>
             Services
             <HelpTrigger category="services" />
-          </h1>
-          <p className="text-zinc-500">Manage your bookable services.</p>
+          </>
+        }
+        subtitle="Manage your bookable services."
+      />
+
+      <div className="flex items-center gap-3">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
+            size={18}
+          />
+          <input
+            type="text"
+            placeholder="Search services..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 text-black bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
+          />
         </div>
+
         <button
           data-tour="services-add"
           onClick={() => openModal()}
-          className="flex items-center gap-2 px-5 py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors"
+          className="shrink-0 flex items-center gap-2 px-4 md:px-5 py-3 bg-black text-white rounded-xl font-bold hover:bg-zinc-800 transition-colors whitespace-nowrap"
         >
           <Plus size={18} />
-          Add Service
+          <span>Add Service</span>
         </button>
-      </div>
-
-      {/* Search */}
-      <div className="relative">
-        <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400"
-          size={18}
-        />
-        <input
-          type="text"
-          placeholder="Search services..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-11 pr-4 py-3 text-black bg-white border border-zinc-200 rounded-xl focus:ring-2 focus:ring-black outline-none"
-        />
       </div>
 
       {/* Services Grid */}

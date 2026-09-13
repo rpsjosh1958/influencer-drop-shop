@@ -14,6 +14,10 @@ interface ImageUploadProps {
   label?: string;
   className?: string;
   multiple?: boolean;
+  /** Single-image mode only: fixed-size box with the helper text placed
+      beside it instead of below, so a small logo/avatar upload doesn't
+      leave a large empty gap next to it. */
+  compact?: boolean;
 }
 
 export function ImageUpload({
@@ -24,6 +28,7 @@ export function ImageUpload({
   label = "Upload Image",
   className = "",
   multiple = false,
+  compact = false,
 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -91,6 +96,61 @@ export function ImageUpload({
 
   // Helper to normalize value to array for rendering
   const images = Array.isArray(value) ? value : value ? [value] : [];
+
+  if (compact && !multiple) {
+    const current = images[0];
+    return (
+      <div className={`space-y-2 ${className}`}>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-bold text-zinc-900">{label}</label>
+          {error && (
+            <span className="text-xs text-red-500 font-medium">{error}</span>
+          )}
+        </div>
+        <div className="flex flex-col gap-3">
+          {current ? (
+            <div className="group relative w-32 h-32 shrink-0 rounded-xl overflow-hidden bg-zinc-100 border border-zinc-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={current}
+                alt="Uploaded"
+                className="w-full h-full object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => removeImage(current)}
+                disabled={disabled}
+                className="absolute top-1 right-1 p-1 bg-black/50 hover:bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <label className="flex flex-col items-center justify-center w-32 h-32 shrink-0 rounded-xl border-2 border-dashed border-zinc-200 hover:border-zinc-400 hover:bg-zinc-50 transition-all cursor-pointer text-zinc-400 hover:text-zinc-600">
+              {uploading ? (
+                <Loader2 className="animate-spin mb-2" />
+              ) : (
+                <Upload className="mb-2" />
+              )}
+              <span className="text-xs font-bold uppercase tracking-wider">
+                {uploading ? "Uploading..." : "Upload"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                disabled={disabled || uploading}
+                className="hidden"
+                onChange={handleUpload}
+              />
+            </label>
+          )}
+          <p className="text-xs text-zinc-400">
+            Max size: {maxSizeMB}MB per image. Upload a single image.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`space-y-4 ${className}`}>

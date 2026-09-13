@@ -349,7 +349,7 @@ export function ProductForm({
                   ref={nameRef}
                   defaultValue={initialData?.name}
                   required
-                  className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
+                  className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 text-black dark:text-white rounded-xl outline-none focus:ring-2 ring-black"
                   placeholder="e.g. Graphic Tee"
                 />
               </div>
@@ -362,7 +362,7 @@ export function ProductForm({
                     type="number"
                     step="0.01"
                     required
-                    className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
+                    className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 text-black dark:text-white rounded-xl outline-none focus:ring-2 ring-black"
                     placeholder="0.00"
                     onFocus={(e) => {
                       if (Number(e.target.value) === 0) e.target.value = "";
@@ -375,7 +375,7 @@ export function ProductForm({
                   </label>
                   <select
                     ref={categoryRef}
-                    className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black appearance-none"
+                    className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 text-black dark:text-white rounded-xl outline-none focus:ring-2 ring-black appearance-none"
                   >
                     <option value="">None</option>
                     {categories.map((c) => (
@@ -394,7 +394,7 @@ export function ProductForm({
                   ref={descRef}
                   defaultValue={initialData?.description}
                   rows={3}
-                  className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl outline-none focus:ring-2 ring-black"
+                  className="w-full p-3 bg-zinc-50 dark:bg-zinc-800 text-black dark:text-white rounded-xl outline-none focus:ring-2 ring-black"
                   placeholder="Details..."
                 />
               </div>
@@ -540,7 +540,7 @@ export function ProductForm({
                                 onChange={(e) =>
                                   updateVariant(v.id, "price", e.target.value)
                                 }
-                                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
+                                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 text-black dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
                               />
                             </td>
                             <td className="p-3">
@@ -550,7 +550,7 @@ export function ProductForm({
                                 onChange={(e) =>
                                   updateVariant(v.id, "stock", e.target.value)
                                 }
-                                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
+                                className="w-full p-2 bg-zinc-50 dark:bg-zinc-800 text-black dark:text-white rounded-lg outline-none focus:ring-2 ring-black"
                               />
                             </td>
                           </tr>
