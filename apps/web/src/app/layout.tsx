@@ -6,7 +6,11 @@ import {
   Roboto,
   Playfair_Display,
   Courier_Prime,
+  Gloock,
+  Schibsted_Grotesk,
+  Spline_Sans_Mono,
 } from "next/font/google";
+import localFont from "next/font/local";
 import DatadogInit from "../components/datadog-init";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -41,6 +45,31 @@ const courier = Courier_Prime({
   variable: "--font-courier",
   weight: ["400", "700"],
   subsets: ["latin"],
+});
+
+const gloock = Gloock({
+  variable: "--font-gloock",
+  weight: ["400"],
+  subsets: ["latin"],
+});
+
+const schibstedGrotesk = Schibsted_Grotesk({
+  variable: "--font-schibsted",
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin"],
+});
+
+const splineSansMono = Spline_Sans_Mono({
+  variable: "--font-spline-mono",
+  weight: ["400", "500"],
+  subsets: ["latin"],
+});
+
+// The Drop's wordmark next to the logo — display-only, all-caps by design.
+const hanson = localFont({
+  src: "../fonts/Hanson-Bold.ttf",
+  variable: "--font-hanson",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -100,7 +129,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${roboto.variable} ${playfair.variable} ${courier.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${roboto.variable} ${playfair.variable} ${courier.variable} ${gloock.variable} ${schibstedGrotesk.variable} ${splineSansMono.variable} ${hanson.variable} antialiased`}
       >
         <DatadogInit />
         <Providers>{children}</Providers>

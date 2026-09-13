@@ -1,267 +1,140 @@
-"use client";
+import Image from "next/image";
 
-import { motion } from "framer-motion";
-import { BarChart3, Smartphone, Layout, Zap, Bell, Globe } from "lucide-react";
-
-const FEATURES = [
-  {
-    title: "Command Center.",
-    description:
-      "A powerful dashboard to manage your business. Track sales in real-time and manage basics like inventory and orders even from your phone.",
-    icon: BarChart3,
-    color: "text-purple-500",
-    mockup: "dashboard",
-    bullets: [
-      "✨ Live Sales Tracker",
-      "✨ Easy Inventory",
-      "✨ Essential Mobile Admin",
-    ],
-  },
-  {
-    title: "One Store. All Your Hustles.",
-    description:
-      "Why choose? Sell physical drops and bookable services on the same storefront. Whether you're selling merch, booking hair appointments, or both—The Drop handles it all.",
-    icon: Layout,
-    color: "text-pink-500",
-    mockup: "store",
-    bullets: ["✨ Hybrid Shop Engine", "✨ Custom Branding", "✨ Instant Checkout"],
-  },
-  {
-    title: "Your Custom Mobile App.",
-    description:
-      "Stay in your customer's pocket. Your own custom app for iOS and Android keeps fans engaged with push notifications for drops, blazing fast checkout, and stored payment details.",
-    icon: Smartphone,
-    color: "text-orange-500",
-    mockup: "mobile",
-    bullets: [
-      "✨ Instant Notifications",
-      "✨ Store Switch",
-      "✨ One-Tap Checkout",
-    ],
-  },
-];
+const BULLET = (
+  <span className="font-[family-name:var(--font-spline-mono)] text-[11px] text-[#B4472B]">
+    ▶
+  </span>
+);
 
 export function LandingFeatures() {
   return (
-    <section
-      id="features"
-      className="py-32 bg-zinc-950 relative overflow-hidden"
-    >
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="text-center mb-32 space-y-4">
-          <h2 className="text-4xl md:text-6xl font-black tracking-tighter">
-            THE COMPLETE{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-orange-500">
-              ECOSYSTEM
-            </span>
-            .
-          </h2>
-          <p className="text-xl text-zinc-400 max-w-2xl mx-auto">
-            We provide every tool you need to go from idea to sold-out drop in
-            minutes.
+    <section id="features" className="scroll-mt-20 max-w-[1240px] mx-auto px-6 md:px-7 pt-[130px]">
+      <div className="flex items-baseline gap-4 mb-[70px] flex-wrap">
+        <span className="font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.14em] uppercase text-[#14130F]/70">
+          The platform
+        </span>
+        <span className="flex-1 h-px bg-[#14130F]/14 min-w-[40px]" />
+      </div>
+
+      {/* 01 — Dashboard */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] gap-[60px] items-center mb-[120px]">
+        <div className="min-w-0">
+          <div className="font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.12em] text-[#B4472B] mb-[18px]">
+            01 — DASHBOARD
+          </div>
+          <h3 className="font-[family-name:var(--font-gloock)] font-normal text-[clamp(32px,4vw,48px)] tracking-[-0.012em] leading-[1.05] mb-[18px]">
+            One place to run the whole business.
+          </h3>
+          <p className="text-[17.5px] leading-[1.65] text-[#14130F]/66 mb-[26px] max-w-[32em]">
+            Revenue, orders, stock and customers in a single view — and the
+            essentials work from your phone, so you can keep trading from
+            anywhere.
           </p>
+          <ul className="grid gap-2.5">
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Live sales and payout balance
+            </li>
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Inventory with low-stock alerts
+            </li>
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}New order & booking alerts, right on your phone
+            </li>
+          </ul>
         </div>
+        <div className="min-w-0 rounded-[14px] overflow-hidden border border-[#14130F]/16 shadow-[0_30px_60px_-34px_rgba(20,19,15,0.38)]">
+          <Image
+            src="/assets/landing/adminDashboard.png"
+            alt="The Drop admin dashboard"
+            width={2560}
+            height={1310}
+            className="block w-full h-auto"
+          />
+        </div>
+      </div>
 
-        <div className="space-y-32">
-          {FEATURES.map((feature, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 50 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.8 }}
-              className={`flex flex-col md:flex-row items-center gap-12 md:gap-24 ${
-                i % 2 === 1 ? "md:flex-row-reverse" : ""
-              }`}
-            >
-              {/* Text Content */}
-              <div className="flex-1 space-y-8">
-                <div
-                  className={`p-3 rounded-2xl bg-white/5 w-fit ${feature.color}`}
-                >
-                  <feature.icon size={32} />
-                </div>
-                <h3 className="text-4xl md:text-5xl font-black tracking-tight">
-                  {feature.title}
-                </h3>
-                <p className="text-xl text-zinc-400 leading-relaxed">
-                  {feature.description}
-                </p>
-                <ul className="space-y-3 pl-4 border-l-2 border-white/10">
-                  {/* @ts-ignore - bullets exist now */}
-                  {feature.bullets?.map((bullet: string, idx: number) => (
-                    <li key={idx} className="text-zinc-300 font-medium">
-                      {bullet}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      {/* 02 — Storefront */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] gap-[60px] items-center mb-[120px]">
+        <div className="min-w-0 order-2 md:order-2 rounded-[14px] overflow-hidden border border-[#14130F]/16 shadow-[0_30px_60px_-34px_rgba(20,19,15,0.38)]">
+          <Image
+            src="/assets/landing/shop.png"
+            alt="A storefront selling products and services"
+            width={2560}
+            height={1310}
+            className="block w-full h-auto"
+          />
+        </div>
+        <div className="min-w-0 order-1 md:order-1">
+          <div className="font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.12em] text-[#B4472B] mb-[18px]">
+            02 — STOREFRONT
+          </div>
+          <h3 className="font-[family-name:var(--font-gloock)] font-normal text-[clamp(32px,4vw,48px)] tracking-[-0.012em] leading-[1.05] mb-[18px]">
+            Products and appointments, same shop.
+          </h3>
+          <p className="text-[17.5px] leading-[1.65] text-[#14130F]/66 mb-[26px] max-w-[32em]">
+            Sell a hoodie and book a Saturday braiding slot from the same
+            storefront. Most platforms make you pick one — you shouldn&apos;t
+            have to run two businesses in two tools.
+          </p>
+          <ul className="grid gap-2.5">
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Hybrid product + service catalogue
+            </li>
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Your fonts, colours and logo
+            </li>
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Checkout with card and mobile money
+            </li>
+          </ul>
+        </div>
+      </div>
 
-              {/* Mockup Visual */}
-              <div className="flex-1 w-full">
-                {feature.mockup === "mobile" ? (
-                  <div className="relative w-full aspect-square md:aspect-video flex items-center justify-center gap-6">
-                    <img
-                      src="/assets/landing/image1.png"
-                      alt="Mobile App View 1"
-                      className="h-[120%] w-auto object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500"
-                    />
-                    <img
-                      src="/assets/landing/image2.png"
-                      alt="Mobile App View 2"
-                      className="h-[120%] w-auto object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-500 delay-100"
-                    />
-                  </div>
-                ) : (
-                  <div className="relative aspect-video rounded-3xl bg-zinc-900 border border-white/10 shadow-2xl overflow-hidden group hover:border-white/20 transition-colors duration-500">
-                    {/* Abstract UI Representation or Image */}
-                    {feature.mockup === "dashboard" ||
-                    feature.mockup === "store" ? (
-                      <img
-                        src={
-                          feature.mockup === "dashboard"
-                            ? "/assets/landing/adminDashboard.png"
-                            : "/assets/landing/shop.png"
-                        }
-                        alt={feature.title}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black p-8 flex flex-col">
-                        {/* Fallback */}
-                      </div>
-                    )}
-
-                    {/* Glow effect */}
-                    <div
-                      className={`absolute -inset-10 bg-gradient-to-r ${feature.color.replace(
-                        "text",
-                        "from",
-                      )}/20 to-transparent blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none`}
-                    />
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+      {/* 03 — Mobile */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] gap-[60px] items-center">
+        <div className="min-w-0">
+          <div className="font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.12em] text-[#B4472B] mb-[18px]">
+            03 — MOBILE
+          </div>
+          <h3 className="font-[family-name:var(--font-gloock)] font-normal text-[clamp(32px,4vw,48px)] tracking-[-0.012em] leading-[1.05] mb-[18px]">
+            You stay in their pocket.
+          </h3>
+          <p className="text-[17.5px] leading-[1.65] text-[#14130F]/66 mb-[26px] max-w-[32em]">
+            Your shop lives inside The Drop app on iOS and Android. Followers
+            get a push the second you release, saved cards make checkout one
+            tap, and they can switch between the brands they follow.
+          </p>
+          <ul className="grid gap-2.5">
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Push notifications on every drop
+            </li>
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}One-tap checkout with stored details
+            </li>
+            <li className="flex gap-3 items-baseline text-[15.5px] text-[#14130F]/82">
+              {BULLET}Store switching for repeat buyers
+            </li>
+          </ul>
+        </div>
+        <div className="min-w-0 flex items-end justify-center gap-[18px] bg-[#E5E0D6] border border-[#14130F]/12 rounded-[14px] pt-11 px-6 overflow-hidden">
+          <Image
+            src="/assets/landing/image1.png"
+            alt="Drop app product screen"
+            width={210}
+            height={277}
+            className="w-[44%] max-w-[210px] h-auto"
+            style={{ filter: "drop-shadow(0 24px 40px rgba(20,19,15,0.3))" }}
+          />
+          <Image
+            src="/assets/landing/image2.png"
+            alt="Drop app notifications"
+            width={210}
+            height={298}
+            className="w-[44%] max-w-[210px] h-auto -mb-6"
+            style={{ filter: "drop-shadow(0 24px 40px rgba(20,19,15,0.3))" }}
+          />
         </div>
       </div>
     </section>
-  );
-}
-
-// Simple CSS Mockups for visual interest without screenshots
-function MockupDashboard({ color }: { color: string }) {
-  const bgClass = color.replace("text-", "bg-");
-  return (
-    <div className="flex flex-col gap-4 h-full w-full">
-      <div className="flex gap-4">
-        <div className="w-1/4 h-32 rounded-xl bg-white/5 border border-white/5 p-4 space-y-2">
-          <div className={`w-8 h-8 rounded-lg ${bgClass} opacity-20`} />
-          <div className="w-12 h-2 rounded-full bg-zinc-800" />
-          <div className="w-20 h-6 rounded bg-zinc-800 animate-pulse" />
-        </div>
-        <div className="w-1/4 h-32 rounded-xl bg-white/5 border border-white/5 p-4 space-y-2">
-          <div className="w-8 h-8 rounded-lg bg-white/10" />
-          <div className="w-12 h-2 rounded-full bg-zinc-800" />
-          <div className="w-20 h-6 rounded bg-zinc-800" />
-        </div>
-        <div className="flex-1 h-32 rounded-xl bg-white/5 border border-white/5 p-4">
-          <div className="w-full h-full flex items-end gap-2 px-2 pb-2">
-            {[40, 70, 50, 90, 60, 80, 100].map((h, i) => (
-              <div
-                key={i}
-                className={`flex-1 rounded-t ${bgClass} opacity-40`}
-                style={{ height: `${h}%` }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="flex-1 rounded-xl bg-white/5 border border-white/5 p-4 flex gap-4">
-        <div className="w-1/4 h-full rounded bg-zinc-900/50" />
-        <div className="w-3/4 h-full space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="flex gap-4 items-center h-12 border-b border-white/5"
-            >
-              <div className="w-8 h-8 rounded bg-zinc-800" />
-              <div className="w-32 h-3 rounded bg-zinc-800" />
-              <div className="flex-1" />
-              <div className="w-16 h-3 rounded bg-zinc-800" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MockupStore({ color }: { color: string }) {
-  const bgClass = color.replace("text-", "bg-");
-  return (
-    <div className="flex flex-col h-full relative">
-      <div className="h-40 w-full rounded-xl bg-zinc-800 relative overflow-hidden mb-6">
-        <div
-          className={`absolute inset-0 opacity-20 bg-gradient-to-r ${color.replace(
-            "text",
-            "from",
-          )} to-transparent`}
-        />
-        <div className="absolute bottom-4 left-4">
-          <div className="w-32 h-6 rounded bg-white" />
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="space-y-3">
-            <div className="aspect-[3/4] rounded-lg bg-zinc-800 relative overflow-hidden">
-              {i === 2 && (
-                <div
-                  className={`absolute top-2 right-2 px-2 py-1 rounded text-[8px] bg-black text-white`}
-                >
-                  SOLD OUT
-                </div>
-              )}
-            </div>
-            <div className="w-20 h-2 rounded bg-zinc-800" />
-            <div className="w-12 h-2 rounded bg-zinc-800 opacity-50" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MockupMobile({ color }: { color: string }) {
-  return (
-    <div className="flex items-center justify-center h-full">
-      <div className="w-[180px] h-[340px] rounded-[2rem] border-4 border-zinc-800 bg-black overflow-hidden relative shadow-2xl">
-        <div className="absolute top-0 inset-x-0 h-6 bg-zinc-900 z-20 flex justify-center">
-          <div className="w-20 h-4 bg-black rounded-b-lg" />
-        </div>
-        {/* App Content */}
-        <div className="p-4 pt-8 space-y-4">
-          <div className="h-24 w-full rounded-xl bg-zinc-900" />
-          <div className="grid grid-cols-2 gap-2">
-            <div className="aspect-square bg-zinc-900 rounded-lg" />
-            <div className="aspect-square bg-zinc-900 rounded-lg" />
-            <div className="aspect-square bg-zinc-900 rounded-lg" />
-            <div className="aspect-square bg-zinc-900 rounded-lg" />
-          </div>
-        </div>
-        {/* Notification */}
-        <div className="absolute top-10 left-2 right-2 bg-white/10 backdrop-blur-md p-3 rounded-xl border border-white/10 flex gap-3">
-          <div className="w-8 h-8 rounded bg-white/20 flex items-center justify-center">
-            <Bell size={12} className="text-white" />
-          </div>
-          <div className="flex-1 space-y-1">
-            <div className="w-20 h-2 bg-white/50 rounded" />
-            <div className="w-32 h-2 bg-white/20 rounded" />
-          </div>
-        </div>
-      </div>
-    </div>
   );
 }

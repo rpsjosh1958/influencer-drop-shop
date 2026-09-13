@@ -1,108 +1,66 @@
-"use client";
-
 import Link from "next/link";
-import { Twitter, Instagram, Mail, ArrowRight } from "lucide-react";
+import Image from "next/image";
 
 export function LandingFooter() {
   return (
-    <footer className="bg-black border-t border-white/10 pt-20 pb-10 relative z-20">
-      <div className="max-w-7xl mx-auto px-6">
-        {/* CTA Section */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-20 bg-zinc-900/50 p-12 rounded-3xl border border-white/5 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-transparent" />
-          <div className="relative z-10">
-            <h2 className="text-3xl md:text-4xl font-black mb-4">
-              Ready to start your movement?
-            </h2>
-            <p className="text-zinc-400">
-              Join thousands of creators earning on Drop.
-            </p>
+    <footer className="max-w-[1240px] mx-auto px-6 md:px-7 pt-[100px] pb-10">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-10 pb-10 border-b border-[#14130F]/14">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5 mb-4">
+            <Image
+              src="/assets/landing/drop_logo.png"
+              alt=""
+              width={28}
+              height={28}
+              className="rounded-[7px]"
+            />
+            <span className="font-[family-name:var(--font-hanson)] mt-1 text-[19px]">
+              THE DROP.
+            </span>
           </div>
-          <div className="relative z-10">
-            <Link
-              href="/create-store"
-              className="bg-white text-black px-8 py-4 rounded-full font-bold text-lg flex items-center gap-2 hover:scale-105 transition-transform"
-            >
-              Launch Store <ArrowRight size={20} />
-            </Link>
-          </div>
+          <p className="text-[14.5px] leading-relaxed text-[#14130F]/58 max-w-[26em]">
+            Commerce infrastructure for creators and independent brands. Built
+            in Ghana, for anyone selling to a real audience.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-4 gap-12 border-b border-white/10 pb-12 mb-12">
-          <div className="col-span-2">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-purple-500 to-orange-500" />
-              <span className="font-black text-2xl tracking-tighter">
-                THE DROP.
-              </span>
-            </div>
-            <p className="text-zinc-500 max-w-sm">
-              The premium commerce platform for the next generation of brands
-              and creators. Secure the bag, own the hype.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="font-bold text-white">Platform</h4>
-            <ul className="space-y-2 text-zinc-500 text-sm">
-              <li>
-                <Link href="#features" className="hover:text-white">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="#pricing" className="hover:text-white">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin" className="hover:text-white">
-                  Login
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div className="space-y-4">
-            <h4 className="font-bold text-white">Legal</h4>
-            <ul className="space-y-2 text-zinc-500 text-sm">
-              <li>
-                <Link href="/privacy" className="hover:text-white">
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-white">
-                  Terms of Service
-                </Link>
-              </li>
-            </ul>
-          </div>
+        <div>
+          <h4 className="font-[family-name:var(--font-spline-mono)] text-[10.5px] tracking-[0.12em] uppercase text-[#14130F]/70 mb-3.5">
+            Platform
+          </h4>
+          <ul className="grid gap-2.5 text-[14.5px] text-[#14130F]/70">
+            <li><a href="#features" className="hover:text-[#B4472B]">Features</a></li>
+            <li><a href="#pricing" className="hover:text-[#B4472B]">Pricing</a></li>
+            <li><a href="#stores" className="hover:text-[#B4472B]">Live stores</a></li>
+            <li><Link href="/admin" className="hover:text-[#B4472B]">Sign in</Link></li>
+          </ul>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between text-zinc-600 text-sm gap-4">
-          <p>© 2026 The Drop Shop. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a
-              href="https://x.com/copdrop_io?s=21"
-              className="hover:text-white transition-colors"
-            >
-              <Twitter size={20} />
-            </a>
-            <a
-              href="https://instagram.com/copdrop_io"
-              className="hover:text-white transition-colors"
-            >
-              <Instagram size={20} />
-            </a>
-            <a
-              href="mailto:support@copdrop.io"
-              className="hover:text-white transition-colors"
-            >
-              <Mail size={20} />
-            </a>
-          </div>
+        <div>
+          <h4 className="font-[family-name:var(--font-spline-mono)] text-[10.5px] tracking-[0.12em] uppercase text-[#14130F]/70 mb-3.5">
+            Legal
+          </h4>
+          <ul className="grid gap-2.5 text-[14.5px] text-[#14130F]/70">
+            <li><Link href="/privacy" className="hover:text-[#B4472B]">Privacy policy</Link></li>
+            <li><Link href="/terms" className="hover:text-[#B4472B]">Terms of service</Link></li>
+          </ul>
         </div>
+
+        <div>
+          <h4 className="font-[family-name:var(--font-spline-mono)] text-[10.5px] tracking-[0.12em] uppercase text-[#14130F]/70 mb-3.5">
+            Contact
+          </h4>
+          <ul className="grid gap-2.5 text-[14.5px] text-[#14130F]/70">
+            <li><a href="https://x.com/copdrop_io" className="hover:text-[#B4472B]">X / Twitter</a></li>
+            <li><a href="https://instagram.com/copdrop_io" className="hover:text-[#B4472B]">Instagram</a></li>
+            <li><a href="mailto:support@copdrop.io" className="hover:text-[#B4472B]">support@copdrop.io</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="pt-6 flex justify-between gap-5 flex-wrap font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.06em] text-[#14130F]/70">
+        <span>© 2026 THE DROP SHOP</span>
+        <span>COPDROP.IO</span>
       </div>
     </footer>
   );

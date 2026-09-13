@@ -1,173 +1,90 @@
-"use client";
-
-import { motion } from "framer-motion";
-import { Sparkles, Bot, ArrowRight, BarChart3, Zap } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
+const CAPABILITIES = [
+  {
+    letter: "A.",
+    title: "Plain-language control",
+    desc: "“Set the Jordans to 50 in stock” — done, logged, reflected on the storefront.",
+  },
+  {
+    letter: "B.",
+    title: "Answers, not exports",
+    desc: "Revenue, pending payouts and best sellers without touching a spreadsheet.",
+  },
+  {
+    letter: "C.",
+    title: "Bulk work, one sentence",
+    desc: "Move order statuses, retag categories, or broadcast a promo in one go.",
+  },
+];
 
 export function LandingAiShowcase() {
   return (
-    <section className="py-32 bg-black relative overflow-hidden">
-      {/* Background Gradient / Noise */}
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-purple-600/20 rounded-full blur-[120px] animate-pulse"></div>
-
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        {/* Header */}
-        <div className="text-center mb-16 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-widest mb-6">
-            <Sparkles size={12} />
-            Your Store Runs Itself.
-          </div>
-          <h2 className="text-4xl md:text-6xl font-black mb-6 tracking-tight">
-            While They're Doing It Manual, <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-white">
-              You're On Autopilot.
-            </span>
-          </h2>
-          <p className="text-xl text-zinc-400 leading-relaxed">
-            Stop digging through menus. Just ask.
-            <br />
-            From analyzing sales trends to managing inventory, your new AI
-            partner is always on call.
-          </p>
-        </div>
-
-        {/* Main Showcase Grid */}
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left: Interactive/Visual Demo Placeholder */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            className="relative"
-          >
-            {/* Device Frame Placeholder */}
-            <div className="relative aspect-[4/3] bg-zinc-900 rounded-3xl border border-zinc-800 shadow-2xl overflow-hidden flex items-center justify-center group">
-              {/* This is where the user will put their recording */}
-              <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black p-8 flex flex-col">
-                {/* Fake Chat Interface */}
-                <div className="flex-1 space-y-4">
-                  <ChatMessage
-                    role="user"
-                    text="How are my sales performing this week?"
-                  />
-                  <ChatMessage
-                    role="ai"
-                    text="Your sales are up 24% from last week! You've sold 142 items, with 'Vintage Levis' being your top seller. Total revenue: GH₵ 12,450."
-                    isAnimated
-                  />
-                  <ChatMessage
-                    role="user"
-                    text="Great! Apply a 15% discount to the Levis products."
-                  />
-                  <ChatMessage
-                    role="ai"
-                    text="Done! Created code LEVIS15. Would you like me to Broadcast this promo?"
-                    isAnimated
-                    delay={1.5}
-                  />
-                </div>
-
-                {/* Simulated Input Area */}
-                <div className="mt-4 pt-4 border-t border-zinc-800 flex gap-2 opacity-50">
-                  <div className="h-10 bg-zinc-800 rounded-xl flex-1" />
-                  <div className="h-10 w-10 bg-purple-600 rounded-xl" />
-                </div>
-              </div>
+    <section className="mt-[130px] bg-[#14130F] text-[#EFEBE3]">
+      <div className="max-w-[1240px] mx-auto px-6 md:px-7 py-[110px]">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,400px),1fr))] gap-[60px] items-center">
+          <div className="min-w-0">
+            <div className="font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.14em] uppercase text-[#E08A6B] mb-5">
+              Store assistant · Growth plan
             </div>
+            <h2 className="font-[family-name:var(--font-gloock)] font-normal text-[clamp(34px,4.4vw,54px)] tracking-[-0.012em] leading-[1.04] mb-5">
+              Ask for it instead of clicking for it.
+            </h2>
+            <p className="text-[17.5px] leading-[1.65] text-[#EFEBE3]/66 mb-[34px] max-w-[32em]">
+              Your assistant reads your own store data. Ask how the week
+              went, restock a size, price a promo, or message every past
+              buyer — in plain words, no menus.
+            </p>
+            <div className="grid gap-[22px] max-w-[34em]">
+              {CAPABILITIES.map((cap) => (
+                <div key={cap.letter} className="flex gap-4">
+                  <span className="font-[family-name:var(--font-spline-mono)] text-[11px] text-[#E08A6B] pt-1">
+                    {cap.letter}
+                  </span>
+                  <div>
+                    <h4 className="text-[16.5px] font-semibold mb-1">
+                      {cap.title}
+                    </h4>
+                    <p className="text-[14.5px] leading-[1.6] text-[#EFEBE3]/72">
+                      {cap.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
 
-            {/* Decorative Glow Hook */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-3xl blur opacity-20 -z-10"></div>
-          </motion.div>
-
-          {/* Right: Feature List */}
-          <div className="space-y-8">
-            <FeatureItem
-              icon={<Bot className="text-purple-400" />}
-              title="Natural Language Control"
-              description="Forget complex menus. Just type 'Update stock for Jordans to 50' or 'Close the store' and it happens instantly."
-            />
-            <FeatureItem
-              icon={<BarChart3 className="text-pink-400" />}
-              title="Instant Financial Insights"
-              description="Get real-time breakdowns of your revenue, pending payouts, and top-selling items without exporting CSVs."
-            />
-            <FeatureItem
-              icon={<Zap className="text-yellow-400" />}
-              title="Automated Actions"
-              description="Update order statuses in bulk, and manage categories simply by chatting."
-            />
-
-            <div className="pt-4">
-              <Link href="/create-store">
-                <button className="px-8 py-4 bg-white text-black rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform">
-                  Available on Growth Plan <ArrowRight size={18} />
-                </button>
-              </Link>
+          <div className="min-w-0 border border-[#EFEBE3]/16 rounded-[14px] bg-[#1C1A16] p-[22px] flex flex-col gap-3.5">
+            <div className="font-[family-name:var(--font-spline-mono)] text-[10.5px] tracking-[0.12em] text-[#EFEBE3]/72 pb-3.5 border-b border-[#EFEBE3]/12">
+              ASSISTANT · YOURBRAND
+            </div>
+            <div className="self-end max-w-[82%] bg-[#EFEBE3]/10 rounded-tl-[14px] rounded-tr-[14px] rounded-bl-[14px] rounded-br-[4px] px-[15px] py-3 text-[14.5px] leading-[1.5]">
+              How did last week go?
+            </div>
+            <div className="self-start max-w-[88%] bg-[#E08A6B]/12 border border-[#E08A6B]/26 rounded-tl-[14px] rounded-tr-[14px] rounded-br-[14px] rounded-bl-[4px] px-[15px] py-3 text-[14.5px] leading-[1.55] text-[#EFEBE3]/90">
+              Revenue was GH₵12,450 across 142 orders — up 24% on the week
+              before. Vintage Levis is your top seller and two sizes are
+              nearly out.
+            </div>
+            <div className="self-end max-w-[82%] bg-[#EFEBE3]/10 rounded-tl-[14px] rounded-tr-[14px] rounded-bl-[14px] rounded-br-[4px] px-[15px] py-3 text-[14.5px] leading-[1.5]">
+              Put 15% off the Levis and tell my buyers.
+            </div>
+            <div className="self-start max-w-[88%] bg-[#E08A6B]/12 border border-[#E08A6B]/26 rounded-tl-[14px] rounded-tr-[14px] rounded-br-[14px] rounded-bl-[4px] px-[15px] py-3 text-[14.5px] leading-[1.55] text-[#EFEBE3]/90">
+              Code{" "}
+              <span className="font-[family-name:var(--font-spline-mono)]">
+                LEVIS15
+              </span>{" "}
+              is live. Broadcast drafted for 318 past customers — send it?
+            </div>
+            <div className="flex gap-2.5 items-center pt-3.5 border-t border-[#EFEBE3]/12 mt-auto">
+              <div className="flex-1 h-10 rounded-[10px] bg-[#EFEBE3]/7 flex items-center px-3.5 text-sm text-[#EFEBE3]/60">
+                Ask your store anything…
+              </div>
+              <div className="w-10 h-10 rounded-[10px] bg-[#E08A6B] text-[#14130F] flex items-center justify-center text-base">
+                →
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-function ChatMessage({
-  role,
-  text,
-  isAnimated = false,
-  delay = 0,
-}: {
-  role: "user" | "ai";
-  text: string;
-  isAnimated?: boolean;
-  delay?: number;
-}) {
-  return (
-    <motion.div
-      initial={isAnimated ? { opacity: 0, y: 10 } : { opacity: 1, y: 0 }}
-      whileInView={isAnimated ? { opacity: 1, y: 0 } : {}}
-      viewport={{ once: true }}
-      transition={{ delay }}
-      className={`flex ${role === "user" ? "justify-end" : "justify-start"}`}
-    >
-      <div
-        className={`max-w-[85%] p-3 rounded-2xl text-xs sm:text-sm ${
-          role === "user"
-            ? "bg-zinc-800 text-white rounded-tr-sm"
-            : "bg-purple-500/10 border border-purple-500/20 text-purple-100 rounded-tl-sm backdrop-blur-md"
-        }`}
-      >
-        <p>{text}</p>
-      </div>
-    </motion.div>
-  );
-}
-
-function FeatureItem({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="flex gap-4 p-4 rounded-2xl hover:bg-white/5 transition-colors cursor-default"
-    >
-      <div className="w-12 h-12 bg-zinc-900 rounded-xl flex items-center justify-center border border-zinc-800 shrink-0">
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-lg font-bold text-white mb-2">{title}</h3>
-        <p className="text-zinc-400 leading-relaxed text-sm">{description}</p>
-      </div>
-    </motion.div>
   );
 }

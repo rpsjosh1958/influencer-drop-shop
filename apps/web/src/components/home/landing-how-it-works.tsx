@@ -1,89 +1,44 @@
-"use client";
-
-import { motion } from "framer-motion";
-import { Zap, Box, DollarSign, ArrowRight } from "lucide-react";
-
 const STEPS = [
   {
-    num: "01",
-    title: "Design Your Vibe",
-    desc: "Claim your unique URL, upload your logo, and customize your storefront's layout, fonts, and colors to match your aesthetic.",
-    icon: Zap,
-    color: "from-purple-500 to-indigo-500",
+    num: "01 / SET UP",
+    title: "Claim your handle",
+    desc: "Pick your URL, drop in a logo, choose type and colour. Your storefront looks like your brand, not like a template.",
   },
   {
-    num: "02",
-    title: "Create the Hype",
-    desc: "Schedule your drop. Tease it on socials. Our system handles the countdown and locks the store until the moment you go live.",
-    icon: Box,
-    color: "from-pink-500 to-rose-500",
+    num: "02 / SCHEDULE",
+    title: "Stage the drop",
+    desc: "Load products or bookable slots, choose when to go Live. Watch your store sell out.",
   },
   {
-    num: "03",
-    title: "Secure the Bag",
-    desc: "Watch orders fly in real-time. We handle payment processing and automatic payouts so you can focus on the next big thing.",
-    icon: DollarSign,
-    color: "from-amber-500 to-orange-500",
+    num: "03 / SETTLE",
+    title: "Get paid, then ship",
+    desc: "Payments clear through Paystack and settle to your bank or mobile money automatically. You pack orders; we do the accounting.",
   },
 ];
 
 export function LandingHowItWorks() {
   return (
-    <section className="py-32 bg-black relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-24 gap-8">
-          <div className="max-w-2xl">
-            <h2 className="text-4xl md:text-6xl font-black tracking-tighter mb-6">
-              FROM ZERO TO <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500">
-                SOLD OUT
-              </span>
-              .
-            </h2>
-            <p className="text-xl text-zinc-400">
-              From idea to cash in your pocket—faster than you can skip a song.
+    <section id="how" className="scroll-mt-20 max-w-[1240px] mx-auto px-6 md:px-7 pt-[120px]">
+      <h2 className="font-[family-name:var(--font-gloock)] font-normal text-[clamp(34px,4.6vw,58px)] tracking-[-0.012em] mb-3.5 max-w-[20em]">
+        Three steps between an idea and a paid order.
+      </h2>
+      <p className="text-lg text-[#14130F]/62 max-w-[34em] mb-14">
+        No developer, no theme shopping, no monthly bill before your first sale.
+      </p>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-px bg-[#14130F]/14 border-y border-[#14130F]/14">
+        {STEPS.map((step) => (
+          <div key={step.num} className="bg-[#EFEBE3] px-7 pt-[34px] pb-[38px] min-w-0">
+            <div className="font-[family-name:var(--font-spline-mono)] text-[11px] tracking-[0.14em] text-[#B4472B] mb-[22px]">
+              {step.num}
+            </div>
+            <h3 className="text-[23px] font-semibold tracking-[-0.015em] mb-3">
+              {step.title}
+            </h3>
+            <p className="text-[15.5px] leading-[1.65] text-[#14130F]/66">
+              {step.desc}
             </p>
           </div>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 relative">
-          {/* Connecting Line (Desktop) */}
-          <div className="hidden md:block absolute top-12 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500/50 via-pink-500/50 to-orange-500/50 -z-10" />
-
-          {STEPS.map((step, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.2 }}
-              className="relative group"
-            >
-              <div
-                className={`w-24 h-24 rounded-2xl bg-gradient-to-br ${step.color} p-0.5 mb-8 shadow-2xl group-hover:scale-110 transition-transform duration-500`}
-              >
-                <div className="w-full h-full bg-black rounded-2xl flex items-center justify-center relative overflow-hidden">
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${step.color} opacity-20`}
-                  />
-                  <step.icon className="text-white relative z-10" size={32} />
-                </div>
-              </div>
-
-              <span className="text-6xl font-black text-white/5 absolute -top-4 right-4 select-none">
-                {step.num}
-              </span>
-
-              <h3 className="text-2xl font-bold mb-4 flex items-center gap-3">
-                {step.title}
-                {i !== 2 && (
-                  <ArrowRight className="md:hidden text-zinc-600" size={16} />
-                )}
-              </h3>
-              <p className="text-zinc-400 leading-relaxed">{step.desc}</p>
-            </motion.div>
-          ))}
-        </div>
+        ))}
       </div>
     </section>
   );

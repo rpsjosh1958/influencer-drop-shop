@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { LayoutDashboard, Store, LogIn, Loader2 } from "lucide-react";
+
+const NAV_LINKS = [
+  { href: "#stores", label: "Stores" },
+  { href: "#how", label: "How it works" },
+  { href: "#features", label: "Platform" },
+  { href: "#pricing", label: "Pricing" },
+  { href: "#faq", label: "FAQ" },
+];
 
 export function LandingHeader() {
   const [user, setUser] = useState<User | null>(null);
@@ -16,92 +24,78 @@ export function LandingHeader() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        // Check if user has a store
         try {
           const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            if (userData.ownedStores && userData.ownedStores.length > 0) {
-              setHasStore(true);
-            }
-          }
+          const ownedStores = userDoc.exists()
+            ? userDoc.data().ownedStores
+            : null;
+          setHasStore(!!ownedStores && ownedStores.length > 0);
         } catch (error) {
-          console.error("Header: Failed to fetch user profile", error);
+          console.error("LandingHeader: failed to fetch user profile", error);
         }
       } else {
         setHasStore(false);
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex items-center justify-between transition-all duration-300">
-      <Link href="/" className="flex items-center gap-2">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/assets/landing/drop_logo.png"
-          alt="The Drop"
-          className="h-8 w-auto"
-        />
-        <span className="font-black tracking-tighter text-2xl text-white">
-          THE DROP.
-        </span>
-      </Link>
+    <header className="sticky top-0 z-50 bg-[#EFEBE3]/90 backdrop-blur-md border-b border-[#14130F]/10">
+      <div className="max-w-[1240px] mx-auto px-6 md:px-7 py-3.5 flex items-center gap-6 md:gap-8">
+        <Link href="/" className="flex items-center gap-2.5 shrink-0">
+          <Image
+            src="/assets/landing/drop_logo.png"
+            alt="The Drop"
+            width={30}
+            height={30}
+            className="rounded-[7px] block"
+          />
+          <span className="font-[family-name:var(--font-hanson)] mt-1 text-[20px] tracking-tight text-[#14130F]">
+            THE DROP.
+          </span>
+        </Link>
 
-      <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-400">
-        <a href="#features" className="hover:text-white transition-colors">
-          Features
-        </a>
-        <a href="#pricing" className="hover:text-white transition-colors">
-          Pricing
-        </a>
-        <a href="#faq" className="hover:text-white transition-colors">
-          FAQ
-        </a>
-      </nav>
+        <nav className="hidden md:flex items-center gap-6 ml-auto text-[13.5px] font-medium text-[#14130F]/62 flex-wrap">
+          {NAV_LINKS.map((link) => (
+            <a
+              key={link.href}
+              href={link.href}
+              className="hover:text-[#B4472B] transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+        </nav>
 
-      <div className="flex items-center gap-4">
-        {loading ? (
-          <div className="h-9 w-24 bg-white/10 rounded-full animate-pulse" />
-        ) : user ? (
-          <>
-            {hasStore ? (
+        <div className="flex items-center gap-3.5 shrink-0 ml-auto md:ml-0">
+          {loading ? (
+            <div className="h-9 w-24 rounded-full bg-[#14130F]/8 animate-pulse" />
+          ) : user ? (
+            <Link
+              href={hasStore ? "/admin/dashboard" : "/create-store"}
+              className="bg-[#14130F] text-[#EFEBE3] px-[18px] py-2.5 rounded-full text-[13.5px] font-semibold whitespace-nowrap hover:bg-[#B4472B] hover:text-white transition-colors"
+            >
+              {hasStore ? "Visit dashboard" : "Create store"}
+            </Link>
+          ) : (
+            <>
               <Link
-                href="/admin/dashboard"
-                className="flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg shadow-white/10"
+                href="/admin"
+                className="hidden md:inline text-[13.5px] font-semibold text-[#14130F]/70 hover:text-[#14130F]"
               >
-                <LayoutDashboard size={16} />
-                Visit Dashboard
+                Sign in
               </Link>
-            ) : (
               <Link
                 href="/create-store"
-                className="flex items-center gap-2 bg-white text-black px-5 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg shadow-white/10"
+                className="bg-[#14130F] text-[#EFEBE3] px-[18px] py-2.5 rounded-full text-[13.5px] font-semibold whitespace-nowrap hover:bg-[#B4472B] hover:text-white transition-colors"
               >
-                <Store size={16} />
-                Create Store
+                Start selling
               </Link>
-            )}
-          </>
-        ) : (
-          <>
-            <Link
-              href="/admin"
-              className="hidden md:flex text-sm font-bold text-white hover:text-zinc-300 transition-colors mr-2"
-            >
-              Sign In
-            </Link>
-            <Link
-              href="/create-store"
-              className=" bg-white text-black px-6 py-2.5 rounded-full text-sm font-bold hover:scale-105 transition-transform shadow-lg shadow-white/10"
-            >
-              Start Selling
-            </Link>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
     </header>
   );
