@@ -92,6 +92,7 @@ export function AdminProductCardMobile({
           className="flex-1"
         >
           <button
+            data-tour="products-edit-lock"
             onClick={() => handleEdit(product)}
             disabled={isLive}
             className={`w-full py-2 flex items-center justify-center gap-2 text-sm font-medium rounded-lg ${

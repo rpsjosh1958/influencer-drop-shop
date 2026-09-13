@@ -432,7 +432,7 @@ function DynamicSidebar({
           "pt-6 px-4 flex transition-all duration-300 mb-6",
           collapsed ? "flex-col items-center gap-4" : "flex-row items-center gap-2"
         )}>
-          <div className="flex-1 min-w-0">
+          <div data-tour="sidebar-brand" className="flex-1 min-w-0">
             <StoreSwitcher collapsed={collapsed} />
           </div>
           <Tooltip content={collapsed ? "Expand" : "Collapse"} side="right">

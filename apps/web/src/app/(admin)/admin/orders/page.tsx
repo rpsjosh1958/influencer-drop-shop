@@ -268,6 +268,7 @@ export default function OrdersPage() {
             right on desktop via md:order-2. */}
         <div className="flex items-center justify-end gap-2 md:order-2 md:shrink-0">
           <button
+            data-tour="orders-add"
             onClick={() => setShowManualOrderModal(true)}
             className="h-9 px-3 md:px-4 flex items-center justify-center gap-2 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-black dark:text-white rounded-lg transition-colors whitespace-nowrap"
           >

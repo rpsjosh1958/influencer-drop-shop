@@ -105,6 +105,7 @@ export function AdminProductTable({
                   side="top"
                 >
                   <button
+                    data-tour="products-edit-lock"
                     onClick={() => handleEdit(product)}
                     disabled={isLive}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${

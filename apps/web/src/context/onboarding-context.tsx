@@ -86,7 +86,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: "dashboard-status",
     title: "Store Status",
     content:
-      "Toggle this to open or close your store. When 'CLOSED', your store is not visible to customers and you are allowed to edit products and services.",
+      "Toggle this to open or close your store. While your store is LIVE, customers can browse and buy, but editing products and services is locked — close the store first to make changes, then reopen when you're ready.",
     path: "/admin/dashboard",
     placement: "bottom",
     category: "dashboard",
@@ -119,10 +119,23 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     category: "dashboard",
   },
   {
-    target: "dashboard-orders",
+    // Was pointing at a "dashboard-orders" target that has never existed
+    // in the DOM — the real element for this content is the Store
+    // Activity feed, which carries data-tour="dashboard-activity".
+    target: "dashboard-activity",
     title: "Live Order Feed",
     content:
       "Your business in motion. This real-time feed displays new orders and customer activity the moment it happens.",
+    path: "/admin/dashboard",
+    placement: "top",
+    offsetY: -20,
+    category: "dashboard",
+  },
+  {
+    target: "dashboard-needs-attention",
+    title: "Needs You Today",
+    content:
+      "Your priority list — orders waiting to be packed, bookings needing confirmation, low-stock items, and any open complaints, with quick links to sort each one out.",
     path: "/admin/dashboard",
     placement: "top",
     offsetY: -20,
@@ -161,7 +174,17 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: "products-table",
     title: "Inventory Table",
     content:
-      "Manage your items here. Toggle visibility (Live/Hidden), edit details, and track real-time stock levels.",
+      "Manage your items here — edit details and track real-time stock levels. Editing locks automatically while the store is live, to keep what customers see in sync.",
+    path: "/admin/products",
+    placement: "top",
+    offsetY: -20,
+    category: "products",
+  },
+  {
+    target: "products-edit-lock",
+    title: "Edit or Locked",
+    content:
+      "This button lets you edit a product — but it shows 'Locked' and can't be tapped while your store is LIVE. Close the store from the dashboard to unlock editing, then reopen once you're done.",
     path: "/admin/products",
     placement: "top",
     offsetY: -20,
@@ -172,7 +195,16 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: "orders-header",
     title: "Order Management",
     content:
-      "This is your orders command center. Use the search, status filters, and date range to quickly find any transaction.",
+      "This is your orders command center. Use the status filter and date range to quickly find any transaction, then add a manual order or export a PDF report from here.",
+    path: "/admin/orders",
+    placement: "bottom",
+    category: "orders",
+  },
+  {
+    target: "orders-add",
+    title: "Add Order",
+    content:
+      "Record a sale that didn't come through checkout — a walk-in customer, a WhatsApp order, or anything paid outside the platform. It's tagged 'Manual' and won't affect your real payout balance.",
     path: "/admin/orders",
     placement: "bottom",
     category: "orders",
@@ -391,15 +423,17 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   // 4. Settings
   {
+    // Was tuned for the old vertical left sidebar (placement "right",
+    // large negative offsetY to sit alongside a tall element). The
+    // tabs are now a horizontal row along the top, so "bottom" with no
+    // offset is the correct placement.
     target: "settings-tabs",
     title: "Settings Tabs",
     content:
       "Navigate between General details, Style preferences, Billing, and Payout settings to fully customize your store.",
     path: "/admin/settings",
-    placement: "right",
-    padding: 30,
-    offsetY: -120,
-    offsetX: 20,
+    placement: "bottom",
+    padding: 12,
     category: "settings",
   },
   {
@@ -433,6 +467,22 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     category: "settings-pro",
   },
 ];
+
+// Some pages render two versions of the same element for different
+// breakpoints (a desktop table + a mobile card list, one always hidden
+// via `hidden md:*`/`md:hidden`). A plain querySelector always returns
+// the first DOM match regardless of visibility, which can silently
+// spotlight a hidden (zero-size) element on the "wrong" breakpoint.
+// This picks the first match that's actually visible, falling back to
+// whatever matched if none are.
+function findVisibleTourTarget(target: string): Element | null {
+  const candidates = document.querySelectorAll(`[data-tour="${target}"]`);
+  for (const el of Array.from(candidates)) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) return el;
+  }
+  return candidates[0] ?? null;
+}
 
 interface OnboardingContextType {
   isActive: boolean;
@@ -551,7 +601,7 @@ export function OnboardingProvider({
 
   const updateTargetRect = useCallback(() => {
     const step = TUTORIAL_STEPS[currentStep];
-    const element = document.querySelector(`[data-tour="${step.target}"]`);
+    const element = findVisibleTourTarget(step.target);
     if (element) {
       setTargetRect(element.getBoundingClientRect());
     } else {
@@ -563,7 +613,7 @@ export function OnboardingProvider({
   useEffect(() => {
     if (isActive) {
       const step = TUTORIAL_STEPS[currentStep];
-      const element = document.querySelector(`[data-tour="${step.target}"]`);
+      const element = findVisibleTourTarget(step.target);
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
         // After scrolling finishes, update the rect
@@ -670,7 +720,15 @@ export function OnboardingProvider({
   // Positioning Logic
   const getDialogueStyles = () => {
     const boxWidth = 320;
-    const boxHeight = 240;
+    // Content length varies a lot between steps (some are one short
+    // sentence, some are several) but this box height is only an
+    // estimate used to decide placement — it can't measure the real
+    // rendered card without a two-pass layout. Sized generously so the
+    // flip logic below errs toward "not enough room" rather than
+    // silently letting a taller card overlap the target.
+    const boxHeight = 360;
+    const gap = 25;
+    const margin = 20;
 
     if (!targetRect) {
       return {
@@ -679,31 +737,60 @@ export function OnboardingProvider({
         x: "-50%",
         y: "-50%",
         position: "fixed" as const,
+        placement: step.placement,
       };
     }
 
     let left = targetRect.left + targetRect.width / 2 - boxWidth / 2;
-    let top = targetRect.bottom + 20;
+    let top = targetRect.bottom + gap;
+    let placement = step.placement;
 
-    if (step.placement === "right") {
-      left = targetRect.right + 25;
+    // Flip to the opposite side if the preferred placement doesn't
+    // actually have room — otherwise the boundary clamp below just
+    // pins the box in place and it ends up covering the target it's
+    // supposed to be pointing at (which is what was happening here).
+    // The arrow below reads this same (possibly flipped) placement, so
+    // it always points back at the target regardless of which side the
+    // card actually landed on.
+    if (placement === "top" && targetRect.top - boxHeight - gap < margin) {
+      placement = "bottom";
+    } else if (
+      placement === "bottom" &&
+      targetRect.bottom + boxHeight + gap > window.innerHeight - margin
+    ) {
+      placement = "top";
+    }
+
+    if (placement === "right") {
+      left = targetRect.right + gap;
       top = targetRect.top + targetRect.height / 2 - boxHeight / 2;
-    } else if (step.placement === "left") {
-      left = targetRect.left - boxWidth - 25;
+      if (left + boxWidth > window.innerWidth - margin) {
+        left = targetRect.left - boxWidth - gap;
+        placement = "left";
+      }
+    } else if (placement === "left") {
+      left = targetRect.left - boxWidth - gap;
       top = targetRect.top + targetRect.height / 2 - boxHeight / 2;
-    } else if (step.placement === "top") {
-      top = targetRect.top - boxHeight - 25;
+      if (left < margin) {
+        left = targetRect.right + gap;
+        placement = "right";
+      }
+    } else if (placement === "top") {
+      top = targetRect.top - boxHeight - gap;
+    } else {
+      top = targetRect.bottom + gap;
     }
 
     // Apply manual offsets
     left += step.offsetX || 0;
     top += step.offsetY || 0;
 
-    // Boundary checks
-    left = Math.min(Math.max(20, left), window.innerWidth - boxWidth - 20);
-    top = Math.min(Math.max(20, top), window.innerHeight - boxHeight - 20);
+    // Boundary checks — last-resort safety net if flipping still
+    // doesn't leave enough room (e.g. a very short viewport).
+    left = Math.min(Math.max(margin, left), window.innerWidth - boxWidth - margin);
+    top = Math.min(Math.max(margin, top), window.innerHeight - boxHeight - margin);
 
-    return { left, top, x: 0, y: 0 };
+    return { left, top, x: 0, y: 0, placement };
   };
 
   const dialogStyles = getDialogueStyles();
@@ -795,11 +882,6 @@ export function OnboardingProvider({
               </h3>
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-8">
                 {step.content}
-                {!targetRect && step.target === "products-bulk" && (
-                  <span className="block mt-2 text-purple-500 font-bold">
-                    (Select a product to see these actions live!)
-                  </span>
-                )}
               </p>
 
               <div className="flex items-center justify-between">
@@ -831,16 +913,19 @@ export function OnboardingProvider({
                 </button>
               </div>
 
-              {/* Dynamic Arrow - Only if targetRect exists */}
+              {/* Dynamic Arrow - Only if targetRect exists. Reads the
+                  same (possibly flip-adjusted) placement the card was
+                  actually positioned with, not the step's declared
+                  placement, so it always points back at the target. */}
               {targetRect && (
                 <div
                   className={cn(
                     "absolute w-4 h-4 bg-white dark:bg-zinc-900 rotate-45 border-zinc-200 dark:border-zinc-800",
-                    step.placement === "right"
+                    dialogStyles.placement === "right"
                       ? "left-[-8px] top-1/2 -translate-y-1/2 border-l border-b"
-                      : step.placement === "left"
+                      : dialogStyles.placement === "left"
                         ? "right-[-8px] top-1/2 -translate-y-1/2 border-r border-t"
-                        : step.placement === "top"
+                        : dialogStyles.placement === "top"
                           ? "bottom-[-8px] left-1/2 -translate-x-1/2 border-r border-b"
                           : "top-[-8px] left-1/2 -translate-x-1/2 border-l border-t",
                   )}

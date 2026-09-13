@@ -259,42 +259,48 @@ export default function ProductsPage() {
             className="pl-9 pr-3 py-2 rounded-lg border border-zinc-200 bg-zinc-50 text-black text-sm focus:ring-2 focus:ring-black focus:border-black outline-none w-full"
           />
         </div>
-       <button
+       {/* Wrapped together (not just the Download button) so the tour
+           spotlight covers both bulk actions, not only the first one. */}
+       <div
          data-tour="products-bulk"
-         onClick={handleBulkDownload}
-         disabled={generatingBulk || selectedIds.length === 0}
-         className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-zinc-900 border border-zinc-800 text-white px-2.5 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-colors hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-900"
+         className="flex gap-1.5 md:gap-2 flex-[2] md:flex-none"
        >
-         <DownloadIcon
-           size={15}
-           className={generatingBulk ? "animate-bounce shrink-0" : "shrink-0"}
-         />
-         {generatingBulk ? (
-           <span>Generating…</span>
-         ) : (
-           <>
-             <span className="md:hidden">
-               Download{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
-             </span>
-             <span className="hidden md:inline">
-               Download Images{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
-             </span>
-           </>
-         )}
-       </button>
+         <button
+           onClick={handleBulkDownload}
+           disabled={generatingBulk || selectedIds.length === 0}
+           className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-zinc-900 border border-zinc-800 text-white px-2.5 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-colors hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-900"
+         >
+           <DownloadIcon
+             size={15}
+             className={generatingBulk ? "animate-bounce shrink-0" : "shrink-0"}
+           />
+           {generatingBulk ? (
+             <span>Generating…</span>
+           ) : (
+             <>
+               <span className="md:hidden">
+                 Download{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+               </span>
+               <span className="hidden md:inline">
+                 Download Images{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}
+               </span>
+             </>
+           )}
+         </button>
 
-       <button
-         onClick={handleBulkDelete}
-         disabled={isBulkDeleting || selectedIds.length === 0}
-         className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-red-50 text-red-600 px-2.5 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-colors hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-50"
-       >
-         {isBulkDeleting ? (
-           <Loader2 className="animate-spin shrink-0" size={15} />
-         ) : (
-           <TrashIcon size={15} className="shrink-0" />
-         )}
-         <span>Delete{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}</span>
-       </button>
+         <button
+           onClick={handleBulkDelete}
+           disabled={isBulkDeleting || selectedIds.length === 0}
+           className="flex-1 md:flex-none flex items-center justify-center gap-1.5 bg-red-50 text-red-600 px-2.5 md:px-4 py-2 rounded-xl font-bold text-xs md:text-sm whitespace-nowrap transition-colors hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-50"
+         >
+           {isBulkDeleting ? (
+             <Loader2 className="animate-spin shrink-0" size={15} />
+           ) : (
+             <TrashIcon size={15} className="shrink-0" />
+           )}
+           <span>Delete{selectedIds.length > 0 ? ` (${selectedIds.length})` : ""}</span>
+         </button>
+       </div>
 
        <button
          data-tour="products-add"

@@ -153,7 +153,10 @@ export function AdminPageHeader({
 
       <div className="flex flex-wrap items-center gap-1.5">
         {showDateFilter && (
-          <div className="flex md:inline-flex w-full md:w-auto bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 gap-2">
+          <div
+            data-tour="dashboard-filter"
+            className="flex md:inline-flex w-full md:w-auto bg-zinc-100 dark:bg-zinc-800 rounded-xl p-1 gap-2"
+          >
             <button onClick={() => applyPreset("7d")} className={pillClass(preset === "7d")}>
               Last Week
             </button>
@@ -195,6 +198,7 @@ export function AdminPageHeader({
         )}
 
         <button
+          data-tour="dashboard-status"
           onClick={toggleStore}
           disabled={toggleMutation.isPending || onboardingBlocked}
           className={`inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wide transition-colors whitespace-nowrap ${
