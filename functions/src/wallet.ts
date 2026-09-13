@@ -122,8 +122,7 @@ export const processOrderWallet = async (
           type: "credit",
           amount: creditAmount,
           description: `Earnings from Order #${orderId
-            .slice(0, 8)
-            .toUpperCase()} (auto-settled via Paystack)`,
+            .slice(0, 8)}`,
           orderId: orderId,
           status: "success",
           createdAt: admin.firestore.Timestamp.now(),
