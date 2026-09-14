@@ -23,6 +23,7 @@ import { ProfileModal } from "@/components/shop/profile-modal";
 import { ReviewsListModal } from "@/components/shop/reviews-list-modal";
 import { ComplaintModal } from "@/components/shop/complaint-modal";
 import { OrdersDropdown } from "@/components/shop/orders-dropdown";
+import { ProductDetailsModal } from "@/components/shop/product-details-modal";
 
 const fontMap: Record<string, string> = {
   Inter: "var(--font-inter)",
@@ -56,6 +57,29 @@ export default function ShopClient({
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+
+  // Last-known data for every product ever seen this session, keyed by id —
+  // unlike `products` (which drops an item the instant its doc disappears),
+  // this is never pruned, so the detail modal below can still render a
+  // product a buyer already had open even after a vendor deletes it.
+  const [productsById, setProductsById] = useState<Record<string, Product>>(
+    () => Object.fromEntries(initialProducts.map((p) => [p.id, p])),
+  );
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(
+    null,
+  );
+  const selectedProduct = selectedProductId
+    ? productsById[selectedProductId] ?? null
+    : null;
+
+  // Deep-link support (e.g. shared/notification links with ?productId=...)
+  // — previously handled per-card via an `initialOpen` prop, now centralized
+  // since the modal itself is no longer owned by any one card.
+  useEffect(() => {
+    const pid = searchParams.get("productId");
+    if (pid) setSelectedProductId(pid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter State
   const [filterType, setFilterType] = useState<"all" | "product" | "service">("all");
@@ -114,7 +138,30 @@ export default function ShopClient({
         collection(db, "stores", storeId, "products"),
         orderBy("createdAt", "desc")
       ),
-      (snap) => setProducts(normalize(snap.docs) as Product[]),
+      (snap) => {
+        const live = normalize(snap.docs) as Product[];
+        setProducts(live);
+
+        setProductsById((prev) => {
+          const next = { ...prev };
+          for (const p of live) next[p.id] = p;
+
+          // Anything previously known but missing from this snapshot was
+          // deleted — keep its last known data (a modal might still be
+          // showing it) but flag it so the UI can react gracefully instead
+          // of the product just disappearing mid-view.
+          const liveIds = new Set(live.map((p) => p.id));
+          for (const id of Object.keys(next)) {
+            const isLive = liveIds.has(id);
+            if (!isLive && !next[id]._removed) {
+              next[id] = { ...next[id], _removed: true };
+            } else if (isLive && next[id]._removed) {
+              next[id] = { ...next[id], _removed: false };
+            }
+          }
+          return next;
+        });
+      },
       (error) =>
         console.error("ShopClient: live products listener error", error)
     );
@@ -268,7 +315,7 @@ export default function ShopClient({
         filteredItems={filteredItems}
         getGridClass={getGridClass}
         addToCart={addToCart}
-        searchParams={searchParams}
+        onSelectProduct={setSelectedProductId}
         storeId={storeId}
       />
 
@@ -283,6 +330,11 @@ export default function ShopClient({
       <OrdersDropdown isOpen={isOrdersOpen} onClose={() => setIsOrdersOpen(false)} user={user} />
       <ReviewsListModal isOpen={isReviewsOpen} onClose={() => setIsReviewsOpen(false)} storeId={storeId} />
       <ComplaintModal isOpen={isComplaintOpen} onClose={() => setIsComplaintOpen(false)} storeId={storeId} user={user} />
+      <ProductDetailsModal
+        product={selectedProduct}
+        isOpen={!!selectedProductId}
+        onClose={() => setSelectedProductId(null)}
+      />
     </div>
   );
 }

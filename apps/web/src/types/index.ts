@@ -57,6 +57,12 @@ export interface Product {
   category?: string;
   type: string;
   storeId?: string; // Links product to a specific store
+
+  // Client-only: set when a live listener notices this product's doc was
+  // deleted while a buyer still had it selected (e.g. a detail modal open).
+  // Not persisted — lets the UI show "no longer available" instead of the
+  // whole card just vanishing out from under them.
+  _removed?: boolean;
 }
 
 export interface Category {

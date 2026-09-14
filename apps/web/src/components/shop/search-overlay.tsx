@@ -6,6 +6,7 @@ import { X, Search, Loader2 } from "lucide-react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ProductCard } from "./product-card";
+import { ProductDetailsModal } from "./product-details-modal";
 import type { Product, ProductVariant } from "@/types";
 
 interface SearchOverlayProps {
@@ -23,6 +24,7 @@ export function SearchOverlay({
   const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [allProducts, setAllProducts] = useState<Product[]>([]); // Cache for client-side fallback
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input on open
@@ -137,6 +139,7 @@ export function SearchOverlay({
                     product={product}
                     index={idx}
                     addToCart={onAddToCart}
+                    onSelectProduct={() => setSelectedProduct(product)}
                   />
                 ))}
               </div>
@@ -152,6 +155,12 @@ export function SearchOverlay({
               </div>
             )}
           </div>
+
+          <ProductDetailsModal
+            product={selectedProduct}
+            isOpen={!!selectedProduct}
+            onClose={() => setSelectedProduct(null)}
+          />
         </motion.div>
       )}
     </AnimatePresence>

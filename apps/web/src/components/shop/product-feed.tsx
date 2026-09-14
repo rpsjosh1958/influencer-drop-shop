@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReadonlyURLSearchParams } from "next/navigation";
 import { Product, ServiceItem } from "@/types";
 import { ProductCard } from "./product-card";
 import { ServiceCard } from "./service-card";
@@ -14,7 +13,7 @@ interface ProductFeedProps {
   filteredItems: FeedItem[];
   getGridClass: () => string;
   addToCart: (product: Product) => void;
-  searchParams: ReadonlyURLSearchParams;
+  onSelectProduct: (productId: string) => void;
   storeId: string;
 }
 
@@ -23,7 +22,7 @@ export function ProductFeed({
   filteredItems,
   getGridClass,
   addToCart,
-  searchParams,
+  onSelectProduct,
   storeId,
 }: ProductFeedProps) {
   return (
@@ -46,7 +45,7 @@ export function ProductFeed({
                 product={item as Product}
                 index={i}
                 addToCart={addToCart}
-                initialOpen={searchParams.get("productId") === item.id}
+                onSelectProduct={onSelectProduct}
               />
             ) : (
               <ServiceCard

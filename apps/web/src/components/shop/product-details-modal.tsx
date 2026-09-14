@@ -4,7 +4,14 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Product, ProductVariant } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronLeft, ChevronRight, Check, BadgeCheck } from "lucide-react";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  BadgeCheck,
+  AlertTriangle,
+} from "lucide-react";
 import { useCart } from "./cart-provider";
 import { useStore } from "./store-provider";
 import { formatCurrency } from "@/lib/utils";
@@ -183,6 +190,7 @@ export function ProductDetailsModal({
   };
 
   const handleAddToCart = () => {
+    if (product._removed) return;
     if (product.hasVariants && !selectedVariant) {
       return;
     }
@@ -194,7 +202,7 @@ export function ProductDetailsModal({
   // Calculate price to show (variant price might override)
   const currentPrice = selectedVariant?.price || product.price;
   const currentStock = selectedVariant ? selectedVariant.stock : product.stock;
-  const isOutOfStock = currentStock <= 0;
+  const isOutOfStock = !!product._removed || currentStock <= 0;
 
   return createPortal(
     <AnimatePresence>
@@ -291,6 +299,14 @@ export function ProductDetailsModal({
                     <X size={24} />
                   </button>
                 </div>
+
+                {product._removed && (
+                  <div className="mt-4 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2 text-sm text-red-700 font-medium">
+                    <AlertTriangle size={16} className="shrink-0" />
+                    This item was removed by the seller and is no longer
+                    available.
+                  </div>
+                )}
 
                 <div className="mt-8 space-y-6 flex-1">
                   {/* Description */}
@@ -414,13 +430,15 @@ export function ProductDetailsModal({
                           : "bg-black text-white hover:bg-zinc-900"
                     }`}
                   >
-                    {isOutOfStock
-                      ? "Sold Out"
-                      : product.hasVariants && !selectedVariant
-                        ? "Select Options"
-                        : `Add to Cart — ${formatCurrency(currentPrice)}`}
+                    {product._removed
+                      ? "No Longer Available"
+                      : isOutOfStock
+                        ? "Sold Out"
+                        : product.hasVariants && !selectedVariant
+                          ? "Select Options"
+                          : `Add to Cart — ${formatCurrency(currentPrice)}`}
                   </button>
-                  {currentStock > 0 && currentStock < 5 && (
+                  {!product._removed && currentStock > 0 && currentStock < 5 && (
                     <p className="text-center text-xs text-red-500 font-bold mt-3 animate-pulse">
                       Only {currentStock} left in stock!
                     </p>

@@ -1,34 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { Star, Loader2, ChevronRight, ChevronLeft } from "lucide-react";
 import { Product } from "@/types";
-import { ProductDetailsModal } from "./product-details-modal";
 import { formatCurrency } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
   index: number;
   addToCart: (product: Product) => void;
-  initialOpen?: boolean;
+  onSelectProduct: (productId: string) => void;
 }
 
 export function ProductCard({
   product,
   index,
   addToCart,
-  initialOpen = false,
+  onSelectProduct,
 }: ProductCardProps) {
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(initialOpen || false);
-
-  // // Sync initialOpen prop to state
-  // useEffect(() => {
-  //   if (initialOpen) setIsModalOpen(true);
-  // }, [initialOpen]);
 
   // Use images array if available, fallback to legacy imageUrl
   const images =
@@ -49,21 +42,20 @@ export function ProductCard({
   const handleAction = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (product.hasVariants) {
-      setIsModalOpen(true);
+      onSelectProduct(product.id);
     } else {
       if (product.stock > 0) addToCart(product);
     }
   };
 
   return (
-    <>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         whileInView={{ opacity: 1, scale: 1 }}
         viewport={{ once: true }}
         transition={{ delay: index * 0.1 }}
         className="group cursor-pointer"
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => onSelectProduct(product.id)}
       >
         <div className="relative aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-4 shadow-sm group-hover:shadow-2xl transition-all duration-500">
           {/* Loading Spinner */}
@@ -167,12 +159,5 @@ export function ProductCard({
           </div>
         </div>
       </motion.div>
-
-      <ProductDetailsModal
-        product={product}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-      />
-    </>
   );
 }
