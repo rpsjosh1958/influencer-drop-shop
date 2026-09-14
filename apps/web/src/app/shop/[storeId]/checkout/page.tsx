@@ -17,6 +17,7 @@ import {
   Plus,
   ArrowLeft,
   CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
@@ -48,14 +49,22 @@ const CITIES: Record<string, string[]> = {
 };
 
 export default function CheckoutPage() {
-  const { cart, total, clearCart } = useCart();
+  const { cart, total, clearCart, updateCartItem, removeFromCart } = useCart();
   const { store } = useStore();
   const router = useRouter();
   const params = useParams();
+  const storeId = Array.isArray(params?.storeId)
+    ? params.storeId[0]
+    : (params?.storeId as string) || "default-store";
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [checkingPrices, setCheckingPrices] = useState(false);
+  const [priceChanges, setPriceChanges] = useState<
+    { name: string; variant?: string; oldPrice: number; newPrice: number }[]
+  >([]);
+  const [removedItems, setRemovedItems] = useState<string[]>([]);
 
   // User Profile Data
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
@@ -150,6 +159,97 @@ export default function CheckoutPage() {
   // variant purchase was silently rejected.
   const pendingReferenceRef = useRef<string | null>(null);
 
+  // Re-reads each cart item's live price/stock right before opening the
+  // Paystack popup and patches the cart in place if anything drifted since
+  // it was added (e.g. a vendor changed the price while the store was
+  // closed for editing). The server transaction in reserveStockAndPrice
+  // always charges the true live price regardless — this is purely so the
+  // buyer never sees a total here that doesn't match what Paystack actually
+  // charges them next. Returns true when the cart was already accurate and
+  // it's safe to proceed straight to payment.
+  const revalidateCart = async (): Promise<boolean> => {
+    const changes: {
+      name: string;
+      variant?: string;
+      oldPrice: number;
+      newPrice: number;
+    }[] = [];
+    const removedNames: string[] = [];
+    let changed = false;
+
+    const results = await Promise.all(
+      cart.map(async (item) => {
+        try {
+          const snap = await getDoc(
+            doc(db, "stores", storeId, "products", item.id),
+          );
+          return { item, snap };
+        } catch (e) {
+          console.error("Price/stock revalidation failed for item", item.id, e);
+          return { item, snap: null };
+        }
+      }),
+    );
+
+    for (const { item, snap } of results) {
+      // A failed read here doesn't block checkout — the server re-validates
+      // everything anyway, so we just skip this item's freshness check.
+      if (!snap) continue;
+
+      if (!snap.exists()) {
+        removeFromCart(item.id, item.selectedVariant?.id);
+        removedNames.push(item.name);
+        changed = true;
+        continue;
+      }
+
+      const data = snap.data() as Record<string, any>;
+      let livePrice = data.price;
+      let liveStock = data.stock;
+
+      if (item.selectedVariant) {
+        const liveVariant = (data.variants || []).find(
+          (v: any) => v.id === item.selectedVariant?.id,
+        );
+        if (!liveVariant) {
+          removeFromCart(item.id, item.selectedVariant.id);
+          removedNames.push(`${item.name} (${item.selectedVariant.name})`);
+          changed = true;
+          continue;
+        }
+        livePrice = liveVariant.price ?? data.price;
+        liveStock = liveVariant.stock;
+      }
+
+      if (liveStock <= 0) {
+        removeFromCart(item.id, item.selectedVariant?.id);
+        removedNames.push(item.name);
+        changed = true;
+        continue;
+      }
+
+      const cartPrice = item.selectedVariant?.price ?? item.price;
+      if (Math.round(livePrice * 100) !== Math.round(cartPrice * 100)) {
+        changes.push({
+          name: item.name,
+          variant: item.selectedVariant?.name,
+          oldPrice: cartPrice,
+          newPrice: livePrice,
+        });
+        updateCartItem(item.id, item.selectedVariant?.id, {
+          ...(item.selectedVariant
+            ? { selectedVariant: { ...item.selectedVariant, price: livePrice } }
+            : { price: livePrice }),
+        });
+        changed = true;
+      }
+    }
+
+    setPriceChanges(changes);
+    setRemovedItems(removedNames);
+    return !changed;
+  };
+
   const handlePaystackSuccess = async (
     reference: string | { reference: string },
   ) => {
@@ -190,11 +290,24 @@ export default function CheckoutPage() {
 
   const handlePaymentStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setPriceChanges([]);
+    setRemovedItems([]);
 
-    const storeId = Array.isArray(params?.storeId)
-      ? params.storeId[0]
-      : (params?.storeId as string) || "default-store";
+    // Runs before the full-page loading state kicks in, so the buyer stays
+    // on the form (and can see the updated banner below) if anything needs
+    // review, instead of the whole page flashing to a spinner for nothing.
+    setCheckingPrices(true);
+    const wasAccurate = await revalidateCart();
+    setCheckingPrices(false);
+
+    if (!wasAccurate) {
+      // Something drifted — let the buyer see the updated total/notice
+      // before we take them to payment, instead of surprising them with a
+      // Paystack popup amount that doesn't match what's on screen.
+      return;
+    }
+
+    setLoading(true);
 
     // Recomputes the total server-side and reserves stock atomically
     // (including variant stock) — never trust the client's own `total`.
@@ -264,11 +377,7 @@ export default function CheckoutPage() {
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <h1 className="text-2xl font-bold mb-4">Your bag is empty.</h1>
         <Link
-          href={`/shop/${
-            (Array.isArray(params?.storeId)
-              ? params.storeId[0]
-              : (params?.storeId as string)) || "default-store"
-          }`}
+          href={`/shop/${storeId}`}
           className="underline font-medium"
         >
           Continue Shopping
@@ -281,11 +390,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-zinc-50 py-12 px-6 lg:px-8">
       <div className="max-w-4xl mx-auto mb-8">
         <Link
-          href={`/shop/${
-            (Array.isArray(params?.storeId)
-              ? params.storeId[0]
-              : (params?.storeId as string)) || "default-store"
-          }`}
+          href={`/shop/${storeId}`}
           className="inline-flex items-center gap-2 text-sm font-bold text-zinc-500 hover:text-black transition-colors"
         >
           <ArrowLeft size={16} /> Back to Shop
@@ -298,6 +403,31 @@ export default function CheckoutPage() {
           <h2 className="text-xl font-black tracking-tight mb-6">
             ORDER SUMMARY
           </h2>
+
+          {(priceChanges.length > 0 || removedItems.length > 0) && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-900 space-y-1.5">
+              <p className="font-bold flex items-center gap-2">
+                <AlertTriangle size={16} className="shrink-0" />
+                Your bag was updated
+              </p>
+              {priceChanges.map((c, i) => (
+                <p key={`price-${i}`}>
+                  {c.name}
+                  {c.variant ? ` (${c.variant})` : ""} price changed from{" "}
+                  {formatCurrency(c.oldPrice)} to {formatCurrency(c.newPrice)}.
+                </p>
+              ))}
+              {removedItems.map((name, i) => (
+                <p key={`removed-${i}`}>
+                  {name} is no longer available and was removed from your bag.
+                </p>
+              ))}
+              <p className="text-xs text-amber-700 pt-1">
+                Please review your updated total below before paying.
+              </p>
+            </div>
+          )}
+
           <div className="bg-white p-6 rounded-2xl shadow-sm space-y-4">
             {cart.map((item) => (
               <div
@@ -318,7 +448,10 @@ export default function CheckoutPage() {
                   </div>
                 </div>
                 <span className="font-medium">
-                  {formatCurrency(item.price * item.quantity)}
+                  {formatCurrency(
+                    (item.selectedVariant?.price || item.price) *
+                      item.quantity,
+                  )}
                 </span>
               </div>
             ))}
@@ -524,10 +657,20 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg tracking-wide hover:bg-zinc-900 shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 mt-4"
+              disabled={checkingPrices}
+              className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg tracking-wide hover:bg-zinc-900 shadow-lg transition-transform active:scale-95 flex items-center justify-center gap-2 mt-4 disabled:opacity-60 disabled:active:scale-100"
             >
-              <Truck size={20} />
-              PAY {formatCurrency(total)} NOW
+              {checkingPrices ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  Checking latest prices...
+                </>
+              ) : (
+                <>
+                  <Truck size={20} />
+                  PAY {formatCurrency(total)} NOW
+                </>
+              )}
             </button>
           </form>
         </div>
@@ -557,12 +700,7 @@ export default function CheckoutPage() {
                 Your order has been successfully placed.
               </p>
               <button
-                onClick={() => {
-                  const storeId = Array.isArray(params?.storeId)
-                    ? params.storeId[0]
-                    : (params?.storeId as string) || "default-store";
-                  router.push(`/shop/${storeId}`);
-                }}
+                onClick={() => router.push(`/shop/${storeId}`)}
                 className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform"
               >
                 Continue Shopping

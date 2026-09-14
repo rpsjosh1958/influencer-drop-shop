@@ -19,6 +19,11 @@ interface CartContextType {
   ) => void;
   // setItemQuantity: (productId: string, quantity: number) => void; // Removing simple set for now to simplify
   removeFromCart: (productId: string, variantId?: string) => void;
+  updateCartItem: (
+    productId: string,
+    variantId: string | undefined,
+    updates: Partial<CartItem>
+  ) => void;
   clearCart: () => void;
   total: number;
   isCartOpen: boolean;
@@ -113,6 +118,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
+  // Patches a cart item in place — used to sync a stale price/variant-price
+  // snapshot with the live product doc right before checkout, without
+  // disturbing quantity or losing the user's selection.
+  const updateCartItem = (
+    productId: string,
+    variantId: string | undefined,
+    updates: Partial<CartItem>
+  ) => {
+    setCart((prev) =>
+      prev.map((item) =>
+        item.id === productId && item.selectedVariant?.id === variantId
+          ? { ...item, ...updates }
+          : item
+      )
+    );
+  };
+
   const clearCart = () => {
     setCart([]);
   };
@@ -129,6 +151,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addToCart,
         updateQuantity,
         removeFromCart,
+        updateCartItem,
         clearCart,
         total,
         isCartOpen,

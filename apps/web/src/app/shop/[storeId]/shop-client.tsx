@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { onAuthStateChanged, signOut, User } from "firebase/auth";
 import { Product, Category, ServiceItem } from "@/types";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -49,8 +50,8 @@ export default function ShopClient({
   const { addToCart, cart, setIsCartOpen } = useCart();
   const { showAlert } = useAlert();
 
-  const [products] = useState<Product[]>(initialProducts);
-  const [services] = useState<ServiceItem[]>(initialServices);
+  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [services, setServices] = useState<ServiceItem[]>(initialServices);
   const [categories] = useState<Category[]>(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [loading] = useState(false);
@@ -82,6 +83,60 @@ export default function ShopClient({
     });
     return () => unsub();
   }, []);
+
+  // Live-sync products/services after the initial server-rendered fetch, so
+  // a vendor price/stock change while a buyer is already browsing shows up
+  // without a reload — mirrors the store-status onSnapshot in
+  // shop-layout-wrapper.tsx, which is why "Drop Closed" already updates live
+  // while the items underneath it used to stay frozen.
+  useEffect(() => {
+    const normalize = (docs: { id: string; data: () => Record<string, unknown> }[]) =>
+      docs.map((d) => {
+        const data = d.data() as Record<string, any>;
+        return {
+          ...data,
+          id: d.id,
+          createdAt:
+            data.createdAt?.toMillis?.() ||
+            data.createdAt?.seconds * 1000 ||
+            Date.now(),
+          ...(data.updatedAt && {
+            updatedAt:
+              data.updatedAt?.toMillis?.() ||
+              data.updatedAt?.seconds * 1000 ||
+              Date.now(),
+          }),
+        };
+      });
+
+    const unsubProducts = onSnapshot(
+      query(
+        collection(db, "stores", storeId, "products"),
+        orderBy("createdAt", "desc")
+      ),
+      (snap) => setProducts(normalize(snap.docs) as Product[]),
+      (error) =>
+        console.error("ShopClient: live products listener error", error)
+    );
+
+    const unsubServices = onSnapshot(
+      query(
+        collection(db, "stores", storeId, "services"),
+        orderBy("createdAt", "desc")
+      ),
+      (snap) =>
+        setServices(
+          normalize(snap.docs).filter((s) => s.isActive) as ServiceItem[]
+        ),
+      (error) =>
+        console.error("ShopClient: live services listener error", error)
+    );
+
+    return () => {
+      unsubProducts();
+      unsubServices();
+    };
+  }, [storeId]);
 
   const handleLogout = () => {
     showAlert({
