@@ -448,6 +448,89 @@ export default function StoreSettingsPage() {
     loading: false,
   });
 
+  // Email-OTP gate — required before linkPayoutMethod will actually save an
+  // added/changed payout method (server-enforced, see functions/src/otp.ts;
+  // this state is purely UX around that). otpToken is the short-lived proof
+  // of a successful code verification, sent along with the save call.
+  const [otpState, setOtpState] = useState({
+    sent: false,
+    code: "",
+    otpToken: "",
+    sending: false,
+    verifying: false,
+    error: "",
+    cooldownUntil: 0,
+  });
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    if (!otpState.cooldownUntil) return;
+    const interval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((otpState.cooldownUntil - Date.now()) / 1000));
+      setOtpCooldown(remaining);
+      if (remaining <= 0) clearInterval(interval);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [otpState.cooldownUntil]);
+
+  const resetOtpState = () =>
+    setOtpState({
+      sent: false,
+      code: "",
+      otpToken: "",
+      sending: false,
+      verifying: false,
+      error: "",
+      cooldownUntil: 0,
+    });
+
+  const sendOtp = async () => {
+    if (!storeId) return;
+    setOtpState((prev) => ({ ...prev, sending: true, error: "" }));
+    try {
+      const sendPayoutOtpFn = httpsCallable<
+        { storeId: string },
+        { success: boolean; expiresInSeconds: number }
+      >(functions, "sendPayoutOtp");
+      await sendPayoutOtpFn({ storeId });
+      setOtpState((prev) => ({
+        ...prev,
+        sent: true,
+        sending: false,
+        cooldownUntil: Date.now() + 60 * 1000,
+      }));
+    } catch (err) {
+      setOtpState((prev) => ({
+        ...prev,
+        sending: false,
+        error: getErrorMessage(err),
+      }));
+    }
+  };
+
+  const verifyOtp = async () => {
+    if (!storeId || otpState.code.length !== 6) return;
+    setOtpState((prev) => ({ ...prev, verifying: true, error: "" }));
+    try {
+      const verifyPayoutOtpFn = httpsCallable<
+        { storeId: string; code: string },
+        { otpToken: string }
+      >(functions, "verifyPayoutOtp");
+      const result = await verifyPayoutOtpFn({ storeId, code: otpState.code });
+      setOtpState((prev) => ({
+        ...prev,
+        verifying: false,
+        otpToken: result.data.otpToken,
+      }));
+    } catch (err) {
+      setOtpState((prev) => ({
+        ...prev,
+        verifying: false,
+        error: getErrorMessage(err),
+      }));
+    }
+  };
+
   const MOMO_NETWORKS = [
     { name: "MTN Mobile Money", code: "MTN" },
     { name: "Telecel", code: "VOD" },
@@ -455,6 +538,7 @@ export default function StoreSettingsPage() {
   ];
 
   const verifyAccount = async () => {
+    resetOtpState();
     setPayoutState((prev) => ({
       ...prev,
       loading: true,
@@ -488,12 +572,14 @@ export default function StoreSettingsPage() {
   };
 
   const savePayoutMethod = async () => {
-    if (!payoutState.isVerified) return;
+    if (!payoutState.isVerified || !otpState.otpToken) return;
     setLoading(true);
     try {
       // Creates the Paystack transfer recipient AND a Subaccount (so
       // checkout can split payments to this vendor automatically), and
-      // writes payoutConfig server-side — all in one call.
+      // writes payoutConfig server-side — all in one call. Server requires
+      // otpToken (a just-completed email verification, see otp.ts) or
+      // rejects the whole call — this isn't just a UI gate.
       const linkPayoutMethodFn = httpsCallable<
         {
           storeId: string | null;
@@ -502,6 +588,7 @@ export default function StoreSettingsPage() {
           accountNumber: string;
           bankCode: string;
           bankName: string;
+          otpToken: string;
         },
         { subaccountCode: string }
       >(functions, "linkPayoutMethod");
@@ -514,6 +601,7 @@ export default function StoreSettingsPage() {
         bankName:
           MOMO_NETWORKS.find((n) => n.code === payoutState.bankCode)?.name ||
           "Bank",
+        otpToken: otpState.otpToken,
       });
 
       const payoutConfig = {
@@ -530,6 +618,7 @@ export default function StoreSettingsPage() {
       setSuccess("Payout Method Verified & Saved! Your store can now accept orders.");
       // Update local config (linkPayoutMethod already wrote it to Firestore)
       setConfig((prev) => ({ ...prev, payoutConfig }));
+      resetOtpState();
       // Reset form state slightly to showing saved state logic handled in render
     } catch (err) {
       console.error(err);
@@ -1591,6 +1680,7 @@ export default function StoreSettingsPage() {
                             isVerified: false,
                             loading: false,
                           });
+                          resetOtpState();
                         }}
                         className="text-sm font-bold underline hover:text-green-900"
                       >
@@ -1698,19 +1788,98 @@ export default function StoreSettingsPage() {
                         </button>
                       )}
 
-                      {payoutState.isVerified && (
-                        <button
-                          type="button"
-                          onClick={savePayoutMethod}
-                          disabled={loading}
-                          className="w-full py-4 bg-black text-white rounded-xl font-bold shadow-xl hover:scale-105 transition-transform"
-                        >
-                          {loading ? (
-                            <Loader2 className="animate-spin mx-auto" />
+                      {payoutState.isVerified && !otpState.otpToken && (
+                        <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 space-y-3">
+                          <p className="text-sm font-bold text-zinc-900">
+                            Confirm it's you
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {otpState.sent
+                              ? `Enter the 6-digit code we sent to ${auth.currentUser?.email}.`
+                              : `We'll email a 6-digit code to ${auth.currentUser?.email} to confirm this payout change.`}
+                          </p>
+
+                          {!otpState.sent ? (
+                            <button
+                              type="button"
+                              onClick={sendOtp}
+                              disabled={otpState.sending}
+                              className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold disabled:opacity-50 hover:bg-black transition-colors"
+                            >
+                              {otpState.sending ? (
+                                <Loader2 className="animate-spin mx-auto" size={18} />
+                              ) : (
+                                "Send Verification Code"
+                              )}
+                            </button>
                           ) : (
-                            "Save Payout Method"
+                            <>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  maxLength={6}
+                                  placeholder="000000"
+                                  value={otpState.code}
+                                  onChange={(e) =>
+                                    setOtpState((prev) => ({
+                                      ...prev,
+                                      code: e.target.value.replace(/\D/g, "").slice(0, 6),
+                                      error: "",
+                                    }))
+                                  }
+                                  className="flex-1 p-3 bg-white border border-zinc-200 rounded-xl font-mono text-lg tracking-[0.3em] text-center outline-none focus:ring-2 focus:ring-black"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={verifyOtp}
+                                  disabled={otpState.verifying || otpState.code.length !== 6}
+                                  className="px-5 bg-black text-white rounded-xl font-bold disabled:opacity-50 hover:bg-zinc-800 transition-colors"
+                                >
+                                  {otpState.verifying ? (
+                                    <Loader2 className="animate-spin" size={18} />
+                                  ) : (
+                                    "Verify"
+                                  )}
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={sendOtp}
+                                disabled={otpState.sending || otpCooldown > 0}
+                                className="text-xs font-bold text-zinc-500 underline disabled:opacity-50 disabled:no-underline hover:text-black"
+                              >
+                                {otpCooldown > 0
+                                  ? `Resend code in ${otpCooldown}s`
+                                  : "Resend code"}
+                              </button>
+                            </>
                           )}
-                        </button>
+
+                          {otpState.error && (
+                            <p className="text-xs font-bold text-red-600">{otpState.error}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {payoutState.isVerified && otpState.otpToken && (
+                        <>
+                          <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2 text-sm font-bold text-green-700">
+                            <CheckCircle2 size={16} /> Code verified
+                          </div>
+                          <button
+                            type="button"
+                            onClick={savePayoutMethod}
+                            disabled={loading}
+                            className="w-full py-4 bg-black text-white rounded-xl font-bold shadow-xl hover:scale-105 transition-transform"
+                          >
+                            {loading ? (
+                              <Loader2 className="animate-spin mx-auto" />
+                            ) : (
+                              "Save Payout Method"
+                            )}
+                          </button>
+                        </>
                       )}
                     </div>
                   )}

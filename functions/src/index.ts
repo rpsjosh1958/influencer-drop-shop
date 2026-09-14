@@ -26,6 +26,7 @@ import { reserveStockAndPrice, releaseStock } from "./stock";
 import { initiateOrderRefund } from "./refunds";
 import { sendNotificationToUser } from "./notifications";
 import { getEmailLayout, emailButton, emailCallout } from "./email-layout";
+import { assertValidPayoutOtp } from "./otp";
 
 admin.initializeApp();
 
@@ -996,7 +997,7 @@ export const linkPayoutMethod = onCall(async (request) => {
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "User must be logged in");
   }
-  const { storeId, type, name, accountNumber, bankCode, bankName } =
+  const { storeId, type, name, accountNumber, bankCode, bankName, otpToken } =
     request.data;
   if (!storeId || !type || !name || !accountNumber || !bankCode) {
     throw new HttpsError("invalid-argument", "Missing payout details");
@@ -1011,6 +1012,11 @@ export const linkPayoutMethod = onCall(async (request) => {
       "Not authorized to configure payouts for this store"
     );
   }
+
+  // Adding or changing where money gets sent requires a fresh email-OTP
+  // verification (sendPayoutOtp/verifyPayoutOtp) right before this call —
+  // see otp.ts. Throws if missing/expired/already used.
+  await assertValidPayoutOtp(request.auth.uid, storeId, otpToken);
 
   const plan = storeData?.plan || "starter";
   const existingSubaccountCode = storeData?.payoutConfig?.subaccountCode;
@@ -1348,4 +1354,5 @@ export { resendWebhook } from "./inbound";
 export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
 export { checkSubscriptionExpiry };
 export { sendPasswordReset } from "./auth";
+export { sendPayoutOtp, verifyPayoutOtp } from "./otp";
 export * from "./onboarding";
