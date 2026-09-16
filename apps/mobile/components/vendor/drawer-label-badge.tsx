@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { View, Text, type ColorValue } from "react-native";
 
 // Matches the web admin's nav badge style exactly (AdminNavBadge in
 // apps/web/src/components/admin/nav-badge.tsx): a red circular pill with
@@ -11,7 +11,7 @@ export function DrawerLabelBadge({
 }: {
   label: string;
   count: number;
-  color: string;
+  color: ColorValue;
 }) {
   return (
     <View className="flex-row items-center justify-between flex-1">

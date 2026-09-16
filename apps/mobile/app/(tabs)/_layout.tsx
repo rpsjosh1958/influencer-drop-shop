@@ -3,7 +3,7 @@ import { View, Pressable } from "react-native";
 import { MotiView, MotiText } from "moti";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarProps } from "expo-router/js-tabs";
 import type { ComponentProps } from "react";
 
 const TAB_Config = [

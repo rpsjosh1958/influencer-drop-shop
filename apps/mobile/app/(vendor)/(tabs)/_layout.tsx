@@ -32,7 +32,7 @@ export default function VendorTabsLayout() {
         name="dashboard"
         options={{
           title: "Dashboard",
-          tabBarIcon: ({ color }: { color: string }) => (
+          tabBarIcon: ({ color }) => (
             <LayoutDashboard size={24} color={color} />
           ),
         }}
@@ -41,7 +41,7 @@ export default function VendorTabsLayout() {
         name="notifications"
         options={{
           title: "Alerts",
-          tabBarIcon: ({ color }: { color: string }) => (
+          tabBarIcon: ({ color }) => (
             <Bell size={24} color={color} />
           ),
           tabBarBadge: badgeValue,
@@ -51,7 +51,7 @@ export default function VendorTabsLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color }: { color: string }) => (
+          tabBarIcon: ({ color }) => (
             <Settings size={24} color={color} />
           ),
         }}

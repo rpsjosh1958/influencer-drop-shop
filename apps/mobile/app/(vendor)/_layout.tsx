@@ -1,5 +1,10 @@
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Drawer } from "expo-router/drawer";
+import {
+  Drawer,
+  DrawerContentScrollView,
+  DrawerItemList,
+  type DrawerContentComponentProps,
+} from "expo-router/drawer";
 import { VendorProvider, useVendor } from "@/context/vendor-context";
 import {
   LayoutDashboard,
@@ -15,11 +20,6 @@ import { useNotifications } from "@/context/notification-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  DrawerContentScrollView,
-  DrawerItemList,
-  type DrawerContentComponentProps,
-} from "@react-navigation/drawer";
 import { View, Text, ActivityIndicator } from "react-native";
 import { P } from "@/components/ui/text";
 import Constants from "expo-constants";

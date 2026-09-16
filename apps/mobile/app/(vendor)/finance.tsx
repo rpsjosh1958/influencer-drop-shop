@@ -1,6 +1,6 @@
 import { View, ScrollView, Pressable, RefreshControl, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
+import { useNavigation, DrawerActions } from "expo-router/react-navigation";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
 import { formatCurrency } from "@/lib/format";

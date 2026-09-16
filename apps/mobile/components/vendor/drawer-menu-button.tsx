@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
+import { useNavigation, DrawerActions } from "expo-router/react-navigation";
 import { Menu } from "lucide-react-native";
 import { useVendor } from "@/context/vendor-context";
 

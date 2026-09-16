@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
-import { DrawerActions, useNavigation } from "@react-navigation/native";
+import { DrawerActions, useNavigation } from "expo-router/react-navigation";
 import { VendorBookingDetails } from "@/components/vendor/vendor-booking-details";
 import { useVendor } from "@/context/vendor-context";
 import {

@@ -3,7 +3,7 @@ import { View, ScrollView, Pressable, Image, Alert, RefreshControl } from "react
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
+import { useNavigation, DrawerActions } from "expo-router/react-navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Filter, Menu, Package, Search, Plus } from "lucide-react-native";
 import { VendorOrderDetails } from "@/components/vendor/vendor-order-details";

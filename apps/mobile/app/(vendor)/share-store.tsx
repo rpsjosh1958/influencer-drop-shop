@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
 import { View, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, DrawerActions } from "@react-navigation/native";
-import ViewShot from "react-native-view-shot";
+import { useNavigation, DrawerActions } from "expo-router/react-navigation";
+import ViewShot, { type ViewShotRef } from "react-native-view-shot";
 import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
 import * as Clipboard from "expo-clipboard";
@@ -30,7 +30,7 @@ export default function ShareStoreScreen() {
   const [sharing, setSharing] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const viewShotRef = useRef<ViewShot>(null);
+  const viewShotRef = useRef<ViewShotRef>(null);
 
   const requiredImages = 1 + (template === "rack" ? shareableProducts.length : 0);
 
