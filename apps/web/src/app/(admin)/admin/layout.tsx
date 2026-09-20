@@ -293,7 +293,7 @@ function DynamicSidebar({
   setShowBroadcast: (value: boolean) => void;
   handleLogout: () => void;
 }) {
-  const { storeFeatures, storeName } = useAdminStore();
+  const { storeFeatures, storeName, userPlan } = useAdminStore();
 
   // Dynamic navigation items based on store features
   const navItems = useMemo(() => {
@@ -509,11 +509,20 @@ function DynamicSidebar({
           collapsed ? "p-4 flex flex-col items-center" : "p-4"
         )}>
           {collapsed ? (
-            <Tooltip content="Broadcast" side="right">
+            <Tooltip
+              content={userPlan === "growth" ? "Broadcast" : "Broadcast — Upgrade to unlock"}
+              side="right"
+            >
               <button
                 data-tour="sidebar-broadcast"
+                disabled={userPlan !== "growth"}
                 onClick={() => setShowBroadcast(true)}
-                className="flex items-center justify-center w-12 h-12 text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-2xl transition-colors border border-transparent hover:border-purple-100 dark:hover:border-purple-900/30"
+                className={cn(
+                  "flex items-center justify-center w-12 h-12 rounded-2xl transition-colors border border-transparent",
+                  userPlan === "growth"
+                    ? "text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:border-purple-100 dark:hover:border-purple-900/30"
+                    : "text-zinc-400 cursor-not-allowed grayscale"
+                )}
               >
                 <Megaphone size={20} className="shrink-0" />
               </button>
@@ -521,11 +530,24 @@ function DynamicSidebar({
           ) : (
             <button
               data-tour="sidebar-broadcast"
+              disabled={userPlan !== "growth"}
               onClick={() => setShowBroadcast(true)}
-              className="flex items-center gap-2 px-2 py-2 text-sm font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors w-full"
+              className={cn(
+                "flex items-center gap-2 px-2 py-2 text-sm font-medium rounded-lg transition-colors w-full",
+                userPlan === "growth"
+                  ? "text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20"
+                  : "text-zinc-400 cursor-not-allowed grayscale"
+              )}
             >
               <Megaphone size={20} className="w-5 h-5 flex-shrink-0" />
-              <span>Broadcast</span>
+              <div className="text-left">
+                <span>Broadcast</span>
+                {userPlan !== "growth" && (
+                  <p className="text-[9px] uppercase font-black text-purple-500">
+                    Upgrade to unlock
+                  </p>
+                )}
+              </div>
             </button>
           )}
 

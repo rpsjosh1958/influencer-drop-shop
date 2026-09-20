@@ -42,7 +42,11 @@ export function BroadcastModal({ isOpen, onClose }: BroadcastModalProps) {
       }, 2000);
     } catch (err) {
       console.error("Error sending broadcast:", err);
-      setError("Failed to send broadcast. Please try again.");
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to send broadcast. Please try again.";
+      setError(message);
     } finally {
       setSending(false);
     }

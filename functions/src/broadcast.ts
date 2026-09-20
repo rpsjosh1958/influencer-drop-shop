@@ -65,6 +65,17 @@ export const broadcastToStoreCustomers = onCall(async (request) => {
     );
   }
 
+  // Same store-level plan check the AI Assistant's Growth gate uses
+  // (apps/web/src/app/api/chat/route.ts) — the client hides the Broadcast
+  // button for non-Growth stores, but that's UI-only, so it's enforced
+  // here too since a broadcast has real reach/push-notification cost.
+  if (storeData?.plan !== "growth") {
+    throw new HttpsError(
+      "permission-denied",
+      "Broadcast requires the Growth plan"
+    );
+  }
+
   const customerIds = await getStoreCustomerIds(storeId);
   if (customerIds.length === 0) {
     return { recipientCount: 0 };
