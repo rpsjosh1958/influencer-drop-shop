@@ -15,6 +15,7 @@ import {
   Clock,
   Wallet,
   Share2,
+  Megaphone,
 } from "lucide-react-native";
 import { useNotifications } from "@/context/notification-context";
 import { useEffect, useState } from "react";
@@ -255,6 +256,16 @@ function VendorLayout() {
             drawerLabel: "Finance",
             title: "Finance",
             drawerIcon: ({ color, size }) => <Wallet size={22} color={color} />,
+          }}
+        />
+        <Drawer.Screen
+          name="broadcast"
+          options={{
+            drawerLabel: "Broadcast",
+            title: "Broadcast",
+            drawerIcon: ({ color, size }) => (
+              <Megaphone size={22} color={color} />
+            ),
           }}
         />
         <Drawer.Screen
