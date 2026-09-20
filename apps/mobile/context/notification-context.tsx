@@ -25,6 +25,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { getNotificationRoute } from "@/lib/notification-routing";
+import { useStore } from "@/context/store-context";
 import type { FirestoreTimestamp } from "@/types";
 
 Notifications.setNotificationHandler({
@@ -63,6 +64,7 @@ export interface Notification {
   data?: {
     id?: string;
     storeId?: string;
+    storeName?: string;
     screen?: string;
     orderId?: string;
     bookingId?: string;
@@ -87,6 +89,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 );
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { setStoreId } = useStore();
   const [user, setUser] = useState<User | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +138,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           router.push(route);
         } else if (data?.type === "vendor_complaint") {
           router.push("/(vendor)/(tabs)" as Href);
+        } else if (data?.type === "broadcast" && data?.storeId) {
+          // No dedicated route — broadcasts switch the active store and
+          // land on the shop home, mirroring the "view store" pattern in
+          // global-search.tsx.
+          setStoreId(data.storeId).then(() => router.dismissTo("/"));
         } else if (data?.screen) {
           router.push(data.screen as Href);
         }

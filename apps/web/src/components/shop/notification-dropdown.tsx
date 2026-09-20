@@ -7,6 +7,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { toJsDate } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function NotificationDropdown({
 }: NotificationDropdownProps) {
   const { notifications, markAsRead, loading } = useNotifications();
   const { openOrderDetails, openBookingDetails } = useShopUI();
+  const router = useRouter();
 
   useBodyScrollLock(isOpen);
 
@@ -83,6 +85,9 @@ export function NotificationDropdown({
                       } else if (item.type === "booking_update" && bookingId && item.data?.storeId) {
                         onClose();
                         openBookingDetails(bookingId, item.data.storeId);
+                      } else if (item.type === "broadcast" && item.data?.storeId) {
+                        onClose();
+                        router.push(`/shop/${item.data.storeId}`);
                       }
                     }}
                     className={`w-full text-left p-3 rounded-xl flex gap-3 transition-all ${
@@ -123,6 +128,11 @@ export function NotificationDropdown({
                       <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">
                         {item.message}
                       </p>
+                      {item.type === "broadcast" && item.data?.storeName && (
+                        <p className="text-[10px] text-zinc-600 mt-1">
+                          From {item.data.storeName}
+                        </p>
+                      )}
                     </div>
                   </button>
                 ))

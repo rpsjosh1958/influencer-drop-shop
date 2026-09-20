@@ -44,6 +44,46 @@ const openai = new OpenAI({
 
 export const runtime = "nodejs";
 
+const ORDERS_PAGE_SIZE = 500;
+
+// Mirrors functions/src/broadcast.ts's getStoreCustomerIds — no shared
+// package between apps/web and functions/, so this is kept in sync by hand.
+// Orders are written by both web and mobile, which don't agree on the buyer
+// field name (some mobile write paths use `customerId` instead of `userId`),
+// so both are checked when collecting a store's past buyers.
+async function getStoreCustomerIds(storeId: string): Promise<string[]> {
+  const ordersRef = adminDb
+    .collection("stores")
+    .doc(storeId)
+    .collection("orders");
+
+  const customerIds = new Set<string>();
+  let lastDoc:
+    | FirebaseFirestore.QueryDocumentSnapshot
+    | undefined;
+
+  for (;;) {
+    let query = ordersRef.orderBy("__name__").limit(ORDERS_PAGE_SIZE);
+    if (lastDoc) {
+      query = query.startAfter(lastDoc);
+    }
+
+    const snapshot = await query.get();
+    if (snapshot.empty) break;
+
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const buyerId = data.userId || data.customerId;
+      if (buyerId) customerIds.add(buyerId);
+    });
+
+    lastDoc = snapshot.docs[snapshot.docs.length - 1];
+    if (snapshot.size < ORDERS_PAGE_SIZE) break;
+  }
+
+  return Array.from(customerIds);
+}
+
 if (!process.env.OPENAI_API_KEY) {
   console.error("Missing OPENAI_API_KEY");
 }
@@ -293,7 +333,8 @@ export async function POST(req: Request) {
         type: "function",
         function: {
           name: "broadcastMessage",
-          description: "Send a broadcast message to all users.",
+          description:
+            "Send a broadcast notification to everyone who has purchased from this store before.",
           parameters: {
             type: "object",
             properties: {
@@ -837,17 +878,30 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
           } else if (fnName === "broadcastMessage") {
             const title = fnArgs.title;
             const content = fnArgs.content;
+            const storeName = storeDocForPlanCheck.data()?.name || "";
 
-            await adminDb.collection("notifications").add({
-              userId: "all",
-              title,
-              message: content,
-              type: "broadcast",
-              createdAt: new Date(),
-              read: false,
-            });
+            const customerIds = await getStoreCustomerIds(storeId);
+            for (let i = 0; i < customerIds.length; i += ORDERS_PAGE_SIZE) {
+              const batch = adminDb.batch();
+              for (const userId of customerIds.slice(i, i + ORDERS_PAGE_SIZE)) {
+                batch.set(adminDb.collection("notifications").doc(), {
+                  userId,
+                  title,
+                  message: content,
+                  type: "broadcast",
+                  storeId,
+                  data: { storeId, storeName, screen: "store" },
+                  createdAt: new Date(),
+                  read: false,
+                });
+              }
+              await batch.commit();
+            }
 
-            result = `Broadcast sent! Title: "${title}"`;
+            result =
+              customerIds.length > 0
+                ? `Broadcast sent to ${customerIds.length} past customer(s)! Title: "${title}"`
+                : `No past customers to broadcast to yet.`;
           } else if (fnName === "getSupportTickets") {
             const status = fnArgs.status || "open";
             const limit = fnArgs.limit || 5;

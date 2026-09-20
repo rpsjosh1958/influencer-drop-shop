@@ -36,6 +36,7 @@ export interface Notification {
     orderId?: string;
     bookingId?: string;
     storeId?: string;
+    storeName?: string;
     [key: string]: unknown;
   };
 }

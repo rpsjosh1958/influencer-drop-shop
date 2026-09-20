@@ -56,9 +56,9 @@ export default function RootLayout() {
           currency="GHS"
           defaultChannels={["card", "mobile_money"]}
         >
-          <NotificationProvider>
-            <AlertProvider>
-              <StoreProvider>
+          <StoreProvider>
+            <NotificationProvider>
+              <AlertProvider>
                 <FontLoader>
                   <CartProvider>
                     <InAppNotificationBanner />
@@ -110,9 +110,9 @@ export default function RootLayout() {
                     </ThemeProvider>
                   </CartProvider>
                 </FontLoader>
-              </StoreProvider>
-            </AlertProvider>
-          </NotificationProvider>
+              </AlertProvider>
+            </NotificationProvider>
+          </StoreProvider>
         </PaystackProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

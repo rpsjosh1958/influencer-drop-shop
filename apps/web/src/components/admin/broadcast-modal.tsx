@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Send, Megaphone } from "lucide-react";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { functions } from "@/lib/firebase";
+import { useAdminStore } from "@/components/admin/admin-store-provider";
 
 interface BroadcastModalProps {
   isOpen: boolean;
@@ -12,24 +13,26 @@ interface BroadcastModalProps {
 }
 
 export function BroadcastModal({ isOpen, onClose }: BroadcastModalProps) {
+  const { storeId } = useAdminStore();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSend = async () => {
-    if (!title || !message) return;
+    if (!title || !message || !storeId) return;
 
     setSending(true);
+    setError("");
     try {
-      await addDoc(collection(db, "notifications"), {
-        userId: "all",
-        title,
-        message,
-        type: "broadcast",
-        createdAt: new Date(),
-        read: false, // Not strictly used for broadcast but good for schema consistency
-      });
+      // Scoped to this store's own past customers — not a platform-wide
+      // blast — see broadcastToStoreCustomers (functions/src/broadcast.ts).
+      const broadcastToStoreCustomers = httpsCallable(
+        functions,
+        "broadcastToStoreCustomers"
+      );
+      await broadcastToStoreCustomers({ storeId, title, message });
       setSuccess(true);
       setTimeout(() => {
         setSuccess(false);
@@ -37,8 +40,9 @@ export function BroadcastModal({ isOpen, onClose }: BroadcastModalProps) {
         setMessage("");
         onClose();
       }, 2000);
-    } catch (error) {
-      console.error("Error sending broadcast:", error);
+    } catch (err) {
+      console.error("Error sending broadcast:", err);
+      setError("Failed to send broadcast. Please try again.");
     } finally {
       setSending(false);
     }
@@ -106,9 +110,13 @@ export function BroadcastModal({ isOpen, onClose }: BroadcastModalProps) {
             />
           </div>
 
+          {error && (
+            <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+          )}
+
           <button
             onClick={handleSend}
-            disabled={sending || !title || !message}
+            disabled={sending || !title || !message || !storeId}
             className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
               success
                 ? "bg-green-500 text-white"

@@ -28,6 +28,8 @@ import { sendNotificationToUser } from "./notifications";
 import { getEmailLayout, emailButton, emailCallout } from "./email-layout";
 import { assertValidPayoutOtp } from "./otp";
 
+export { broadcastToStoreCustomers } from "./broadcast";
+
 admin.initializeApp();
 
 const expo = new Expo();
@@ -58,54 +60,6 @@ export const onNotificationCreated = onDocumentCreated(
       return;
     }
 
-    if (userId === "all") {
-      try {
-        const usersSnapshot = await admin.firestore().collection("users").get();
-        const messages: ExpoPushMessage[] = [];
-        const uniqueTokens = new Set<string>();
-
-        usersSnapshot.forEach((doc) => {
-          const userData = doc.data();
-          const token = userData.expoPushToken;
-
-          if (token && Expo.isExpoPushToken(token) && !uniqueTokens.has(token)) {
-            uniqueTokens.add(token);
-            messages.push({
-              to: token,
-              sound: "default",
-              title: title,
-              body: message,
-              data: { ...notificationData, type: data.type || "broadcast" },
-            });
-          }
-        });
-
-        if (messages.length === 0) {
-          logger.info("No unique users with valid tokens found for broadcast");
-          return;
-        }
-
-        logger.info(`Sending broadcast to ${messages.length} unique tokens...`);
-        
-        const chunks = expo.chunkPushNotifications(messages);
-        const tickets = [];
-
-        for (const chunk of chunks) {
-          try {
-            const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-            tickets.push(...ticketChunk);
-          } catch (error) {
-            logger.error("Error sending push notifications chunk", error);
-          }
-        }
-        logger.info(`Broadcast notification sent to ${messages.length} users`);
-        return;
-      } catch (error) {
-        logger.error("Error broadcasting notification", error);
-        return;
-      }
-    }
-
     try {
       const userDoc = await admin
         .firestore()
@@ -132,6 +86,13 @@ export const onNotificationCreated = onDocumentCreated(
         sound: "default",
         title: title,
         body: message,
+        // iOS shows this under the title; Android ignores it. Lets a
+        // broadcast identify its store without the vendor having to work
+        // it into the title/body text themselves.
+        ...(typeof notificationData.storeName === "string" &&
+        notificationData.storeName
+          ? { subtitle: notificationData.storeName }
+          : {}),
         data: { ...notificationData, type: data.type },
       });
 

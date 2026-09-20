@@ -49,6 +49,8 @@ export function NotificationToast() {
       currentNotif.data?.storeId
     ) {
       openBookingDetails(bookingId, currentNotif.data.storeId);
+    } else if (currentNotif.type === "broadcast" && currentNotif.data?.storeId) {
+      router.push(`/shop/${currentNotif.data.storeId}`);
     }
   };
 
@@ -84,6 +86,12 @@ export function NotificationToast() {
               <p className="text-zinc-400 text-xs truncate">
                 {currentNotif.message}
               </p>
+              {currentNotif.type === "broadcast" &&
+                currentNotif.data?.storeName && (
+                  <p className="text-zinc-500 text-[10px] truncate mt-0.5">
+                    From {currentNotif.data.storeName}
+                  </p>
+                )}
             </div>
 
             {/* Close Button (Optional, click whole tile works too) */}

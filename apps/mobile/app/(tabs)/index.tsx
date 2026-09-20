@@ -499,6 +499,13 @@ export default function ShopHome() {
                           if (!item.read) markAsRead(item.id);
                           setIsNotificationOpen(false); // Close drawer
 
+                          if (item.type === "broadcast" && item.data?.storeId) {
+                            setStoreId(item.data.storeId).then(() =>
+                              router.dismissTo("/"),
+                            );
+                            return;
+                          }
+
                           const route = getNotificationRoute(item);
                           if (route) router.push(route);
                         }}
@@ -532,6 +539,11 @@ export default function ShopHome() {
                           <P className="text-zinc-400 mt-1 leading-relaxed">
                             {item.message}
                           </P>
+                          {item.type === "broadcast" && item.data?.storeName && (
+                            <P className="text-zinc-500 text-xs mt-1">
+                              From {item.data.storeName}
+                            </P>
+                          )}
                         </View>
                         {!item.read && (
                           <View className="h-2 w-2 rounded-full bg-cyan-400 absolute top-3 left-3" />
