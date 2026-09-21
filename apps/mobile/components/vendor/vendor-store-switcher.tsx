@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Pressable,
@@ -7,6 +7,8 @@ import {
   Text,
   ActivityIndicator,
   Platform,
+  Animated,
+  StyleSheet,
 } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { useVendor } from "@/context/vendor-context";
@@ -20,7 +22,6 @@ import {
   BadgeCheck,
 } from "lucide-react-native";
 import { BlurView } from "expo-blur";
-import { MotiView } from "moti";
 import { cn } from "@/lib/utils";
 import { router } from "expo-router";
 
@@ -40,6 +41,34 @@ export function VendorStoreSwitcher({ visible, onClose }: VendorStoreSwitcherPro
 
   const [isSwitching, setIsSwitching] = useState(false);
 
+  // Plain react-native Animated, not Reanimated/Moti — MotiView's
+  // Reanimated-driven animation hangs trying to start inside <Modal>
+  // (which renders in a separate native window/root), freezing the app
+  // the instant this opens. Same issue and fix as the customer-facing
+  // StoreSwitcher (components/shop/store-switcher.tsx).
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(300);
+    }
+  }, [visible]);
+
   const handleSelect = async (id: string, isLocked: boolean) => {
     if (isLocked) {
       onClose();
@@ -56,17 +85,24 @@ export function VendorStoreSwitcher({ visible, onClose }: VendorStoreSwitcherPro
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
     >
       <View className="flex-1">
-        <BlurView intensity={20} tint="dark" className="flex-1">
-          <Pressable className="flex-1" onPress={onClose} />
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { opacity: backdropOpacity, backgroundColor: "rgba(0,0,0,0.4)" },
+          ]}
+        >
+          <BlurView intensity={20} tint="dark" className="flex-1">
+            <Pressable className="flex-1" onPress={onClose} />
+          </BlurView>
+        </Animated.View>
 
-          <MotiView
-            from={{ translateY: 300, opacity: 0 }}
-            animate={{ translateY: 0, opacity: 1 }}
-            transition={{ type: "timing", duration: 300 }}
+        <View style={{ flex: 1, justifyContent: "flex-end" }} pointerEvents="box-none">
+          <Animated.View
+            style={{ transform: [{ translateY: sheetTranslateY }] }}
             className="bg-white dark:bg-zinc-900 rounded-t-[40px] overflow-hidden max-h-[80%] shadow-2xl"
           >
             <View className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex-row items-center justify-between">
@@ -186,8 +222,8 @@ export function VendorStoreSwitcher({ visible, onClose }: VendorStoreSwitcherPro
                 </View>
               </Pressable>
             </ScrollView>
-          </MotiView>
-        </BlurView>
+          </Animated.View>
+        </View>
       </View>
     </Modal>
   );
