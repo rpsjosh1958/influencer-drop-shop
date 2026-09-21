@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import Animated, {
   useSharedValue,
@@ -25,9 +25,16 @@ interface MarqueeTextProps {
 // layout pass on the whole screen). Without this, onLayout -> setState ->
 // re-render -> onLayout with a "new" (but visually identical) value loops
 // forever and freezes the JS thread — this is exactly that guard.
-function setIfChanged(setter: (n: number) => void, current: number, next: number) {
+function setIfChanged(
+  label: string,
+  setter: (n: number) => void,
+  current: number,
+  next: number
+) {
   const rounded = Math.round(next);
-  if (Math.abs(rounded - current) >= 1) setter(rounded);
+  const changed = Math.abs(rounded - current) >= 1;
+  console.log(`[MarqueeText] onLayout ${label}: ${current} -> ${rounded} (changed=${changed})`);
+  if (changed) setter(rounded);
 }
 
 // Renders `text` centered on one line unless it's too wide for its
@@ -37,11 +44,17 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
   const translateX = useSharedValue(0);
+  const renderCount = useRef(0);
+  renderCount.current += 1;
+  console.log(`[MarqueeText] render #${renderCount.current}, text="${text}"`);
 
   const overflowing =
     textWidth > 0 && containerWidth > 0 && textWidth > containerWidth;
 
   useEffect(() => {
+    console.log(
+      `[MarqueeText] effect fired: overflowing=${overflowing} textWidth=${textWidth}`
+    );
     if (!overflowing) return;
     translateX.value = 0;
     translateX.value = withRepeat(
@@ -62,7 +75,7 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
     <View
       style={containerStyle}
       onLayout={(e: LayoutChangeEvent) =>
-        setIfChanged(setContainerWidth, containerWidth, e.nativeEvent.layout.width)
+        setIfChanged("container", setContainerWidth, containerWidth, e.nativeEvent.layout.width)
       }
     >
       {/* Off-screen measurer — reports the text's true, unconstrained width
@@ -70,7 +83,7 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
       <Text
         style={[textStyle, { position: "absolute", opacity: 0 }]}
         onLayout={(e: LayoutChangeEvent) =>
-          setIfChanged(setTextWidth, textWidth, e.nativeEvent.layout.width)
+          setIfChanged("text", setTextWidth, textWidth, e.nativeEvent.layout.width)
         }
       >
         {text}

@@ -44,6 +44,7 @@ export function StoreSwitcher() {
   const { data: stores = [], isLoading: loading } = useQuery({
     queryKey: ["stores", "live", "growth"],
     queryFn: async () => {
+      console.log("[StoreSwitcher] queryFn: starting stores fetch");
       const q = query(
         collection(db, "stores"),
         where("status", "==", "live"),
@@ -53,18 +54,23 @@ export function StoreSwitcher() {
       // Suspension doesn't flip status away from "live" (it's a separate
       // admin override), so it has to be filtered out here rather than in
       // the query itself — avoids a new composite index for one `!=` field.
-      return snapshot.docs
+      const result = snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }) as Store)
         .filter((s) => !s.isSuspended);
+      console.log(`[StoreSwitcher] queryFn: fetched ${result.length} stores`);
+      return result;
     },
     enabled: isOpen,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
+  console.log(`[StoreSwitcher] render: isOpen=${isOpen} loading=${loading} storesCount=${stores.length}`);
 
   const handleSelect = async (newId: string) => {
+    console.log(`[StoreSwitcher] handleSelect: ${newId} (current=${storeId})`);
     setIsOpen(false);
     if (newId !== storeId) {
       await setStoreId(newId);
+      console.log(`[StoreSwitcher] setStoreId resolved for ${newId}`);
     }
   };
 
@@ -75,7 +81,10 @@ export function StoreSwitcher() {
   return (
     <>
       <Pressable
-        onPress={() => setIsOpen(true)}
+        onPress={() => {
+          console.log("[StoreSwitcher] pressed — opening list");
+          setIsOpen(true);
+        }}
         className="flex-row items-center gap-2 active:opacity-70"
       >
         {store?.logo ? (
