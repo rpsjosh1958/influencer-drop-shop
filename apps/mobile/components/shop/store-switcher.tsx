@@ -2,12 +2,13 @@ import {
   View,
   Pressable,
   Image,
-  Modal,
   ScrollView,
   Text,
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  StyleSheet,
+  BackHandler,
 } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
@@ -25,7 +26,7 @@ import {
 import { BlurView } from "expo-blur";
 import { MotiView } from "moti";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface Store {
@@ -44,7 +45,6 @@ export function StoreSwitcher() {
   const { data: stores = [], isLoading: loading } = useQuery({
     queryKey: ["stores", "live", "growth"],
     queryFn: async () => {
-      console.log("[StoreSwitcher] queryFn: starting stores fetch");
       const q = query(
         collection(db, "stores"),
         where("status", "==", "live"),
@@ -54,40 +54,40 @@ export function StoreSwitcher() {
       // Suspension doesn't flip status away from "live" (it's a separate
       // admin override), so it has to be filtered out here rather than in
       // the query itself — avoids a new composite index for one `!=` field.
-      const result = snapshot.docs
+      return snapshot.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }) as Store)
         .filter((s) => !s.isSuspended);
-      console.log(`[StoreSwitcher] queryFn: fetched ${result.length} stores`);
-      return result;
     },
     enabled: isOpen,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
-  console.log(`[StoreSwitcher] render: isOpen=${isOpen} loading=${loading} storesCount=${stores.length}`);
+
+  // Replaces RN's <Modal> (see below) — Android's hardware back button
+  // needs to close this sheet the same way <Modal>'s onRequestClose did.
+  useEffect(() => {
+    if (!isOpen) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setIsOpen(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [isOpen]);
 
   const handleSelect = async (newId: string) => {
-    console.log(`[StoreSwitcher] handleSelect: ${newId} (current=${storeId})`);
     setIsOpen(false);
     if (newId !== storeId) {
       await setStoreId(newId);
-      console.log(`[StoreSwitcher] setStoreId resolved for ${newId}`);
     }
   };
 
   const filteredStores = stores.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  console.log(
-    `[StoreSwitcher] about to render body: loading=${loading} filteredCount=${filteredStores.length}`
-  );
 
   return (
     <>
       <Pressable
-        onPress={() => {
-          console.log("[StoreSwitcher] pressed — opening list");
-          setIsOpen(true);
-        }}
+        onPress={() => setIsOpen(true)}
         className="flex-row items-center gap-2 active:opacity-70"
       >
         {store?.logo ? (
@@ -117,18 +117,28 @@ export function StoreSwitcher() {
         <ChevronDown size={16} color={store?.theme?.primaryColor || "black"} />
       </Pressable>
 
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <BlurView intensity={20} tint="dark" className="flex-1">
-            <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
+      {/* A plain full-screen overlay, not RN's <Modal> — <Modal> renders in
+          a separate native window/root, and MotiView's Reanimated-driven
+          entrance animation would hang trying to cross into it (a known
+          Reanimated+Modal incompatibility), freezing the whole app the
+          instant this opened. Rendering in the same tree as everything
+          else avoids that entirely. */}
+      {isOpen && (
+        <View style={StyleSheet.absoluteFill} className="z-50">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+          >
+            <MotiView
+              from={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ type: "timing", duration: 200 }}
+              style={StyleSheet.absoluteFill}
+            >
+              <BlurView intensity={20} tint="dark" className="flex-1">
+                <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
+              </BlurView>
+            </MotiView>
 
             <MotiView
               from={{ translateY: 300, opacity: 0 }}
@@ -179,9 +189,7 @@ export function StoreSwitcher() {
                         No stores found.
                       </P>
                     ) : (
-                      filteredStores.map((s) => {
-                        console.log(`[StoreSwitcher] rendering row for ${s.id}`);
-                        return (
+                      filteredStores.map((s) => (
                         <Pressable
                           key={s.id}
                           onPress={() => handleSelect(s.id)}
@@ -236,16 +244,15 @@ export function StoreSwitcher() {
                             <Check size={20} color="white" />
                           )}
                         </Pressable>
-                        );
-                      })
+                      ))
                     )}
                   </ScrollView>
                 </>
               )}
             </MotiView>
-          </BlurView>
-        </KeyboardAvoidingView>
-      </Modal>
+          </KeyboardAvoidingView>
+        </View>
+      )}
     </>
   );
 }

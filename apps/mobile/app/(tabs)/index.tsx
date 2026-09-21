@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   ScrollView,
@@ -92,9 +92,6 @@ interface Category {
 export default function ShopHome() {
   const router = useRouter();
   const { storeId, store, setStoreId } = useStore();
-  const renderCountRef = useRef(0);
-  renderCountRef.current += 1;
-  console.log(`[ShopHome] render #${renderCountRef.current}, storeId=${storeId}`);
 
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(
     null,

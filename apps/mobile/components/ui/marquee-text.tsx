@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { View, Text, type LayoutChangeEvent, type StyleProp, type ViewStyle, type TextStyle } from "react-native";
 import Animated, {
   useSharedValue,
@@ -21,20 +21,11 @@ interface MarqueeTextProps {
 
 // Rounds and ignores sub-pixel differences before updating state — RN's
 // layout engine can report a slightly different float for the same visual
-// size across passes (e.g. when a Modal opening elsewhere forces an extra
-// layout pass on the whole screen). Without this, onLayout -> setState ->
-// re-render -> onLayout with a "new" (but visually identical) value loops
-// forever and freezes the JS thread — this is exactly that guard.
-function setIfChanged(
-  label: string,
-  setter: (n: number) => void,
-  current: number,
-  next: number
-) {
+// size across passes. Without this, onLayout -> setState -> re-render ->
+// onLayout with a "new" (but visually identical) value can loop forever.
+function setIfChanged(setter: (n: number) => void, current: number, next: number) {
   const rounded = Math.round(next);
-  const changed = Math.abs(rounded - current) >= 1;
-  console.log(`[MarqueeText] onLayout ${label}: ${current} -> ${rounded} (changed=${changed})`);
-  if (changed) setter(rounded);
+  if (Math.abs(rounded - current) >= 1) setter(rounded);
 }
 
 // Renders `text` centered on one line unless it's too wide for its
@@ -44,17 +35,11 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
   const translateX = useSharedValue(0);
-  const renderCount = useRef(0);
-  renderCount.current += 1;
-  console.log(`[MarqueeText] render #${renderCount.current}, text="${text}"`);
 
   const overflowing =
     textWidth > 0 && containerWidth > 0 && textWidth > containerWidth;
 
   useEffect(() => {
-    console.log(
-      `[MarqueeText] effect fired: overflowing=${overflowing} textWidth=${textWidth}`
-    );
     if (!overflowing) return;
     translateX.value = 0;
     translateX.value = withRepeat(
@@ -75,19 +60,28 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
     <View
       style={containerStyle}
       onLayout={(e: LayoutChangeEvent) =>
-        setIfChanged("container", setContainerWidth, containerWidth, e.nativeEvent.layout.width)
+        setIfChanged(setContainerWidth, containerWidth, e.nativeEvent.layout.width)
       }
     >
-      {/* Off-screen measurer — reports the text's true, unconstrained width
-          so overflow can be detected before deciding how to render it. */}
-      <Text
-        style={[textStyle, { position: "absolute", opacity: 0 }]}
-        onLayout={(e: LayoutChangeEvent) =>
-          setIfChanged("text", setTextWidth, textWidth, e.nativeEvent.layout.width)
-        }
-      >
-        {text}
-      </Text>
+      {/* Off-screen measurer — reports the text's true, single-line width so
+          overflow can be detected before deciding how to render it. Despite
+          having no width set, an absolutely-positioned Text can still get
+          wrapped against the parent's available width (Yoga still treats it
+          as a layout candidate for that), silently reporting a WRAPPED
+          block's width back — which is always <= the container width,
+          making `overflowing` always false. flexWrap: "nowrap" on the
+          wrapping View forces the Text to lay out (and overflow) at its
+          true natural width instead. */}
+      <View style={{ position: "absolute", opacity: 0, flexDirection: "row", flexWrap: "nowrap" }}>
+        <Text
+          style={textStyle}
+          onLayout={(e: LayoutChangeEvent) =>
+            setIfChanged(setTextWidth, textWidth, e.nativeEvent.layout.width)
+          }
+        >
+          {text}
+        </Text>
+      </View>
 
       {overflowing ? (
         <Animated.View style={[{ flexDirection: "row" }, animatedStyle]}>
