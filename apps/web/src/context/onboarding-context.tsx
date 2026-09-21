@@ -430,7 +430,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: "settings-tabs",
     title: "Settings Tabs",
     content:
-      "Navigate between General details, Style preferences, Billing, and Payout settings to fully customize your store.",
+      "Everything about your store lives here — General details, your Profile, Style, Hero Section, Footer, Delivery info, Billing, and Payouts. We'll walk through each one.",
     path: "/admin/settings",
     placement: "bottom",
     padding: 12,
@@ -441,6 +441,46 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Store Type Configuration",
     content:
       "Tell us what you sell. Choose 'Products' for physical goods, 'Services' for appointments, or 'Hybrid' for both.",
+    path: "/admin/settings",
+    placement: "top",
+    offsetY: -20,
+    category: "settings",
+  },
+  {
+    target: "settings-profile",
+    title: "Profile & Security",
+    content:
+      "Your vendor/company details and identity documents live here — reach out to support if anything needs correcting. You can also change your password.",
+    path: "/admin/settings",
+    placement: "top",
+    offsetY: -20,
+    category: "settings",
+  },
+  {
+    target: "settings-style",
+    title: "Style",
+    content:
+      "Set your storefront's background color, primary color, and font — this is what shoppers see the moment they land on your shop.",
+    path: "/admin/settings",
+    placement: "top",
+    offsetY: -20,
+    category: "settings",
+  },
+  {
+    target: "settings-hero",
+    title: "Hero Section",
+    content:
+      "The big banner at the top of your storefront. Turn it on or off and customize its headline, background, and layout.",
+    path: "/admin/settings",
+    placement: "top",
+    offsetY: -20,
+    category: "settings",
+  },
+  {
+    target: "settings-footer",
+    title: "Footer",
+    content:
+      "Add your contact details and social links to the bottom of your storefront, so customers know how to reach you.",
     path: "/admin/settings",
     placement: "top",
     offsetY: -20,

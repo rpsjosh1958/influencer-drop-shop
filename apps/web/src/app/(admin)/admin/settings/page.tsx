@@ -84,6 +84,20 @@ const TABS = [
   { id: "payouts", label: "Payout Settings", icon: Wallet },
 ];
 
+// Maps a tab to the specific tour step its help icon should jump straight
+// to, instead of restarting the whole category walkthrough from step one.
+// "general" is deliberately absent — its step (settings-type) is also the
+// tour's own default starting point via startTutorial("settings").
+const HELP_TARGETS: Record<string, string> = {
+  profile: "settings-profile",
+  style: "settings-style",
+  hero: "settings-hero",
+  footer: "settings-footer",
+  delivery: "settings-delivery",
+  billing: "settings-billing",
+  payouts: "settings-payouts",
+};
+
 function SetupRequired({ 
   title, 
   description, 
@@ -131,13 +145,11 @@ export default function StoreSettingsPage() {
   // Sync tab with tutorial progress
   useEffect(() => {
     if (!isTourActive) return;
-    if (currentStepTarget === "settings-billing") {
-      setActiveTab("billing");
-    } else if (currentStepTarget === "settings-payouts") {
-      setActiveTab("payouts");
-    } else if (currentStepTarget === "settings-delivery") {
-      setActiveTab("delivery");
-    }
+    if (!currentStepTarget) return;
+    const tab = Object.keys(HELP_TARGETS).find(
+      (id) => HELP_TARGETS[id] === currentStepTarget
+    );
+    if (tab) setActiveTab(tab);
   }, [currentStepTarget, isTourActive]);
 
   const [billingCycle, setBillingCycle] = useState<
@@ -659,15 +671,7 @@ export default function StoreSettingsPage() {
             Store Settings
             <HelpTrigger
               category={activeTab === "billing" || activeTab === "payouts" ? "settings-pro" : "settings"}
-              target={
-                activeTab === "billing"
-                  ? "settings-billing"
-                  : activeTab === "payouts"
-                  ? "settings-payouts"
-                  : activeTab === "delivery"
-                  ? "settings-delivery"
-                  : undefined
-              }
+              target={HELP_TARGETS[activeTab]}
             />
           </>
         }
@@ -878,7 +882,7 @@ export default function StoreSettingsPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="space-y-6"
                 >
-                  <div className="bg-white p-8 rounded-3xl border border-zinc-200">
+                  <div data-tour="settings-profile" className="bg-white p-8 rounded-3xl border border-zinc-200">
                     <h2 className="text-xl font-bold mb-6 text-zinc-900">
                       {userData?.vendorType === "company"
                         ? "Company Profile"
@@ -1068,7 +1072,7 @@ export default function StoreSettingsPage() {
                     </div>
                   )}
 
-                  <div className={`space-y-6 ${isFreePlan ? "opacity-50 pointer-events-none select-none" : ""}`}>
+                  <div data-tour="settings-style" className={`space-y-6 ${isFreePlan ? "opacity-50 pointer-events-none select-none" : ""}`}>
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
                       <label className="text-sm font-bold text-zinc-900">
@@ -1157,7 +1161,7 @@ export default function StoreSettingsPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div data-tour="settings-hero" className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-zinc-900">
                       Hero Section
                     </h2>
@@ -1352,7 +1356,7 @@ export default function StoreSettingsPage() {
                   exit={{ opacity: 0, y: -10 }}
                   className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  <div data-tour="settings-footer" className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-bold text-zinc-900">Footer</h2>
                     <label className="flex items-center gap-2 cursor-pointer text-zinc-900">
                       <span className="text-sm font-medium">Enable Footer</span>
