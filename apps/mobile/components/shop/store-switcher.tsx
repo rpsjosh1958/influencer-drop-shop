@@ -2,13 +2,13 @@ import {
   View,
   Pressable,
   Image,
+  Modal,
   ScrollView,
   Text,
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  StyleSheet,
-  BackHandler,
+  Animated,
 } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
@@ -24,9 +24,8 @@ import {
   BadgeCheck,
 } from "lucide-react-native";
 import { BlurView } from "expo-blur";
-import { MotiView } from "moti";
 import { cn } from "@/lib/utils";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface Store {
@@ -62,15 +61,34 @@ export function StoreSwitcher() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Replaces RN's <Modal> (see below) — Android's hardware back button
-  // needs to close this sheet the same way <Modal>'s onRequestClose did.
+  // Plain react-native Animated, not Reanimated/Moti — the whole point of
+  // this component sitting inside <Modal> is that Modal renders in a
+  // separate native window, and a Reanimated-driven animation (MotiView)
+  // hangs trying to start across that boundary, freezing the app the
+  // instant this opens. Plain Animated (bridge-based, not worklet-based)
+  // doesn't have that problem.
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+
   useEffect(() => {
-    if (!isOpen) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setIsOpen(false);
-      return true;
-    });
-    return () => sub.remove();
+    if (isOpen) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Reset so the next open starts from the entrance position again.
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(300);
+    }
   }, [isOpen]);
 
   const handleSelect = async (newId: string) => {
@@ -117,36 +135,27 @@ export function StoreSwitcher() {
         <ChevronDown size={16} color={store?.theme?.primaryColor || "black"} />
       </Pressable>
 
-      {/* A plain full-screen overlay, not RN's <Modal> — <Modal> renders in
-          a separate native window/root, and MotiView's Reanimated-driven
-          entrance animation would hang trying to cross into it (a known
-          Reanimated+Modal incompatibility), freezing the whole app the
-          instant this opened. Rendering in the same tree as everything
-          else avoids that entirely. */}
-      {isOpen && (
-        <View style={StyleSheet.absoluteFill} className="z-50">
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ flex: 1 }}
-          >
-            <MotiView
-              from={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ type: "timing", duration: 200 }}
-              style={StyleSheet.absoluteFill}
-            >
-              <BlurView intensity={20} tint="dark" className="flex-1">
-                <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
-              </BlurView>
-            </MotiView>
+      <Modal
+        visible={isOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => setIsOpen(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <Animated.View style={{ flex: 1, opacity: backdropOpacity }}>
+            <BlurView intensity={20} tint="dark" className="flex-1">
+              <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
+            </BlurView>
+          </Animated.View>
 
-            <MotiView
-              from={{ translateY: 300, opacity: 0 }}
-              animate={{ translateY: 0, opacity: 1 }}
-              transition={{ type: "timing", duration: 300 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
-            >
-              <View className="p-6 border-b border-zinc-100 flex-row items-center justify-between">
+          <Animated.View
+            style={{ transform: [{ translateY: sheetTranslateY }] }}
+            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
+          >
+            <View className="p-6 border-b border-zinc-100 flex-row items-center justify-between">
                 <H1 className="text-xl">Select Store</H1>
                 <Pressable
                   onPress={() => setIsOpen(false)}
@@ -249,10 +258,9 @@ export function StoreSwitcher() {
                   </ScrollView>
                 </>
               )}
-            </MotiView>
-          </KeyboardAvoidingView>
-        </View>
-      )}
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </Modal>
     </>
   );
 }

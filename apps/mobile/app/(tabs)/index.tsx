@@ -673,19 +673,21 @@ export default function ShopHome() {
 
               {/* Announcement Banner */}
               {store?.announcement?.enabled && !!store.announcement.text && (
-                <MarqueeText
-                  text={store.announcement.text}
-                  containerStyle={{
-                    backgroundColor: store.announcement.color || "#000000",
-                    paddingVertical: 8,
-                    paddingHorizontal: 16,
-                  }}
-                  textStyle={{
-                    color: getContrastTextColor(store.announcement.color || "#000000"),
-                    fontSize: 14,
-                    fontWeight: "700",
-                  }}
-                />
+                <View className="mb-3">
+                  <MarqueeText
+                    text={store.announcement.text}
+                    containerStyle={{
+                      backgroundColor: store.announcement.color || "#000000",
+                      paddingVertical: 8,
+                      paddingHorizontal: 16,
+                    }}
+                    textStyle={{
+                      color: getContrastTextColor(store.announcement.color || "#000000"),
+                      fontSize: 14,
+                      fontWeight: "700",
+                    }}
+                  />
+                </View>
               )}
 
               {/* Blur Overlay */}
