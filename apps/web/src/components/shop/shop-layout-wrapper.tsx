@@ -38,6 +38,7 @@ import { OrderDetailsModal } from "./order-details-modal";
 import { BookingDetailsModal } from "./booking-details-modal";
 import { SnowfallEffect } from "./snowfall-effect";
 import { StoreLoader } from "./store-loader";
+import { getContrastTextColor } from "@/lib/utils";
 
 export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
   const [isLive, setIsLive] = useState<boolean | null>(null);
@@ -289,15 +290,35 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
         {/* Active Shop Content */}
         {(isLive || isAuthPage || isPendingVerification) && (
           <CartProvider>
-            {isPendingVerification && !isAuthPage && (
-              <div className="sticky top-0 z-40 bg-blue-600 text-white text-sm font-bold text-center py-2 px-4 flex items-center justify-center gap-2">
-                <ShieldCheck size={16} className="shrink-0" />
-                <span>
-                  This store is being verified. You can browse now — checkout
-                  opens once verification is complete.
-                </span>
-              </div>
-            )}
+            {!isAuthPage &&
+              (isPendingVerification ||
+                (store?.announcement?.enabled &&
+                  store.announcement.text)) && (
+                <div className="sticky top-0 z-40">
+                  {isPendingVerification && (
+                    <div className="bg-blue-600 text-white text-sm font-bold text-center py-2 px-4 flex items-center justify-center gap-2">
+                      <ShieldCheck size={16} className="shrink-0" />
+                      <span>
+                        This store is being verified. You can browse now —
+                        checkout opens once verification is complete.
+                      </span>
+                    </div>
+                  )}
+                  {store?.announcement?.enabled && store.announcement.text && (
+                    <div
+                      className="text-sm font-bold text-center py-2 px-4 whitespace-nowrap overflow-hidden text-ellipsis"
+                      style={{
+                        backgroundColor: store.announcement.color || "#000000",
+                        color: getContrastTextColor(
+                          store.announcement.color || "#000000"
+                        ),
+                      }}
+                    >
+                      {store.announcement.text}
+                    </div>
+                  )}
+                </div>
+              )}
             {children}
             <CartDrawer />
             <AddedToCartToast />

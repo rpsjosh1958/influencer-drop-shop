@@ -62,3 +62,24 @@ export function formatNumber(num: number | string, decimals = 0) {
     maximumFractionDigits: decimals,
   }).format(val);
 }
+
+/**
+ * Picks black or white text for readability against an arbitrary hex
+ * background (YIQ brightness formula) — used for vendor-chosen colors
+ * (e.g. the announcement banner) where we don't want to also make them
+ * pick a matching text color.
+ */
+export function getContrastTextColor(hex: string): "#000000" | "#ffffff" {
+  const clean = hex.replace("#", "");
+  const full =
+    clean.length === 3
+      ? clean.split("").map((c) => c + c).join("")
+      : clean;
+  const num = parseInt(full, 16);
+  if (isNaN(num) || full.length !== 6) return "#000000";
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000000" : "#ffffff";
+}

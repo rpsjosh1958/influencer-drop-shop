@@ -33,6 +33,7 @@ import {
   Lock,
   AlertCircle,
   Truck,
+  Megaphone,
 } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
@@ -41,7 +42,7 @@ import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
-import { formatCurrency, toJsDate } from "@/lib/utils";
+import { formatCurrency, toJsDate, getContrastTextColor } from "@/lib/utils";
 import { getErrorMessage, getErrorCode } from "@/lib/errors";
 import type { StoreConfig, StoreType } from "@/types";
 import { DELIVERY_DAY_OPTIONS, formatDeliveryInfo } from "@/lib/delivery";
@@ -66,12 +67,18 @@ type SettingsTheme = NonNullable<StoreConfig["theme"]> & {
 };
 
 type SettingsDelivery = { days: string[]; estimate: string };
+type SettingsAnnouncement = { enabled: boolean; text: string; color: string };
 
-type SettingsConfig = Partial<Omit<StoreConfig, "type" | "theme" | "delivery">> & {
+type SettingsConfig = Partial<
+  Omit<StoreConfig, "type" | "theme" | "delivery" | "announcement">
+> & {
   type: StoreType | "";
   theme: SettingsTheme;
   delivery: SettingsDelivery;
+  announcement: SettingsAnnouncement;
 };
+
+const ANNOUNCEMENT_MAX_LENGTH = 120;
 
 const TABS = [
   { id: "general", label: "General", icon: Store },
@@ -79,6 +86,7 @@ const TABS = [
   { id: "style", label: "Style", icon: Palette },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "footer", label: "Footer", icon: LinkIcon },
+  { id: "announcement", label: "Announcement", icon: Megaphone },
   { id: "delivery", label: "Delivery", icon: Truck },
   { id: "billing", label: "Billing & Plan", icon: CreditCard },
   { id: "payouts", label: "Payout Settings", icon: Wallet },
@@ -93,6 +101,7 @@ const HELP_TARGETS: Record<string, string> = {
   style: "settings-style",
   hero: "settings-hero",
   footer: "settings-footer",
+  announcement: "settings-announcement",
   delivery: "settings-delivery",
   billing: "settings-billing",
   payouts: "settings-payouts",
@@ -215,6 +224,11 @@ export default function StoreSettingsPage() {
       days: [],
       estimate: "",
     },
+    announcement: {
+      enabled: false,
+      text: "",
+      color: "#000000",
+    },
   });
 
   const isFreePlan = userPlan === "starter";
@@ -300,6 +314,10 @@ export default function StoreSettingsPage() {
             delivery: {
               ...prev.delivery,
               ...data.delivery,
+            },
+            announcement: {
+              ...prev.announcement,
+              ...data.announcement,
             },
           }));
         }
@@ -1480,6 +1498,107 @@ export default function StoreSettingsPage() {
                     </div>
                   </div>
                   </div>
+                </motion.div>
+              )}
+
+              {activeTab === "announcement" && (
+                <motion.div
+                  key="announcement"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
+                >
+                  <div
+                    data-tour="settings-announcement"
+                    className="flex items-center justify-between mb-4"
+                  >
+                    <div>
+                      <h2 className="text-xl font-bold text-zinc-900">
+                        Announcement Banner
+                      </h2>
+                      <p className="text-sm text-zinc-500 mt-1">
+                        A slim bar across the top of your storefront — closing
+                        for the holidays, a flash sale, anything you want
+                        shoppers to see first.
+                      </p>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer text-zinc-900 shrink-0 ml-4">
+                      <span className="text-sm font-medium">Enable</span>
+                      <input
+                        type="checkbox"
+                        checked={config.announcement.enabled}
+                        onChange={(e) =>
+                          setNested(["announcement", "enabled"], e.target.checked)
+                        }
+                        className="w-5 h-5 accent-black"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-bold text-zinc-900">
+                        Message
+                      </label>
+                      <span className="text-xs text-zinc-400">
+                        {config.announcement.text.length}/{ANNOUNCEMENT_MAX_LENGTH}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      maxLength={ANNOUNCEMENT_MAX_LENGTH}
+                      placeholder="e.g. Closed Dec 24-26 — back Dec 27"
+                      value={config.announcement.text}
+                      onChange={(e) =>
+                        setNested(["announcement", "text"], e.target.value)
+                      }
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                    />
+                    <p className="text-xs text-zinc-500">
+                      Kept to one line on your storefront — longer messages
+                      get cut off, so keep it short.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-900">
+                      Background Color
+                    </label>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="color"
+                        value={config.announcement.color}
+                        onChange={(e) =>
+                          setNested(["announcement", "color"], e.target.value)
+                        }
+                        className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer"
+                      />
+                      <code className="bg-zinc-100 px-2 py-1 rounded text-sm text-zinc-900">
+                        {config.announcement.color}
+                      </code>
+                      <span className="text-xs text-zinc-400">
+                        Text color is picked automatically for readability.
+                      </span>
+                    </div>
+                  </div>
+
+                  {config.announcement.text && (
+                    <div className="pt-2">
+                      <p className="text-xs font-bold text-zinc-500 uppercase mb-2">
+                        Preview
+                      </p>
+                      <div
+                        className="rounded-xl text-sm font-bold text-center py-2 px-4 whitespace-nowrap overflow-hidden text-ellipsis"
+                        style={{
+                          backgroundColor: config.announcement.color,
+                          color: getContrastTextColor(config.announcement.color),
+                        }}
+                      >
+                        {config.announcement.text}
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
 

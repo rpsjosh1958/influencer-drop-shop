@@ -110,6 +110,11 @@ export interface StoreConfig {
     days?: string[];
     estimate?: string;
   };
+  announcement?: {
+    enabled?: boolean;
+    text?: string;
+    color?: string;
+  };
 }
 
 export interface WalletTransaction {

@@ -430,7 +430,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     target: "settings-tabs",
     title: "Settings Tabs",
     content:
-      "Everything about your store lives here — General details, your Profile, Style, Hero Section, Footer, Delivery info, Billing, and Payouts. We'll walk through each one.",
+      "Everything about your store lives here — General details, your Profile, Style, Hero Section, Footer, Announcement banner, Delivery info, Billing, and Payouts. We'll walk through each one.",
     path: "/admin/settings",
     placement: "bottom",
     padding: 12,
@@ -481,6 +481,16 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Footer",
     content:
       "Add your contact details and social links to the bottom of your storefront, so customers know how to reach you.",
+    path: "/admin/settings",
+    placement: "top",
+    offsetY: -20,
+    category: "settings",
+  },
+  {
+    target: "settings-announcement",
+    title: "Announcement Banner",
+    content:
+      "Put a short message across the top of your storefront — a closure, a sale, anything shoppers should see first. Turn it on, set a color, and it appears immediately.",
     path: "/admin/settings",
     placement: "top",
     offsetY: -20,

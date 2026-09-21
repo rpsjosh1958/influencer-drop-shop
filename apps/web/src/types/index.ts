@@ -235,6 +235,11 @@ export interface StoreConfig {
     // Short freeform note, e.g. "Ships in 1-2 days".
     estimate?: string;
   };
+  announcement?: {
+    enabled?: boolean;
+    text?: string;
+    color?: string;
+  };
 }
 
 // ========== SERVICE / BOOKING SYSTEM ==========
