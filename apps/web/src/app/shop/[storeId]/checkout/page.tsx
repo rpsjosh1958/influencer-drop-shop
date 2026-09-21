@@ -23,6 +23,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
+import { formatDeliveryInfo } from "@/lib/delivery";
 import type { CartItem } from "@/components/shop/cart-provider";
 
 interface InitializeOrderPaymentResult {
@@ -651,9 +652,18 @@ export default function CheckoutPage() {
               <ShieldCheck className="text-blue-600 flex-shrink-0" size={20} />
               <p className="text-xs text-blue-800 leading-relaxed">
                 Payments are secured by Paystack. We do not store your card
-                details. Delivery is usually within 2-3 business days.
+                details.
               </p>
             </div>
+
+            {formatDeliveryInfo(store?.delivery) && (
+              <div className="bg-zinc-50 border border-zinc-200 p-4 rounded-xl flex items-start gap-3">
+                <Truck className="text-zinc-500 flex-shrink-0" size={20} />
+                <p className="text-xs text-zinc-700 leading-relaxed">
+                  {formatDeliveryInfo(store?.delivery)}
+                </p>
+              </div>
+            )}
 
             <button
               type="submit"

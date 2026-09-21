@@ -32,6 +32,7 @@ import {
   UserCog,
   Lock,
   AlertCircle,
+  Truck,
 } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
@@ -43,6 +44,7 @@ import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
 import { formatCurrency, toJsDate } from "@/lib/utils";
 import { getErrorMessage, getErrorCode } from "@/lib/errors";
 import type { StoreConfig, StoreType } from "@/types";
+import { DELIVERY_DAY_OPTIONS, formatDeliveryInfo } from "@/lib/delivery";
 
 // The page's own working copy of a store's config — a Partial<StoreConfig>
 // since the default state below doesn't set every required StoreConfig
@@ -63,9 +65,12 @@ type SettingsTheme = NonNullable<StoreConfig["theme"]> & {
   };
 };
 
-type SettingsConfig = Partial<Omit<StoreConfig, "type" | "theme">> & {
+type SettingsDelivery = { days: string[]; estimate: string };
+
+type SettingsConfig = Partial<Omit<StoreConfig, "type" | "theme" | "delivery">> & {
   type: StoreType | "";
   theme: SettingsTheme;
+  delivery: SettingsDelivery;
 };
 
 const TABS = [
@@ -74,6 +79,7 @@ const TABS = [
   { id: "style", label: "Style", icon: Palette },
   { id: "hero", label: "Hero Section", icon: LayoutTemplate },
   { id: "footer", label: "Footer", icon: LinkIcon },
+  { id: "delivery", label: "Delivery", icon: Truck },
   { id: "billing", label: "Billing & Plan", icon: CreditCard },
   { id: "payouts", label: "Payout Settings", icon: Wallet },
 ];
@@ -191,6 +197,10 @@ export default function StoreSettingsPage() {
         },
       },
     },
+    delivery: {
+      days: [],
+      estimate: "",
+    },
   });
 
   const isFreePlan = userPlan === "starter";
@@ -272,6 +282,10 @@ export default function StoreSettingsPage() {
               ...data.theme,
               hero: { ...prev.theme.hero, ...data.theme?.hero },
               footer: { ...prev.theme.footer, ...data.theme?.footer },
+            },
+            delivery: {
+              ...prev.delivery,
+              ...data.delivery,
             },
           }));
         }
@@ -1452,6 +1466,88 @@ export default function StoreSettingsPage() {
                     </div>
                   </div>
                   </div>
+                </motion.div>
+              )}
+
+              {activeTab === "delivery" && (
+                <motion.div
+                  key="delivery"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="bg-white p-8 rounded-3xl border border-zinc-200 space-y-6 text-zinc-900"
+                >
+                  <h2 className="text-xl font-bold mb-6 text-zinc-900">
+                    Delivery Info
+                  </h2>
+                  <p className="text-sm text-zinc-500 -mt-4">
+                    Let customers know when to expect their order — shown on
+                    the product page and at checkout. Leave blank to show
+                    nothing.
+                  </p>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-900">
+                      Delivery Days
+                    </label>
+                    <p className="text-xs text-zinc-500">
+                      Which days do you deliver or ship out orders?
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {DELIVERY_DAY_OPTIONS.map((day) => {
+                        const selected = config.delivery.days.includes(day.value);
+                        return (
+                          <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => {
+                              const next = selected
+                                ? config.delivery.days.filter((d) => d !== day.value)
+                                : [...config.delivery.days, day.value];
+                              setNested(["delivery", "days"], next);
+                            }}
+                            className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${
+                              selected
+                                ? "bg-black text-white border-black"
+                                : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:border-zinc-300"
+                            }`}
+                          >
+                            {day.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2">
+                    <label className="text-sm font-bold text-zinc-900">
+                      Delivery Estimate
+                    </label>
+                    <p className="text-xs text-zinc-500">
+                      A short note on how long delivery usually takes.
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="e.g. Ships in 1-2 days"
+                      value={config.delivery.estimate}
+                      onChange={(e) =>
+                        setNested(["delivery", "estimate"], e.target.value)
+                      }
+                      className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900"
+                    />
+                  </div>
+
+                  {(config.delivery.days.length > 0 || config.delivery.estimate) && (
+                    <div className="pt-2">
+                      <p className="text-xs font-bold text-zinc-500 uppercase mb-2">
+                        Preview
+                      </p>
+                      <p className="inline-flex items-center gap-2 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-700">
+                        <Truck size={14} />
+                        {formatDeliveryInfo(config.delivery)}
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               )}
 

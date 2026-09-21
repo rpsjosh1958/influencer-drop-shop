@@ -229,6 +229,12 @@ export interface StoreConfig {
     tiktok?: string;
     whatsapp?: string;
   };
+  delivery?: {
+    // Weekday keys ("mon".."sun") — see lib/delivery.ts's DELIVERY_DAY_OPTIONS.
+    days?: string[];
+    // Short freeform note, e.g. "Ships in 1-2 days".
+    estimate?: string;
+  };
 }
 
 // ========== SERVICE / BOOKING SYSTEM ==========

@@ -37,6 +37,7 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import type { Address } from "@/types";
 import { getErrorMessage } from "@/lib/errors";
+import { formatDeliveryInfo } from "@/lib/delivery";
 
 // ... inside component
 export default function CheckoutScreen() {
@@ -406,9 +407,18 @@ export default function CheckoutScreen() {
                 <ShieldCheck size={20} color="#2563eb" />
                 <P className="text-blue-800 text-xs flex-1 leading-5">
                   Payments are secured by Paystack. We do not store your card
-                  details. Delivery is usually within 2-3 business days.
+                  details.
                 </P>
               </View>
+
+              {!!formatDeliveryInfo(store?.delivery) && (
+                <View className="bg-zinc-50 border border-zinc-100 p-4 rounded-xl flex-row gap-3 mt-3">
+                  <Truck size={20} color="#71717a" />
+                  <P className="text-zinc-600 text-xs flex-1 leading-5">
+                    {formatDeliveryInfo(store?.delivery)}
+                  </P>
+                </View>
+              )}
             </ScrollView>
           </KeyboardAvoidingView>
 

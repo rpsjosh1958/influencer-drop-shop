@@ -54,6 +54,10 @@ export interface StoreConfig {
       };
     };
   };
+  delivery?: {
+    days?: string[];
+    estimate?: string;
+  };
 }
 
 interface StoreContextType {

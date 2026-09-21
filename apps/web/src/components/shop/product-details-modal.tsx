@@ -11,10 +11,12 @@ import {
   Check,
   BadgeCheck,
   AlertTriangle,
+  Truck,
 } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { useStore } from "./store-provider";
 import { formatCurrency } from "@/lib/utils";
+import { formatDeliveryInfo } from "@/lib/delivery";
 
 interface ProductDetailsModalProps {
   product: Product | null;
@@ -313,6 +315,14 @@ export function ProductDetailsModal({
                   <p className="text-zinc-600 leading-relaxed">
                     {product.description}
                   </p>
+
+                  {/* Delivery Info */}
+                  {formatDeliveryInfo(store?.delivery) && (
+                    <div className="flex items-center gap-2 text-sm text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+                      <Truck size={16} className="shrink-0 text-zinc-400" />
+                      {formatDeliveryInfo(store?.delivery)}
+                    </div>
+                  )}
 
                   {/* Dynamic Options */}
                   {product.hasVariants && (

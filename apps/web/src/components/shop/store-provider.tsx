@@ -65,6 +65,10 @@ export interface StoreConfig {
     provider: "momo" | "bank";
     network?: string;
   };
+  delivery?: {
+    days?: string[];
+    estimate?: string;
+  };
 }
 
 interface StoreContextType {

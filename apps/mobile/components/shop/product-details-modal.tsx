@@ -10,13 +10,14 @@ import {
 import { MotiView, MotiImage } from "moti";
 import { H1, P } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
-import { X, Check, BadgeCheck } from "lucide-react-native";
+import { X, Check, BadgeCheck, Truck } from "lucide-react-native";
 import { Product } from "./product-card";
 import type { ProductVariant } from "@/types";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { formatCurrency } from "@/lib/format";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "@/context/store-context";
+import { formatDeliveryInfo } from "@/lib/delivery";
 
 const { width } = Dimensions.get("window");
 
@@ -279,6 +280,16 @@ export function ProductDetailsModal({
                 {product.description || ""}
               </P>
             </View>
+
+            {/* Delivery Info */}
+            {!!formatDeliveryInfo(store?.delivery) && (
+              <View className="flex-row items-center gap-2 bg-zinc-50 border border-zinc-100 rounded-xl px-3 py-2.5">
+                <Truck size={16} color="#a1a1aa" />
+                <P className="text-zinc-600 text-sm flex-1">
+                  {formatDeliveryInfo(store?.delivery)}
+                </P>
+              </View>
+            )}
 
             {/* Dynamic Options */}
             {product.hasVariants && (

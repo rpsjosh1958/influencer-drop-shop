@@ -106,6 +106,10 @@ export interface StoreConfig {
     tiktok?: string;
     whatsapp?: string;
   };
+  delivery?: {
+    days?: string[];
+    estimate?: string;
+  };
 }
 
 export interface WalletTransaction {
