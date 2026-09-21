@@ -19,6 +19,17 @@ interface MarqueeTextProps {
   containerStyle?: StyleProp<ViewStyle>;
 }
 
+// Rounds and ignores sub-pixel differences before updating state — RN's
+// layout engine can report a slightly different float for the same visual
+// size across passes (e.g. when a Modal opening elsewhere forces an extra
+// layout pass on the whole screen). Without this, onLayout -> setState ->
+// re-render -> onLayout with a "new" (but visually identical) value loops
+// forever and freezes the JS thread — this is exactly that guard.
+function setIfChanged(setter: (n: number) => void, current: number, next: number) {
+  const rounded = Math.round(next);
+  if (Math.abs(rounded - current) >= 1) setter(rounded);
+}
+
 // Renders `text` centered on one line unless it's too wide for its
 // container — then it switches to a continuously scrolling loop instead of
 // getting cut off, so the full message stays readable.
@@ -50,13 +61,17 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
   return (
     <View
       style={containerStyle}
-      onLayout={(e: LayoutChangeEvent) => setContainerWidth(e.nativeEvent.layout.width)}
+      onLayout={(e: LayoutChangeEvent) =>
+        setIfChanged(setContainerWidth, containerWidth, e.nativeEvent.layout.width)
+      }
     >
       {/* Off-screen measurer — reports the text's true, unconstrained width
           so overflow can be detected before deciding how to render it. */}
       <Text
         style={[textStyle, { position: "absolute", opacity: 0 }]}
-        onLayout={(e: LayoutChangeEvent) => setTextWidth(e.nativeEvent.layout.width)}
+        onLayout={(e: LayoutChangeEvent) =>
+          setIfChanged(setTextWidth, textWidth, e.nativeEvent.layout.width)
+        }
       >
         {text}
       </Text>
@@ -66,7 +81,12 @@ export function MarqueeText({ text, textStyle, containerStyle }: MarqueeTextProp
           <Text style={[textStyle, { paddingRight: GAP_PX }]} numberOfLines={1}>
             {text}
           </Text>
-          <Text style={[textStyle, { paddingRight: GAP_PX }]} numberOfLines={1} aria-hidden>
+          <Text
+            style={[textStyle, { paddingRight: GAP_PX }]}
+            numberOfLines={1}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
             {text}
           </Text>
         </Animated.View>
