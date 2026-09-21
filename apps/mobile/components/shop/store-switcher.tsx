@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  StyleSheet,
 } from "react-native";
 import { H1, P } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
@@ -141,21 +142,41 @@ export function StoreSwitcher() {
         animationType="none"
         onRequestClose={() => setIsOpen(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <Animated.View style={{ flex: 1, opacity: backdropOpacity }}>
+        <View style={{ flex: 1 }}>
+          {/* Backdrop — a plain full-screen sibling, not sharing a flex
+              parent with the sheet below, so the keyboard adjustment
+              (which only reflows the sheet's own KeyboardAvoidingView)
+              doesn't affect it. Explicit backgroundColor is a fallback
+              behind BlurView's blur, since BlurView alone can render as
+              fully transparent on some devices, leaving no visible
+              separation from the screen behind it. */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { opacity: backdropOpacity, backgroundColor: "rgba(0,0,0,0.4)" },
+            ]}
+          >
             <BlurView intensity={20} tint="dark" className="flex-1">
               <Pressable className="flex-1" onPress={() => setIsOpen(false)} />
             </BlurView>
           </Animated.View>
 
-          <Animated.View
-            style={{ transform: [{ translateY: sheetTranslateY }] }}
-            className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
+          {/* Sheet — a normal flex child (not position:absolute) anchored
+              to the bottom via justifyContent, so KeyboardAvoidingView's
+              height adjustment actually moves it up when the keyboard
+              opens. The previous absolute+bottom:0 positioning ignored
+              KeyboardAvoidingView entirely (that only reflows normal-flow
+              layout), which is why the keyboard covered the search input. */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, justifyContent: "flex-end" }}
+            pointerEvents="box-none"
           >
-            <View className="p-6 border-b border-zinc-100 flex-row items-center justify-between">
+            <Animated.View
+              style={{ transform: [{ translateY: sheetTranslateY }] }}
+              className="bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
+            >
+              <View className="p-6 border-b border-zinc-100 flex-row items-center justify-between">
                 <H1 className="text-xl">Select Store</H1>
                 <Pressable
                   onPress={() => setIsOpen(false)}
@@ -258,8 +279,9 @@ export function StoreSwitcher() {
                   </ScrollView>
                 </>
               )}
-          </Animated.View>
-        </KeyboardAvoidingView>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </>
   );
