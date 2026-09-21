@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   KeyboardAvoidingView,
@@ -10,6 +10,8 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
+  Animated,
+  StyleSheet,
 } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { H1, P } from "@/components/ui/text";
@@ -33,7 +35,6 @@ import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
-import { MotiView } from "moti";
 import { cn } from "@/lib/utils";
 
 const { width } = Dimensions.get("window");
@@ -57,6 +58,32 @@ export default function Onboarding() {
   const [entering, setEntering] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Plain react-native Animated, not Reanimated/Moti — a Reanimated-driven
+  // animation (MotiView) starting the instant this mounts inside <Modal>
+  // (a separate native window/root) can hang and freeze the app. Same
+  // issue/fix as components/shop/store-switcher.tsx.
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const sheetTranslateY = useRef(new Animated.Value(300)).current;
+  useEffect(() => {
+    if (isModalOpen) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(sheetTranslateY, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      backdropOpacity.setValue(0);
+      sheetTranslateY.setValue(300);
+    }
+  }, [isModalOpen]);
 
   // Fetch stores on modal open
   useEffect(() => {
@@ -238,24 +265,43 @@ export default function Onboarding() {
       <Modal
         visible={isModalOpen}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setIsModalOpen(false)}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <BlurView intensity={20} tint="dark" className="flex-1">
-            <Pressable
-              className="flex-1"
-              onPress={() => setIsModalOpen(false)}
-            />
+        <View style={{ flex: 1 }}>
+          {/* Backdrop — a plain full-screen sibling, not sharing a flex
+              parent with the sheet below, so the keyboard adjustment
+              (which only reflows the sheet's own KeyboardAvoidingView)
+              doesn't affect it. Explicit backgroundColor is a fallback
+              behind BlurView's blur, since BlurView alone can render as
+              fully transparent on some devices. */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              { opacity: backdropOpacity, backgroundColor: "rgba(0,0,0,0.4)" },
+            ]}
+          >
+            <BlurView intensity={20} tint="dark" className="flex-1">
+              <Pressable
+                className="flex-1"
+                onPress={() => setIsModalOpen(false)}
+              />
+            </BlurView>
+          </Animated.View>
 
-            <MotiView
-              from={{ translateY: 300, opacity: 0 }}
-              animate={{ translateY: 0, opacity: 1 }}
-              transition={{ type: "timing", duration: 300 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
+          {/* Sheet — a normal flex child anchored to the bottom via
+              justifyContent, so KeyboardAvoidingView's height adjustment
+              actually moves it up when the keyboard opens (unlike the
+              previous position:absolute + bottom:0, which ignored
+              KeyboardAvoidingView entirely). */}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1, justifyContent: "flex-end" }}
+            pointerEvents="box-none"
+          >
+            <Animated.View
+              style={{ transform: [{ translateY: sheetTranslateY }] }}
+              className="bg-white rounded-t-3xl overflow-hidden max-h-[80%]"
             >
               <View className="p-6 border-b border-zinc-100 flex-row items-center justify-between">
                 <H1 className="text-xl">Select Store</H1>
@@ -362,9 +408,9 @@ export default function Onboarding() {
                   </ScrollView>
                 </>
               )}
-            </MotiView>
-          </BlurView>
-        </KeyboardAvoidingView>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </View>
       </Modal>
     </View>
   );

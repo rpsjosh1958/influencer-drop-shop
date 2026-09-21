@@ -5,6 +5,7 @@ import {
   Dimensions,
   Pressable,
   FlatList,
+  Animated,
   type ViewToken,
 } from "react-native";
 import { MotiView, MotiImage } from "moti";
@@ -50,6 +51,24 @@ export function ProductDetailsModal({
       setSelectedVariant(null);
     }
   }, [isVisible, product]);
+
+  // Plain react-native Animated, not Reanimated/Moti, for the floating
+  // "Add to Cart" bar's entrance — a Reanimated-driven animation (MotiView)
+  // starting the instant this mounts inside <Modal> (a separate native
+  // window/root) can hang and freeze the app. Same issue/fix as
+  // components/shop/store-switcher.tsx.
+  const addToCartTranslateY = useRef(new Animated.Value(100)).current;
+  useEffect(() => {
+    if (isVisible) {
+      Animated.timing(addToCartTranslateY, {
+        toValue: 0,
+        duration: 250,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      addToCartTranslateY.setValue(100);
+    }
+  }, [isVisible]);
 
   // Derived Options (Legacy Support)
   const displayOptions = useMemo((): {
@@ -399,11 +418,12 @@ export function ProductDetailsModal({
         </ScrollView>
 
         {/* Floating Add to Cart */}
-        <MotiView
-          from={{ translateY: 100 }}
-          animate={{ translateY: 0 }}
+        <Animated.View
           className="absolute bottom-0 left-0 right-0 bg-white/90 border-t border-zinc-100 backdrop-blur-xl px-6 pt-4"
-          style={{ paddingBottom: insets.bottom + 20 }}
+          style={{
+            paddingBottom: insets.bottom + 20,
+            transform: [{ translateY: addToCartTranslateY }],
+          }}
         >
           <Button
             title={
@@ -430,7 +450,7 @@ export function ProductDetailsModal({
               Only {currentStock} left!
             </P>
           )}
-        </MotiView>
+        </Animated.View>
       </View>
     </Modal>
   );

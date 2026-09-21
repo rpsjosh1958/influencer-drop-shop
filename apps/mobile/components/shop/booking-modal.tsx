@@ -7,8 +7,9 @@ import {
   FlatList,
   Platform,
   KeyboardAvoidingView,
+  Animated,
 } from "react-native";
-import { MotiView, MotiImage } from "moti";
+import { MotiImage } from "moti";
 import { H1, P } from "@/components/ui/text";
 import { Button } from "@/components/ui/button";
 import {
@@ -141,6 +142,39 @@ export function BookingModal({
       }
     }
   }, [isVisible, service, store?.id]);
+
+  // Plain react-native Animated, not Reanimated/Moti — a Reanimated-driven
+  // animation (MotiView) starting the instant this mounts inside <Modal>
+  // (a separate native window/root) can hang and freeze the app. Same
+  // issue/fix as components/shop/store-switcher.tsx.
+  const stepContentOpacity = useRef(new Animated.Value(0)).current;
+  const stepContentTranslateY = useRef(new Animated.Value(10)).current;
+  const bottomBarTranslateY = useRef(new Animated.Value(100)).current;
+  useEffect(() => {
+    if (isVisible) {
+      Animated.parallel([
+        Animated.timing(stepContentOpacity, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(stepContentTranslateY, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(bottomBarTranslateY, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      stepContentOpacity.setValue(0);
+      stepContentTranslateY.setValue(10);
+      bottomBarTranslateY.setValue(100);
+    }
+  }, [isVisible]);
 
   // Fetch Existing Bookings for Selected Date (for collision detection)
   useEffect(() => {
@@ -408,9 +442,11 @@ export function BookingModal({
               </View>
 
               {/* Steps Content */}
-              <MotiView
-                animate={{ opacity: 1, translateY: 0 }}
-                from={{ opacity: 0, translateY: 10 }}
+              <Animated.View
+                style={{
+                  opacity: stepContentOpacity,
+                  transform: [{ translateY: stepContentTranslateY }],
+                }}
               >
                 {/* STEP 0: DATE SELECTION (CALENDAR) */}
                 {step === 0 && (
@@ -714,18 +750,19 @@ export function BookingModal({
                     </P>
                   </View>
                 )}
-              </MotiView>
+              </Animated.View>
             </View>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
 
       {/* Bottom Bar - Now outside KAV so it stays at bottom (covered by keyboard) */}
-      <MotiView
-        from={{ translateY: 100 }}
-        animate={{ translateY: 0 }}
+      <Animated.View
+        style={{
+          paddingBottom: insets.bottom + 20,
+          transform: [{ translateY: bottomBarTranslateY }],
+        }}
         className="absolute bottom-0 left-0 right-0 justify-center items-center bg-white/90 border-t border-zinc-100 backdrop-blur-xl px-6 pt-4"
-        style={{ paddingBottom: insets.bottom + 20 }}
       >
         <View className="flex-row gap-3">
           {step > 0 && (
@@ -770,7 +807,7 @@ export function BookingModal({
             className={step === 0 ? "flex-[2]" : "flex-[2]"}
           />
         </View>
-      </MotiView>
+      </Animated.View>
     </Modal>
   );
 }
