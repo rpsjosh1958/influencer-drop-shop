@@ -18,6 +18,7 @@ import type { User as FirebaseUser } from "firebase/auth";
 import type { useRouter } from "next/navigation";
 import type { Product, ProductVariant } from "@/types";
 import { getContrastTextColor } from "@/lib/utils";
+import { MarqueeText } from "@/components/ui/marquee-text";
 
 type AppRouter = ReturnType<typeof useRouter>;
 
@@ -307,15 +308,14 @@ export function ShopHeader({
       </div>
 
       {announcement?.enabled && !!announcement.text && (
-        <div
-          className="text-sm font-bold text-center py-2 px-4 whitespace-nowrap overflow-hidden text-ellipsis"
+        <MarqueeText
+          text={announcement.text}
+          className="py-2 px-4 text-sm font-bold"
           style={{
             backgroundColor: announcement.color || "#000000",
             color: getContrastTextColor(announcement.color || "#000000"),
           }}
-        >
-          {announcement.text}
-        </div>
+        />
       )}
     </header>
   );

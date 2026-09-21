@@ -38,3 +38,16 @@ body {
 ::-webkit-scrollbar {
   display: none;
 }
+
+/* Seamless marquee loop for MarqueeText — two identical text instances
+   side by side, translated exactly one instance's width so the loop
+   point is invisible. Speed is set inline (animation-duration) per
+   instance based on text length, so longer text doesn't scroll faster. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

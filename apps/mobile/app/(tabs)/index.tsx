@@ -68,6 +68,7 @@ import { useNotifications } from "@/context/notification-context";
 import { useRouter } from "expo-router";
 import { getNotificationRoute } from "@/lib/notification-routing";
 import { cn, getContrastTextColor } from "@/lib/utils";
+import { MarqueeText } from "@/components/ui/marquee-text";
 
 import { useStore } from "@/context/store-context";
 import { StoreSwitcher } from "@/components/shop/store-switcher";
@@ -672,19 +673,19 @@ export default function ShopHome() {
 
               {/* Announcement Banner */}
               {store?.announcement?.enabled && !!store.announcement.text && (
-                <View
-                  style={{ backgroundColor: store.announcement.color || "#000000" }}
-                  className="py-2 px-4"
-                >
-                  <P
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ color: getContrastTextColor(store.announcement.color || "#000000") }}
-                    className="text-sm font-bold text-center"
-                  >
-                    {store.announcement.text}
-                  </P>
-                </View>
+                <MarqueeText
+                  text={store.announcement.text}
+                  containerStyle={{
+                    backgroundColor: store.announcement.color || "#000000",
+                    paddingVertical: 8,
+                    paddingHorizontal: 16,
+                  }}
+                  textStyle={{
+                    color: getContrastTextColor(store.announcement.color || "#000000"),
+                    fontSize: 14,
+                    fontWeight: "700",
+                  }}
+                />
               )}
 
               {/* Blur Overlay */}
