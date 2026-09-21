@@ -37,6 +37,7 @@ const GROWTH_FEATURES = [
   "Featured in the mobile app",
   "Full brand customisation",
   "Store assistant (beta)",
+  "Broadcast messages to your customers",
   "Verified badge",
   "2% transaction fee",
 ];
