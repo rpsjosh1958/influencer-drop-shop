@@ -77,6 +77,9 @@ export function StoreSwitcher() {
   const filteredStores = stores.filter((s) =>
     s.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  console.log(
+    `[StoreSwitcher] about to render body: loading=${loading} filteredCount=${filteredStores.length}`
+  );
 
   return (
     <>
@@ -176,7 +179,9 @@ export function StoreSwitcher() {
                         No stores found.
                       </P>
                     ) : (
-                      filteredStores.map((s) => (
+                      filteredStores.map((s) => {
+                        console.log(`[StoreSwitcher] rendering row for ${s.id}`);
+                        return (
                         <Pressable
                           key={s.id}
                           onPress={() => handleSelect(s.id)}
@@ -231,7 +236,8 @@ export function StoreSwitcher() {
                             <Check size={20} color="white" />
                           )}
                         </Pressable>
-                      ))
+                        );
+                      })
                     )}
                   </ScrollView>
                 </>
