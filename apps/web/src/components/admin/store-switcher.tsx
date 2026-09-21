@@ -15,14 +15,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Portal } from "@/components/ui/portal";
 import { useRouter } from "next/navigation";
-import { 
-  doc, 
+import {
+  doc,
   getDoc,
-  setDoc, 
-  collection, 
-  serverTimestamp, 
-  arrayUnion, 
-  updateDoc 
+  setDoc,
+  collection,
+  serverTimestamp,
+  arrayUnion
 } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { getErrorMessage } from "@/lib/errors";
@@ -278,10 +277,15 @@ function AddStoreModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => vo
         },
       });
 
-      // Update User
-      await updateDoc(doc(db, "users", user.uid), {
-        ownedStores: arrayUnion(slug)
-      });
+      // Update User — setDoc+merge, not updateDoc: updateDoc throws
+      // NOT_FOUND if users/{uid} doesn't exist yet (e.g. a race with
+      // signup's own user-doc creation), which would leave the store
+      // just created above orphaned with no owner reference.
+      await setDoc(
+        doc(db, "users", user.uid),
+        { ownedStores: arrayUnion(slug) },
+        { merge: true }
+      );
 
       onClose();
       // Reset form

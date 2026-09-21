@@ -13,7 +13,7 @@ import { X, ChevronLeft, ChevronRight, Check, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
 import { usePathname, useRouter } from "next/navigation";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 
@@ -765,9 +765,15 @@ export function OnboardingProvider({
       try {
         const newSeen = { ...seenTutorials, [currentCategory]: true };
         seenTutorialsRef.current = newSeen;
-        await updateDoc(doc(db, "users", auth.currentUser.uid), {
-          seenAdminTutorials: newSeen,
-        });
+        // setDoc+merge, not updateDoc — see store-switcher.tsx's
+        // AddStoreModal for why (updateDoc throws NOT_FOUND on a missing
+        // users/{uid} doc; this failed the same way for any account
+        // without one, e.g. a super-admin login).
+        await setDoc(
+          doc(db, "users", auth.currentUser.uid),
+          { seenAdminTutorials: newSeen },
+          { merge: true }
+        );
         setSeenTutorials(newSeen);
       } catch (e) {
         console.error("Failed to update tutorial status", e);

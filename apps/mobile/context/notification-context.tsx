@@ -20,6 +20,7 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  setDoc,
   limit,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -156,9 +157,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const savePushToken = async (uid: string, token: string) => {
     try {
-      await updateDoc(doc(db, "users", uid), {
-        expoPushToken: token,
-      });
+      // setDoc(..., { merge: true }) instead of updateDoc — updateDoc
+      // throws NOT_FOUND if users/{uid} doesn't exist yet (e.g. an account
+      // that never went through normal signup, like a super-admin login),
+      // which silently failed here with no user-facing error, so the
+      // token could never be saved and every push to that account looked
+      // like "no token" forever, not just a one-time miss.
+      await setDoc(doc(db, "users", uid), { expoPushToken: token }, { merge: true });
     } catch (e) {
       console.log("Error saving push token:", e);
     }
