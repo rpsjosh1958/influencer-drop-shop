@@ -285,9 +285,13 @@ export default function ShopClient({
         addToCart={addToCart}
         cartCount={cartCount}
         router={router}
+        announcement={store?.announcement}
       />
 
-      <ShopHero theme={theme} />
+      <ShopHero
+        theme={theme}
+        hasAnnouncement={!!(store?.announcement?.enabled && store?.announcement?.text)}
+      />
 
       <CategoryBar
         categories={categories}

@@ -13,9 +13,13 @@ const fontMap: Record<string, string> = {
 
 interface ShopHeroProps {
   theme: StoreConfig["theme"] | Record<string, never>;
+  // Whether the announcement banner is showing — it's stacked inside the
+  // fixed header, so the header is taller and this content needs a bit
+  // more top clearance to not sit underneath it.
+  hasAnnouncement?: boolean;
 }
 
-export function ShopHero({ theme }: ShopHeroProps) {
+export function ShopHero({ theme, hasAnnouncement }: ShopHeroProps) {
   const [bgIndex, setBgIndex] = useState(0);
 
   const hero = theme?.hero || {};
@@ -39,7 +43,8 @@ export function ShopHero({ theme }: ShopHeroProps) {
     }
   }, [backgroundImages]);
 
-  if (!theme?.hero?.enabled) return <div className="pt-24" />;
+  if (!theme?.hero?.enabled)
+    return <div className={hasAnnouncement ? "pt-32" : "pt-24"} />;
 
   const alignClass =
     layout === "left"
@@ -49,7 +54,9 @@ export function ShopHero({ theme }: ShopHeroProps) {
         : "text-center items-center";
 
   return (
-    <section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[60vh] flex flex-col justify-center">
+    <section
+      className={`relative ${hasAnnouncement ? "pt-40" : "pt-32"} pb-20 px-6 overflow-hidden min-h-[60vh] flex flex-col justify-center`}
+    >
       {/* Background Layer */}
       {backgroundImages.length > 0 && (
         <div className="absolute inset-0 z-0">

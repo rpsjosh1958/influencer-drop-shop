@@ -576,23 +576,6 @@ export default function ShopHome() {
             className="flex-1 overflow-hidden shadow-2xl z-10"
           >
             <SafeAreaView className="flex-1">
-              {/* Announcement Banner */}
-              {store?.announcement?.enabled && !!store.announcement.text && (
-                <View
-                  style={{ backgroundColor: store.announcement.color || "#000000" }}
-                  className="py-2 px-4"
-                >
-                  <P
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ color: getContrastTextColor(store.announcement.color || "#000000") }}
-                    className="text-sm font-bold text-center"
-                  >
-                    {store.announcement.text}
-                  </P>
-                </View>
-              )}
-
               {/* Header */}
               <View className="flex-row items-center justify-between px-6 py-4 z-50">
                 {/* Logo Area */}
@@ -686,6 +669,23 @@ export default function ShopHome() {
                   )}
                 </View>
               </View>
+
+              {/* Announcement Banner */}
+              {store?.announcement?.enabled && !!store.announcement.text && (
+                <View
+                  style={{ backgroundColor: store.announcement.color || "#000000" }}
+                  className="py-2 px-4"
+                >
+                  <P
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    style={{ color: getContrastTextColor(store.announcement.color || "#000000") }}
+                    className="text-sm font-bold text-center"
+                  >
+                    {store.announcement.text}
+                  </P>
+                </View>
+              )}
 
               {/* Blur Overlay */}
               {isSearchOpen && suggestions.length > 0 && (

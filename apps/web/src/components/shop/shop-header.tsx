@@ -17,6 +17,7 @@ import { useNotifications } from "@/context/notification-context";
 import type { User as FirebaseUser } from "firebase/auth";
 import type { useRouter } from "next/navigation";
 import type { Product, ProductVariant } from "@/types";
+import { getContrastTextColor } from "@/lib/utils";
 
 type AppRouter = ReturnType<typeof useRouter>;
 
@@ -25,6 +26,7 @@ interface ShopHeaderProps {
   storeId: string;
   bgColor: string;
   primaryColor: string;
+  announcement?: { enabled?: boolean; text?: string; color?: string };
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (val: boolean) => void;
   isNotificationsOpen: boolean;
@@ -46,6 +48,7 @@ export function ShopHeader({
   storeId,
   bgColor,
   primaryColor,
+  announcement,
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   isNotificationsOpen,
@@ -62,13 +65,14 @@ export function ShopHeader({
   router,
 }: ShopHeaderProps) {
   return (
-    <header
-      className="fixed top-0 left-0 right-0 z-40 backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between transition-colors duration-300"
-      style={{
-        backgroundColor: `${bgColor}CC`,
-        borderColor: `${primaryColor}10`,
-      }}
-    >
+    <header className="fixed top-0 left-0 right-0 z-40">
+      <div
+        className="backdrop-blur-md border-b border-black/5 px-6 py-4 flex items-center justify-between transition-colors duration-300"
+        style={{
+          backgroundColor: `${bgColor}CC`,
+          borderColor: `${primaryColor}10`,
+        }}
+      >
       {/* Store Name / Switcher */}
       <div className="md:hidden flex-1 min-w-0">
         <AnimatePresence mode="popLayout">
@@ -300,6 +304,19 @@ export function ShopHeader({
           )}
         </button>
       </div>
+      </div>
+
+      {announcement?.enabled && !!announcement.text && (
+        <div
+          className="text-sm font-bold text-center py-2 px-4 whitespace-nowrap overflow-hidden text-ellipsis"
+          style={{
+            backgroundColor: announcement.color || "#000000",
+            color: getContrastTextColor(announcement.color || "#000000"),
+          }}
+        >
+          {announcement.text}
+        </div>
+      )}
     </header>
   );
 }
