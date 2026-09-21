@@ -447,6 +447,16 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     category: "settings",
   },
   {
+    target: "settings-delivery",
+    title: "Delivery Info",
+    content:
+      "Set which days you deliver and a short delivery estimate — shown to buyers on the product page and at checkout, so they know what to expect before they order.",
+    path: "/admin/settings",
+    placement: "top",
+    offsetY: -20,
+    category: "settings",
+  },
+  {
     target: "settings-billing",
     title: "Billing & Growth Plan",
     content:

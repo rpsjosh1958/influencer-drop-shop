@@ -135,6 +135,8 @@ export default function StoreSettingsPage() {
       setActiveTab("billing");
     } else if (currentStepTarget === "settings-payouts") {
       setActiveTab("payouts");
+    } else if (currentStepTarget === "settings-delivery") {
+      setActiveTab("delivery");
     }
   }, [currentStepTarget, isTourActive]);
 
@@ -657,7 +659,15 @@ export default function StoreSettingsPage() {
             Store Settings
             <HelpTrigger
               category={activeTab === "billing" || activeTab === "payouts" ? "settings-pro" : "settings"}
-              target={activeTab === "billing" ? "settings-billing" : activeTab === "payouts" ? "settings-payouts" : undefined}
+              target={
+                activeTab === "billing"
+                  ? "settings-billing"
+                  : activeTab === "payouts"
+                  ? "settings-payouts"
+                  : activeTab === "delivery"
+                  ? "settings-delivery"
+                  : undefined
+              }
             />
           </>
         }
@@ -1486,7 +1496,7 @@ export default function StoreSettingsPage() {
                     nothing.
                   </p>
 
-                  <div className="space-y-2">
+                  <div data-tour="settings-delivery" className="space-y-2">
                     <label className="text-sm font-bold text-zinc-900">
                       Delivery Days
                     </label>
