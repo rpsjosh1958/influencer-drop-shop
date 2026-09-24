@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import {
+  deleteDoc,
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
@@ -63,12 +69,29 @@ export default function SchedulePage() {
       try {
         const docRef = doc(db, "stores", storeId, "availability", "settings");
         const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data() as AvailabilitySettings;
-          setSchedule(data.schedule || DEFAULT_SCHEDULE);
-          setBlockedDates(data.blockedDates || []);
-          setCancellationHours(data.cancellationHours || 24);
+        const data = docSnap.exists()
+          ? (docSnap.data() as AvailabilitySettings)
+          : null;
+        let dates = data?.blockedDates || [];
+
+        // The mobile app used to save blocked dates to availability/general,
+        // which nothing here read. Fold any left there into settings once.
+        const legacyRef = doc(db, "stores", storeId, "availability", "general");
+        const legacySnap = await getDoc(legacyRef);
+        if (legacySnap.exists()) {
+          dates = Array.from(
+            new Set([...dates, ...(legacySnap.data().blockedDates || [])]),
+          ).sort();
+          await setDoc(docRef, { blockedDates: dates }, { merge: true });
+          await deleteDoc(legacyRef);
         }
+
+        if (data) {
+          setSchedule(data.schedule || DEFAULT_SCHEDULE);
+          // ?? not || — 0 hours is a valid setting (and can be saved from mobile).
+          setCancellationHours(data.cancellationHours ?? 24);
+        }
+        setBlockedDates(dates);
       } catch (err) {
         console.error("Failed to fetch availability", err);
       } finally {

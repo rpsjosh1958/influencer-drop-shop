@@ -175,7 +175,9 @@ export function BookingModal({
 
     const dayOfWeek = date.getDay();
     const dayName = DAYS_MAP[dayOfWeek];
-    const daySchedule = availability.schedule[dayName];
+    // schedule can be missing if the vendor has only set blocked dates or
+    // cancellation hours (e.g. from the mobile app) and never a weekly schedule.
+    const daySchedule = availability.schedule?.[dayName];
     return daySchedule?.enabled && daySchedule.slots.length > 0;
   };
 
@@ -185,7 +187,7 @@ export function BookingModal({
 
     const dayOfWeek = selectedDate.getDay();
     const dayName = DAYS_MAP[dayOfWeek];
-    const daySchedule = availability.schedule[dayName];
+    const daySchedule = availability.schedule?.[dayName];
 
     if (!daySchedule?.enabled) return [];
 

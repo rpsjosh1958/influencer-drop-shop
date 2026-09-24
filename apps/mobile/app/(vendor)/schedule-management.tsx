@@ -10,7 +10,13 @@ import { H1, P } from "@/components/ui/text";
 import { useState, useEffect, useMemo } from "react";
 import { useVendor } from "@/context/vendor-context";
 import { useAlert } from "@/context/alert-context";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import {
+  deleteDoc,
+  doc,
+  getDoc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
 import {
@@ -44,20 +50,25 @@ export default function ScheduleManagementScreen() {
     if (!store?.id) return;
     const fetchSettings = async () => {
       try {
-        const snap = await getDoc(
-          doc(db, "stores", store.id, "availability", "settings"),
-        );
-        if (snap.exists()) {
-          const data = snap.data();
-          setCancellationHours(String(data.cancellationHours ?? 24));
-        }
+        const settingsRef = doc(db, "stores", store.id, "availability", "settings");
+        const snap = await getDoc(settingsRef);
+        const data = snap.exists() ? snap.data() : {};
+        setCancellationHours(String(data.cancellationHours ?? 24));
+        let dates: string[] = data.blockedDates || [];
 
-        const generalSnap = await getDoc(
-          doc(db, "stores", store.id, "availability", "general"),
-        );
-        if (generalSnap.exists()) {
-          setBlockedDates(generalSnap.data().blockedDates || []);
+        // Blocked dates used to be saved to availability/general, which the
+        // web schedule page and the customer booking screens never read.
+        // Fold any left there into settings once.
+        const legacyRef = doc(db, "stores", store.id, "availability", "general");
+        const legacySnap = await getDoc(legacyRef);
+        if (legacySnap.exists()) {
+          dates = Array.from(
+            new Set([...dates, ...(legacySnap.data().blockedDates || [])]),
+          ).sort();
+          await setDoc(settingsRef, { blockedDates: dates }, { merge: true });
+          await deleteDoc(legacyRef);
         }
+        setBlockedDates(dates);
       } catch (e) {
         console.error(e);
       } finally {
@@ -81,17 +92,15 @@ export default function ScheduleManagementScreen() {
     }
     setLoading(true);
     try {
-      // Save Policy
+      // Same doc the web schedule page and the booking screens read. Merged,
+      // so the weekly schedule (only editable on web) is left alone.
       await setDoc(
         doc(db, "stores", store.id, "availability", "settings"),
-        { cancellationHours: hours },
-        { merge: true },
-      );
-
-      // Save Blocked Dates
-      await setDoc(
-        doc(db, "stores", store.id, "availability", "general"),
-        { blockedDates },
+        {
+          cancellationHours: hours,
+          blockedDates,
+          updatedAt: serverTimestamp(),
+        },
         { merge: true },
       );
 

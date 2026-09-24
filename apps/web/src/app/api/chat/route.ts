@@ -1168,7 +1168,13 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
             const { enabled, startTime, endTime } = fnArgs;
             const day = fnArgs.day!;
 
-            const availRef = adminDb.collection("availability").doc(storeId);
+            // Same doc the schedule page and booking screens read — this used
+            // to write a top-level availability/{storeId} nothing ever read.
+            const availRef = adminDb
+              .collection("stores")
+              .doc(storeId)
+              .collection("availability")
+              .doc("settings");
             const availSnap = await availRef.get();
 
             const scheduleUpdate: Record<string, unknown> = {
@@ -1178,7 +1184,10 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
               scheduleUpdate[`schedule.${day}.slots`] = [{ start: startTime, end: endTime }];
             }
 
-            if (!availSnap.exists) {
+            // The doc can exist without a weekly schedule (the mobile app only
+            // sets blocked dates / cancellation hours), and a dotted update
+            // there would leave the other six days undefined.
+            if (!availSnap.exists || !availSnap.data()?.schedule) {
               const defaultSched = {
                 monday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
                 tuesday: { enabled: true, slots: [{ start: "09:00", end: "17:00" }] },
@@ -1188,16 +1197,19 @@ Use this data to advise the user on cash flow, upgrading their plan, or marketin
                 saturday: { enabled: false, slots: [] },
                 sunday: { enabled: false, slots: [] },
               };
-              await availRef.set({
-                storeId,
-                schedule: {
-                  ...defaultSched,
-                  [day]: { enabled, slots: startTime && endTime ? [{ start: startTime, end: endTime }] : [] }
+              await availRef.set(
+                {
+                  storeId,
+                  schedule: {
+                    ...defaultSched,
+                    [day]: { enabled, slots: startTime && endTime ? [{ start: startTime, end: endTime }] : [] }
+                  },
+                  // Keep blocked dates / cancellation hours already on the doc.
+                  ...(availSnap.exists ? {} : { blockedDates: [], cancellationHours: 24 }),
+                  updatedAt: new Date(),
                 },
-                blockedDates: [],
-                cancellationHours: 24,
-                updatedAt: new Date(),
-              });
+                { merge: true },
+              );
             } else {
               await availRef.update(scheduleUpdate);
             }
