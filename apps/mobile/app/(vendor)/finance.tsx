@@ -1,5 +1,7 @@
 import { View, ScrollView, Pressable, RefreshControl, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useMemo } from "react";
+import { isToday, isYesterday, format as formatDate } from "date-fns";
 import { useNavigation, DrawerActions } from "expo-router/react-navigation";
 import { useVendor } from "@/context/vendor-context";
 import { H1, P } from "@/components/ui/text";
@@ -27,6 +29,14 @@ import {
   ExternalLink,
 } from "lucide-react-native";
 import type { WalletTransaction, Wallet as WalletType } from "@/types";
+
+const getDateLabel = (seconds?: number) => {
+  if (!seconds) return "Unknown";
+  const date = new Date(seconds * 1000);
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  return formatDate(date, "MMM d");
+};
 
 export default function FinanceScreen() {
   const navigation = useNavigation();
@@ -91,6 +101,18 @@ export default function FinanceScreen() {
     },
     enabled: !!storeId,
   });
+
+  // Transactions come back newest-first, so same-day ones are already adjacent.
+  const groupedTransactions = useMemo(() => {
+    const groups: { label: string; items: WalletTransaction[] }[] = [];
+    transactions.forEach((tx) => {
+      const label = getDateLabel(tx.createdAt?.seconds);
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.label === label) lastGroup.items.push(tx);
+      else groups.push({ label, items: [tx] });
+    });
+    return groups;
+  }, [transactions]);
 
   const onRefresh = () => {
     refetchWallet();
@@ -264,54 +286,62 @@ export default function FinanceScreen() {
               </P>
             </View>
           ) : (
-            <View className="gap-3">
-              {transactions.map((tx) => {
-                const isCredit = tx.type === "credit";
-                return (
-                  <View
-                    key={tx.id}
-                    className="flex-row items-center justify-between p-3 bg-zinc-50 rounded-2xl border border-zinc-100"
-                  >
-                    <View className="flex-row items-center gap-3 flex-1">
+            <View className="gap-4">
+              {groupedTransactions.map((group, groupIndex) => (
+                <View key={`${group.label}-${groupIndex}`} className="gap-3">
+                  <P className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">
+                    {group.label}
+                  </P>
+                  {group.items.map((tx) => {
+                    const isCredit = tx.type === "credit";
+                    return (
                       <View
-                        className={`w-9 h-9 rounded-full items-center justify-center ${
-                          isCredit ? "bg-green-100" : "bg-red-100"
-                        }`}
+                        key={tx.id}
+                        className="flex-row items-center justify-between p-3 bg-zinc-50 rounded-2xl border border-zinc-100"
                       >
-                        {/* A style rotate on a lucide icon spins it around the
-                            SVG's top-left corner, out of view — use the
-                            already-pointing icon instead. */}
-                        {isCredit ? (
-                          <ArrowDownLeft size={16} color="#16a34a" />
-                        ) : (
-                          <ArrowUpRight size={16} color="#dc2626" />
-                        )}
-                      </View>
-                      <View className="flex-1">
-                        <P className="font-bold text-sm" numberOfLines={1}>
-                          {tx.description}
+                        <View className="flex-row items-center gap-3 flex-1">
+                          <View
+                            className={`w-9 h-9 rounded-full items-center justify-center ${
+                              isCredit ? "bg-green-100" : "bg-red-100"
+                            }`}
+                          >
+                            {/* A style rotate on a lucide icon spins it around the
+                                SVG's top-left corner, out of view — use the
+                                already-pointing icon instead. */}
+                            {isCredit ? (
+                              <ArrowDownLeft size={16} color="#16a34a" />
+                            ) : (
+                              <ArrowUpRight size={16} color="#dc2626" />
+                            )}
+                          </View>
+                          <View className="flex-1">
+                            <P className="font-bold text-sm" numberOfLines={1}>
+                              {tx.description}
+                            </P>
+                            <P className="text-[10px] text-zinc-400 font-bold uppercase">
+                              {tx.createdAt?.seconds
+                                ? formatDate(
+                                    new Date(tx.createdAt.seconds * 1000),
+                                    "h:mm a"
+                                  )
+                                : ""}{" "}
+                              • {tx.status}
+                            </P>
+                          </View>
+                        </View>
+                        <P
+                          className={`font-black ${
+                            isCredit ? "text-green-600" : "text-zinc-900"
+                          }`}
+                        >
+                          {isCredit ? "+" : "-"}
+                          {formatCurrency(tx.amount)}
                         </P>
-                        <P className="text-[10px] text-zinc-400 font-bold uppercase">
-                          {tx.createdAt?.seconds
-                            ? new Date(
-                                tx.createdAt.seconds * 1000
-                              ).toLocaleDateString()
-                            : ""}{" "}
-                          • {tx.status}
-                        </P>
                       </View>
-                    </View>
-                    <P
-                      className={`font-black ${
-                        isCredit ? "text-green-600" : "text-zinc-900"
-                      }`}
-                    >
-                      {isCredit ? "+" : "-"}
-                      {formatCurrency(tx.amount)}
-                    </P>
-                  </View>
-                );
-              })}
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           )}
         </View>
