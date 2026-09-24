@@ -23,6 +23,7 @@ import {
   AlertCircle,
   CalendarClock,
   ArrowUpRight,
+  ArrowDownLeft,
   ExternalLink,
 } from "lucide-react-native";
 import type { WalletTransaction, Wallet as WalletType } from "@/types";
@@ -277,15 +278,14 @@ export default function FinanceScreen() {
                           isCredit ? "bg-green-100" : "bg-red-100"
                         }`}
                       >
-                        <ArrowUpRight
-                          size={16}
-                          color={isCredit ? "#16a34a" : "#dc2626"}
-                          style={
-                            isCredit
-                              ? { transform: [{ rotate: "180deg" }] }
-                              : undefined
-                          }
-                        />
+                        {/* A style rotate on a lucide icon spins it around the
+                            SVG's top-left corner, out of view — use the
+                            already-pointing icon instead. */}
+                        {isCredit ? (
+                          <ArrowDownLeft size={16} color="#16a34a" />
+                        ) : (
+                          <ArrowUpRight size={16} color="#dc2626" />
+                        )}
                       </View>
                       <View className="flex-1">
                         <P className="font-bold text-sm" numberOfLines={1}>

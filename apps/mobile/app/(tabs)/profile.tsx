@@ -47,6 +47,7 @@ import {
   Lock,
   LogOut,
   ChevronRight,
+  ChevronLeft,
   Plus,
   CreditCard,
   MoreVertical,
@@ -547,11 +548,7 @@ export default function ProfileScreen() {
                 onPress={() => setActiveSection("menu")}
                 className="p-2 bg-zinc-100 rounded-full"
               >
-                <ChevronRight
-                  size={20}
-                  color="black"
-                  style={{ transform: [{ rotate: "180deg" }] }}
-                />
+                <ChevronLeft size={20} color="black" />
               </Pressable>
             </MotiView>
           )}
