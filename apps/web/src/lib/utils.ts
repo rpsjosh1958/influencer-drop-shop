@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { format, isThisYear, isToday, isTomorrow, isYesterday } from "date-fns";
 import type { FirestoreTimestampLike } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
@@ -36,6 +37,43 @@ export function getTimestampSeconds(
 ): number {
   const date = toJsDate(value);
   return date ? Math.floor(date.getTime() / 1000) : 0;
+}
+
+/**
+ * Day header for date-grouped lists ("Today", "Yesterday", "Sep 12"),
+ * matching the mobile app's grouped order/activity lists.
+ */
+export function getDateGroupLabel(date: Date | null): string {
+  if (!date || isNaN(date.getTime())) return "Unknown";
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  if (isTomorrow(date)) return "Tomorrow";
+  return format(date, isThisYear(date) ? "MMM d" : "MMM d, yyyy");
+}
+
+/**
+ * Splits an already-sorted list into consecutive same-day runs, keeping the
+ * list's own order (so pagination/limits still apply before grouping).
+ */
+export function groupByDate<T>(
+  items: T[],
+  getDate: (item: T) => Date | null,
+): { label: string; items: T[] }[] {
+  const groups: { label: string; items: T[] }[] = [];
+  items.forEach((item) => {
+    const label = getDateGroupLabel(getDate(item));
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup.label === label) lastGroup.items.push(item);
+    else groups.push({ label, items: [item] });
+  });
+  return groups;
+}
+
+/** "2:05 PM"-style time for rows that already sit under a date header. */
+export function formatTimeOfDay(date: Date | null): string {
+  return date
+    ? date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+    : "";
 }
 
 /**

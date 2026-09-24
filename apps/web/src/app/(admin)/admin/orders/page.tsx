@@ -28,7 +28,12 @@ import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { EmptyState } from "@/components/admin/empty-state";
-import { formatCurrency, toJsDate } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatTimeOfDay,
+  groupByDate,
+  toJsDate,
+} from "@/lib/utils";
 import { startOfDay, endOfDay, isBefore, isAfter } from "date-fns";
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -169,6 +174,10 @@ export default function OrdersPage() {
   const paginatedOrders = filteredOrders.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
+  );
+  // Orders are fetched newest-first, so same-day orders are already adjacent.
+  const groupedOrders = groupByDate(paginatedOrders, (order) =>
+    toJsDate(order.createdAt),
   );
 
   const handleExportPDF = (scope: "current" | "filtered" | "all") => {
@@ -402,61 +411,65 @@ export default function OrdersPage() {
             </div>
 
             {/* List Items */}
-            <div className="p-2 space-y-2">
-              {paginatedOrders.map((order) => (
-                <div
-                  key={order.id}
-                  onClick={() => setSelectedOrder(order)}
-                  className="group bg-white dark:bg-zinc-900 p-4 px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between hover:border-black/20 dark:hover:border-white/20 transition-all cursor-pointer relative overflow-hidden active:scale-[0.99] active:bg-zinc-50"
-                >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="h-10 w-10 shrink-0 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center font-black text-xs text-zinc-600 dark:text-zinc-400 group-hover:scale-110 transition-transform">
-                      {order.customerName ? order.customerName.charAt(0) : "@"}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      {getCustomerDisplay(order)}
-                    </div>
-                  </div>
+            <div className="p-2 space-y-4">
+              {groupedOrders.map((group, groupIndex) => (
+                <div key={`${group.label}-${groupIndex}`} className="space-y-2">
+                  <p className="px-2 pt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    {group.label}
+                  </p>
+                  {group.items.map((order) => (
+                    <div
+                      key={order.id}
+                      onClick={() => setSelectedOrder(order)}
+                      className="group bg-white dark:bg-zinc-900 p-4 px-6 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between hover:border-black/20 dark:hover:border-white/20 transition-all cursor-pointer relative overflow-hidden active:scale-[0.99] active:bg-zinc-50"
+                    >
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <div className="h-10 w-10 shrink-0 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center font-black text-xs text-zinc-600 dark:text-zinc-400 group-hover:scale-110 transition-transform">
+                          {order.customerName ? order.customerName.charAt(0) : "@"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          {getCustomerDisplay(order)}
+                        </div>
+                      </div>
 
-                  <div className="flex items-center gap-4 md:gap-8 text-right shrink-0">
-                    <div className="hidden sm:flex flex-col items-end gap-1">
-                      <span className="text-[10px] font-bold uppercase tracking-tight text-zinc-400">Total Amount</span>
-                      <p className="font-black text-sm">{formatCurrency(order.total)}</p>
-                    </div>
+                      <div className="flex items-center gap-4 md:gap-8 text-right shrink-0">
+                        <div className="hidden sm:flex flex-col items-end gap-1">
+                          <span className="text-[10px] font-bold uppercase tracking-tight text-zinc-400">Total Amount</span>
+                          <p className="font-black text-sm">{formatCurrency(order.total)}</p>
+                        </div>
 
-                    <div className="flex flex-col items-end gap-1.5 min-w-[80px] md:min-w-[110px]">
-                       <div className="sm:hidden font-black text-sm">{formatCurrency(order.total)}</div>
-                      <span className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1">
-                        {toJsDate(order.createdAt)?.toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(
-                          order.status,
-                        )} border border-current opacity-90`}
-                      >
-                        {order.status === "paid" ? "OPEN" : order.status}
-                      </span>
-                      {order.paymentMethod === "manual" && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-current opacity-90">
-                          Manual
-                        </span>
-                      )}
-                      {(order.refundStatus === "pending" ||
-                        order.refundStatus === "processing") && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-current opacity-90">
-                          Refund Pending
-                        </span>
-                      )}
-                      {order.refundStatus === "needs-attention" && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-current opacity-90">
-                          Refund Needs Attention
-                        </span>
-                      )}
+                        <div className="flex flex-col items-end gap-1.5 min-w-[80px] md:min-w-[110px]">
+                           <div className="sm:hidden font-black text-sm">{formatCurrency(order.total)}</div>
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1">
+                            {formatTimeOfDay(toJsDate(order.createdAt))}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${getStatusColor(
+                              order.status,
+                            )} border border-current opacity-90`}
+                          >
+                            {order.status === "paid" ? "OPEN" : order.status}
+                          </span>
+                          {order.paymentMethod === "manual" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 border border-current opacity-90">
+                              Manual
+                            </span>
+                          )}
+                          {(order.refundStatus === "pending" ||
+                            order.refundStatus === "processing") && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-700 border border-current opacity-90">
+                              Refund Pending
+                            </span>
+                          )}
+                          {order.refundStatus === "needs-attention" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-current opacity-90">
+                              Refund Needs Attention
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               ))}
             </div>

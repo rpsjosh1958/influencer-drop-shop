@@ -29,7 +29,12 @@ import Link from "next/link";
 import { generateFinancePDF } from "@/lib/pdf-generator";
 import { generateFinanceExcel } from "@/lib/excel-generator";
 import { HelpTrigger } from "@/context/onboarding-context";
-import { formatCurrency, toJsDate } from "@/lib/utils";
+import {
+  formatCurrency,
+  formatTimeOfDay,
+  groupByDate,
+  toJsDate,
+} from "@/lib/utils";
 import type { StoreConfig, FirestoreTimestampLike } from "@/types";
 import { LoadingState } from "@/components/admin/loading-state";
 import { EmptyState } from "@/components/admin/empty-state";
@@ -471,53 +476,62 @@ export default function FinancePage() {
               description="Earnings from verified sales will show up here."
             />
           ) : (
-            transactions.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-start gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100"
-              >
-                <div
-                  className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
-                    tx.type === "credit"
-                      ? "bg-green-100 text-green-600"
-                      : tx.type === "debit" || tx.type === "payout"
-                        ? "bg-red-100 text-red-600"
-                        : "bg-gray-100"
-                  }`}
-                >
-                  {tx.type === "credit" ? (
-                    <ArrowUpRight className="rotate-180" size={18} />
-                  ) : (
-                    <ArrowUpRight size={18} />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-bold text-zinc-900 text-sm leading-snug">
-                      {tx.description}
-                    </p>
+            groupByDate(transactions, (tx) => toJsDate(tx.createdAt)).map(
+              (group, groupIndex) => (
+                <div key={`${group.label}-${groupIndex}`} className="space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    {group.label}
+                  </p>
+                  {group.items.map((tx) => (
                     <div
-                      className={`shrink-0 font-black text-sm whitespace-nowrap ${
-                        tx.type === "credit" ? "text-green-600" : "text-zinc-900"
-                      }`}
+                      key={tx.id}
+                      className="flex items-start gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100"
                     >
-                      {tx.type === "credit" ? "+" : "-"}
-                      {formatCurrency(tx.amount)}
+                      <div
+                        className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center ${
+                          tx.type === "credit"
+                            ? "bg-green-100 text-green-600"
+                            : tx.type === "debit" || tx.type === "payout"
+                              ? "bg-red-100 text-red-600"
+                              : "bg-gray-100"
+                        }`}
+                      >
+                        {tx.type === "credit" ? (
+                          <ArrowUpRight className="rotate-180" size={18} />
+                        ) : (
+                          <ArrowUpRight size={18} />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-bold text-zinc-900 text-sm leading-snug">
+                            {tx.description}
+                          </p>
+                          <div
+                            className={`shrink-0 font-black text-sm whitespace-nowrap ${
+                              tx.type === "credit" ? "text-green-600" : "text-zinc-900"
+                            }`}
+                          >
+                            {tx.type === "credit" ? "+" : "-"}
+                            {formatCurrency(tx.amount)}
+                          </div>
+                        </div>
+                        <div className="flex items-center flex-wrap gap-2 mt-1.5">
+                          {tx.source === "subaccount_split" && (
+                            <span className="text-[9px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                              Auto-settled
+                            </span>
+                          )}
+                          <p className="text-xs text-zinc-500 whitespace-nowrap">
+                            {formatTimeOfDay(toJsDate(tx.createdAt))} • {tx.status}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center flex-wrap gap-2 mt-1.5">
-                    {tx.source === "subaccount_split" && (
-                      <span className="text-[9px] font-bold uppercase tracking-wide bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full whitespace-nowrap">
-                        Auto-settled
-                      </span>
-                    )}
-                    <p className="text-xs text-zinc-500 whitespace-nowrap">
-                      {toJsDate(tx.createdAt)?.toLocaleDateString()} • {tx.status}
-                    </p>
-                  </div>
+                  ))}
                 </div>
-              </div>
-            ))
+              ),
+            )
           )}
         </div>
       </div>

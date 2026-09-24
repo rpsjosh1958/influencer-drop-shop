@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   collection,
@@ -34,7 +34,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { LoadingState } from "@/components/admin/loading-state";
 import { EmptyState } from "@/components/admin/empty-state";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, groupByDate } from "@/lib/utils";
 import { Portal } from "@/components/ui/portal";
 import {
   format,
@@ -117,6 +117,21 @@ export default function BookingsPage() {
       a.startTime.localeCompare(b.startTime),
     );
   }, [selectedDate, bookingsByDate]);
+
+  // List view: grouped by appointment day (latest first, as fetched), with
+  // each day's bookings in time order.
+  const groupedBookings = useMemo(
+    () =>
+      groupByDate(bookings, (b) => (b.date ? parseISO(b.date) : null)).map(
+        (group) => ({
+          ...group,
+          items: [...group.items].sort((a, b) =>
+            a.startTime.localeCompare(b.startTime),
+          ),
+        }),
+      ),
+    [bookings],
+  );
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({
@@ -353,7 +368,7 @@ export default function BookingsPage() {
               <thead className="bg-zinc-50 border-b border-zinc-100">
                 <tr>
                   <th className="text-left px-6 py-4 text-sm font-bold text-zinc-500">
-                    Date & Time
+                    Time
                   </th>
                   <th className="text-left px-6 py-4 text-sm font-bold text-zinc-500">
                     Service
@@ -370,51 +385,63 @@ export default function BookingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {bookings.map((booking) => (
-                  <tr
-                    key={booking.id}
-                    className="border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer"
-                    onClick={() => setSelectedBooking(booking)}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-black">
-                        {format(parseISO(booking.date), "MMM d, yyyy")}
-                      </div>
-                      <div className="text-sm text-zinc-500">
-                        {booking.startTime} - {booking.endTime}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-black">
-                        {booking.serviceName}
-                      </div>
-                      <div className="text-sm text-zinc-500">
-                        {formatCurrency(booking.servicePrice)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="font-medium text-black">
-                        {booking.customerName}
-                      </div>
-                      <div className="text-sm text-zinc-500">
-                        {booking.customerPhone}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-xs font-bold px-2 py-1 rounded-full ${
-                          STATUS_CONFIG[booking.status].bg
-                        } ${STATUS_CONFIG[booking.status].color}`}
+                {groupedBookings.map((group, groupIndex) => (
+                  <Fragment key={`${group.label}-${groupIndex}`}>
+                    <tr className="bg-zinc-50/60 border-b border-zinc-100">
+                      <td
+                        colSpan={5}
+                        className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400"
                       >
-                        {STATUS_CONFIG[booking.status].label}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-blue-600 text-sm font-medium hover:underline">
-                        View
-                      </button>
-                    </td>
-                  </tr>
+                        {group.label}
+                      </td>
+                    </tr>
+                    {group.items.map((booking) => (
+                      <tr
+                        key={booking.id}
+                        className="border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer"
+                        onClick={() => setSelectedBooking(booking)}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-black">
+                            {booking.startTime} - {booking.endTime}
+                          </div>
+                          <div className="text-sm text-zinc-500">
+                            {booking.duration} min
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-black">
+                            {booking.serviceName}
+                          </div>
+                          <div className="text-sm text-zinc-500">
+                            {formatCurrency(booking.servicePrice)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-black">
+                            {booking.customerName}
+                          </div>
+                          <div className="text-sm text-zinc-500">
+                            {booking.customerPhone}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`text-xs font-bold px-2 py-1 rounded-full ${
+                              STATUS_CONFIG[booking.status].bg
+                            } ${STATUS_CONFIG[booking.status].color}`}
+                          >
+                            {STATUS_CONFIG[booking.status].label}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button className="text-blue-600 text-sm font-medium hover:underline">
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

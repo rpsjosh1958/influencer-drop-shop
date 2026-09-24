@@ -40,7 +40,14 @@ import {
 } from "@/components/admin/admin-page-header";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { LoadingState } from "@/components/admin/loading-state";
-import { formatCurrency, cn, toJsDate, getTimestampSeconds } from "@/lib/utils";
+import {
+  formatCurrency,
+  cn,
+  toJsDate,
+  getTimestampSeconds,
+  groupByDate,
+  formatTimeOfDay,
+} from "@/lib/utils";
 import type { OrderItem, FirestoreTimestampLike, Product } from "@/types";
 
 interface OrderData {
@@ -762,34 +769,42 @@ export default function AdminDashboard() {
                   <span className="text-zinc-600 font-black uppercase tracking-widest text-xs">No recent activity</span>
                 </div>
               ) : (
-                recentActivity.map((activity, i) => (
-                  <div
-                    key={`${activity.id}-${i}`}
-                    className="bg-zinc-800/50 p-4 rounded-2xl flex items-center justify-between backdrop-blur-sm border border-zinc-700/50"
-                  >
-                    <div>
-                      <h4 className="font-bold">
-                        {activity.customerName || activity.customerEmail || 'Guest'}
-                      </h4>
-                      <p className="text-xs text-zinc-400 font-bold uppercase tracking-wider">
-                        {activity.type === 'order' 
-                          ? `${activity.itemsCount || 0} items` 
-                          : activity.serviceName || 'Service Booking'}
-                      </p>
-                      <p className="text-xs text-zinc-400">
-                        {toJsDate(activity.createdAt)
-                          ? toJsDate(activity.createdAt)!.toLocaleString(undefined, {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })
-                          : "Just now"}
-                      </p>
-                    </div>
-                    <span className="font-black text-green-400 tracking-tighter">
-                      {activity.type === 'order'
-                        ? formatCurrency(activity.amount ?? 0)
-                        : 'Booking'}
-                    </span>
+                // A pending serverTimestamp() has no date yet — it just happened.
+                groupByDate(
+                  recentActivity,
+                  (activity) => toJsDate(activity.createdAt) ?? new Date(),
+                ).map((group, groupIndex) => (
+                  <div key={`${group.label}-${groupIndex}`} className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                      {group.label}
+                    </p>
+                    {group.items.map((activity, i) => (
+                      <div
+                        key={`${activity.id}-${i}`}
+                        className="bg-zinc-800/50 p-4 rounded-2xl flex items-center justify-between backdrop-blur-sm border border-zinc-700/50"
+                      >
+                        <div>
+                          <h4 className="font-bold">
+                            {activity.customerName || activity.customerEmail || 'Guest'}
+                          </h4>
+                          <p className="text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                            {activity.type === 'order' 
+                              ? `${activity.itemsCount || 0} items` 
+                              : activity.serviceName || 'Service Booking'}
+                          </p>
+                          <p className="text-xs text-zinc-400">
+                            {toJsDate(activity.createdAt)
+                              ? formatTimeOfDay(toJsDate(activity.createdAt))
+                              : "Just now"}
+                          </p>
+                        </div>
+                        <span className="font-black text-green-400 tracking-tighter">
+                          {activity.type === 'order'
+                            ? formatCurrency(activity.amount ?? 0)
+                            : 'Booking'}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))
               )}
