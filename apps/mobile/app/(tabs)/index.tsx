@@ -728,7 +728,7 @@ export default function ShopHome() {
 
               {/* Scrolling Content */}
               <ScrollView
-                contentContainerStyle={{ paddingBottom: 80 }}
+                contentContainerStyle={{ paddingBottom: 80, flexGrow: 1 }}
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
@@ -1156,6 +1156,11 @@ export default function ShopHome() {
                     </>
                   )}
                 </View>
+
+                {/* Fills leftover space so the footer sits at the bottom
+                    when there are only a few items (collapses when the
+                    list is long) — needs flexGrow on the content above. */}
+                <View className="flex-1" />
 
                 {/* Footer Section */}
                 {store?.theme?.footer?.enabled && (
