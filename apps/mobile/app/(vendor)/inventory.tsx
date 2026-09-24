@@ -12,6 +12,7 @@ import { db } from "@/lib/firebase";
 import { router, type Href } from "expo-router";
 import { ServiceDetailsModal } from "@/components/vendor/service-details-modal";
 import { formatCurrency } from "@/lib/format";
+import { PLACEHOLDER_IMAGE_URI } from "@/lib/placeholder-image";
 import type { Product, ServiceItem } from "@/types";
 
 export default function VendorInventory() {
@@ -183,7 +184,7 @@ export default function VendorInventory() {
                        uri:
                          p.images?.[0] ||
                          p.imageUrl ||
-                         "https://via.placeholder.com/150",
+                         PLACEHOLDER_IMAGE_URI,
                      }}
                      className="w-20 h-20 rounded-xl bg-zinc-200"
                    />

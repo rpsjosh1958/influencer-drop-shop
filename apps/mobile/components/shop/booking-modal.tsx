@@ -68,6 +68,7 @@ import {
 import { useRouter } from "expo-router";
 import { TextInput } from "react-native";
 import { AlertHost, useAlert } from "@/context/alert-context";
+import { PLACEHOLDER_IMAGE_URI } from "@/lib/placeholder-image";
 import { formatCurrency } from "@/lib/format";
 
 const { width } = Dimensions.get("window");
@@ -361,7 +362,7 @@ export function BookingModal({
   const images =
     service.images && service.images.length > 0
       ? service.images
-      : [service.imageUrl || "https://via.placeholder.com/500"];
+      : [service.imageUrl || PLACEHOLDER_IMAGE_URI];
 
   return (
     <Modal

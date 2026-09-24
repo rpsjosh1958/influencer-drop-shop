@@ -19,6 +19,7 @@ import { formatCurrency } from "@/lib/format";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useStore } from "@/context/store-context";
 import { formatDeliveryInfo } from "@/lib/delivery";
+import { PLACEHOLDER_IMAGE_URI } from "@/lib/placeholder-image";
 
 const { width } = Dimensions.get("window");
 
@@ -203,7 +204,7 @@ export function ProductDetailsModal({
   const images =
     product.images && product.images.length > 0
       ? product.images
-      : [product.imageUrl || "https://via.placeholder.com/500"];
+      : [product.imageUrl || PLACEHOLDER_IMAGE_URI];
 
   const currentPrice = selectedVariant?.price || product.price;
   const currentStock = selectedVariant
