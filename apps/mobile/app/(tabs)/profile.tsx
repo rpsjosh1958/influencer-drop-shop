@@ -559,7 +559,7 @@ export default function ProfileScreen() {
           </H1>
         </View>
 
-        <View className="flex-1 bg-white">
+        <View className="flex-1 bg-white mb-10">
           {activeSection === "menu" ? (
             <MotiView
               key="menu"
