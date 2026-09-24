@@ -68,7 +68,8 @@ export default function ShareStoreScreen() {
     if (!imagesReady || saving) return;
     setSaving(true);
     try {
-      const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync();
+      // Write-only: saving a flyer doesn't need to read the photo library.
+      const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync(true);
       if (status !== "granted") {
         showAlert({
           title: "Photos access needed",
@@ -83,7 +84,8 @@ export default function ShareStoreScreen() {
       const uri = await captureFlyer();
       if (!uri) return;
 
-      await MediaLibrary.saveToLibraryAsync(uri);
+      // saveToLibraryAsync throws as of expo-media-library 57 — Asset.create is its replacement.
+      await MediaLibrary.Asset.create(uri);
       showAlert({
         title: "Saved!",
         message: "The flyer was saved to your Photos.",
