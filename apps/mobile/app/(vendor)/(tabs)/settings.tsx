@@ -13,6 +13,9 @@ import {
   User,
   Shield,
   CreditCard,
+  LifeBuoy,
+  FileText,
+  UserX,
 } from "lucide-react-native";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -20,9 +23,35 @@ import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
 import { useAlert } from "@/context/alert-context";
+import { useVendor } from "@/context/vendor-context";
+import {
+  LEGAL_URLS,
+  SUPPORT_EMAIL,
+  openUrl,
+  openWebPage,
+  supportEmailUrl,
+} from "@/lib/links";
 
 export default function VendorSettings() {
   const { showAlert } = useAlert();
+  const { store } = useVendor();
+
+  const handleSupport = async () => {
+    const opened = await openUrl(
+      supportEmailUrl(
+        `Vendor support${store?.name ? ` — ${store.name}` : ""}`,
+        auth.currentUser?.email,
+      ),
+    );
+    if (!opened) {
+      showAlert({
+        title: "Contact Support",
+        message: `Email us at ${SUPPORT_EMAIL} and we'll get back to you.`,
+        type: "info",
+        singleButton: true,
+      });
+    }
+  };
   const handleExit = () => {
     router.replace("/(tabs)/profile" as Href);
   };
@@ -103,6 +132,30 @@ export default function VendorSettings() {
           icon={ArrowLeft}
           label="Exit Seller Mode"
           onPress={handleExit}
+        />
+
+        <P className="text-xs font-bold text-zinc-400 uppercase mb-4 mt-6 tracking-wider">
+          Support & Legal
+        </P>
+
+        <SettingsItem icon={LifeBuoy} label="Help & Support" onPress={handleSupport} />
+        <SettingsItem
+          icon={Shield}
+          label="Privacy Policy"
+          onPress={() => openWebPage(LEGAL_URLS.privacy)}
+          showChevron
+        />
+        <SettingsItem
+          icon={FileText}
+          label="Terms of Service"
+          onPress={() => openWebPage(LEGAL_URLS.terms)}
+          showChevron
+        />
+        <SettingsItem
+          icon={UserX}
+          label="Delete Account"
+          onPress={() => openWebPage(LEGAL_URLS.deleteAccount)}
+          showChevron
         />
 
         <View className="mt-8">

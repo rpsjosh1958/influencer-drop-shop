@@ -61,6 +61,12 @@ import {
 import { TextInput, TouchableWithoutFeedback, Keyboard } from "react-native";
 import { BlurView } from "expo-blur";
 import { useQuery } from "@tanstack/react-query";
+import {
+  footerContactUrl,
+  mapsUrl,
+  openUrl,
+  socialProfileUrl,
+} from "@/lib/links";
 
 const { width } = Dimensions.get("window");
 
@@ -1207,27 +1213,69 @@ export default function ShopHome() {
                       {/* Socials & Contact */}
                       <View className="flex-row gap-6 mt-4 opacity-80">
                         {store.theme.footer.socials?.instagram && (
-                          <P className="text-xs font-bold">
-                            IG: {store.theme.footer.socials.instagram}
-                          </P>
+                          <Pressable
+                            hitSlop={8}
+                            onPress={() =>
+                              openUrl(
+                                socialProfileUrl(
+                                  "instagram",
+                                  store.theme!.footer!.socials!.instagram!,
+                                ),
+                              )
+                            }
+                          >
+                            <P className="text-xs font-bold">
+                              IG: {store.theme.footer.socials.instagram}
+                            </P>
+                          </Pressable>
                         )}
                         {store.theme.footer.socials?.twitter && (
-                          <P className="text-xs font-bold">
-                            TW: {store.theme.footer.socials.twitter}
-                          </P>
+                          <Pressable
+                            hitSlop={8}
+                            onPress={() =>
+                              openUrl(
+                                socialProfileUrl(
+                                  "twitter",
+                                  store.theme!.footer!.socials!.twitter!,
+                                ),
+                              )
+                            }
+                          >
+                            <P className="text-xs font-bold">
+                              TW: {store.theme.footer.socials.twitter}
+                            </P>
+                          </Pressable>
                         )}
                       </View>
 
                       <View className="items-center gap-1 mt-2 mb-4 opacity-60">
                         {store.theme.footer.contact?.email && (
-                          <P className="text-xs underline">
-                            {store.theme.footer.contact.email}
-                          </P>
+                          <Pressable
+                            hitSlop={8}
+                            disabled={!footerContactUrl(store.theme.footer.contact.email)}
+                            onPress={() => {
+                              const url = footerContactUrl(
+                                store.theme!.footer!.contact!.email!,
+                              );
+                              if (url) openUrl(url);
+                            }}
+                          >
+                            <P className="text-xs underline">
+                              {store.theme.footer.contact.email}
+                            </P>
+                          </Pressable>
                         )}
                         {store.theme.footer.contact?.address && (
-                          <P className="text-xs text-center">
-                            {store.theme.footer.contact.address}
-                          </P>
+                          <Pressable
+                            hitSlop={8}
+                            onPress={() =>
+                              openUrl(mapsUrl(store.theme!.footer!.contact!.address!))
+                            }
+                          >
+                            <P className="text-xs text-center">
+                              {store.theme.footer.contact.address}
+                            </P>
+                          </Pressable>
                         )}
                       </View>
 

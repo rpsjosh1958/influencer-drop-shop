@@ -50,6 +50,10 @@ import {
   Eye,
   EyeOff,
   Store,
+  LifeBuoy,
+  Shield,
+  FileText,
+  UserX,
 } from "lucide-react-native";
 import { MotiView } from "moti";
 import { StatusBar } from "expo-status-bar";
@@ -59,6 +63,13 @@ import { ComplaintModal } from "@/components/shop/complaint-modal";
 import { AlertCircle } from "lucide-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import {
+  LEGAL_URLS,
+  SUPPORT_EMAIL,
+  openUrl,
+  openWebPage,
+  supportEmailUrl,
+} from "@/lib/links";
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<FirebaseUser | null>(auth.currentUser);
@@ -139,6 +150,18 @@ export default function ProfileScreen() {
   }, [userData]);
 
   const { showAlert, showActionSheet } = useAlert();
+
+  const handleSupport = async () => {
+    const opened = await openUrl(supportEmailUrl("Support request", user?.email));
+    if (!opened) {
+      showAlert({
+        title: "Contact Support",
+        message: `Email us at ${SUPPORT_EMAIL} and we'll get back to you.`,
+        type: "info",
+        singleButton: true,
+      });
+    }
+  };
 
   const handleSignOut = () => {
     showAlert({
@@ -491,6 +514,20 @@ export default function ProfileScreen() {
               Login to Vendor Portal
             </P>
           </Pressable>
+
+          <View className="flex-row items-center gap-4 mt-10">
+            <Pressable onPress={handleSupport} hitSlop={8}>
+              <P className="text-zinc-400 text-xs font-bold">Help</P>
+            </Pressable>
+            <P className="text-zinc-300 text-xs">•</P>
+            <Pressable onPress={() => openWebPage(LEGAL_URLS.privacy)} hitSlop={8}>
+              <P className="text-zinc-400 text-xs font-bold">Privacy</P>
+            </Pressable>
+            <P className="text-zinc-300 text-xs">•</P>
+            <Pressable onPress={() => openWebPage(LEGAL_URLS.terms)} hitSlop={8}>
+              <P className="text-zinc-400 text-xs font-bold">Terms</P>
+            </Pressable>
+          </View>
         </SafeAreaView>
       </View>
     );
@@ -577,6 +614,30 @@ export default function ProfileScreen() {
                     icon={Store}
                     label="Switch to Seller Mode"
                     onPress={handleServicesSwitch}
+                  />
+
+                  <P className="text-xs font-bold text-zinc-400 uppercase mt-4 mb-2 tracking-wider">
+                    Support & Legal
+                  </P>
+                  <MenuItem
+                    icon={LifeBuoy}
+                    label="Help & Support"
+                    onPress={handleSupport}
+                  />
+                  <MenuItem
+                    icon={Shield}
+                    label="Privacy Policy"
+                    onPress={() => openWebPage(LEGAL_URLS.privacy)}
+                  />
+                  <MenuItem
+                    icon={FileText}
+                    label="Terms of Service"
+                    onPress={() => openWebPage(LEGAL_URLS.terms)}
+                  />
+                  <MenuItem
+                    icon={UserX}
+                    label="Delete Account"
+                    onPress={() => openWebPage(LEGAL_URLS.deleteAccount)}
                   />
                   {/* DEV: Test Onboarding */}
                   {/* <MenuItem
