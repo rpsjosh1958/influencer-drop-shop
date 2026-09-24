@@ -42,7 +42,7 @@ import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
-import { formatCurrency, toJsDate, getContrastTextColor } from "@/lib/utils";
+import { formatCurrency, toJsDate, getContrastTextColor, maskEmail } from "@/lib/utils";
 import { getErrorMessage, getErrorCode } from "@/lib/errors";
 import type { StoreConfig, StoreType } from "@/types";
 import { DELIVERY_DAY_OPTIONS, formatDeliveryInfo } from "@/lib/delivery";
@@ -2024,8 +2024,8 @@ export default function StoreSettingsPage() {
                           </p>
                           <p className="text-xs text-zinc-500">
                             {otpState.sent
-                              ? `Enter the 6-digit code we sent to ${auth.currentUser?.email}.`
-                              : `We'll email a 6-digit code to ${auth.currentUser?.email} to confirm this payout change.`}
+                              ? `Enter the 6-digit code we sent to ${maskEmail(auth.currentUser?.email)}.`
+                              : `We'll email a 6-digit code to ${maskEmail(auth.currentUser?.email)} to confirm this payout change.`}
                           </p>
 
                           {!otpState.sent ? (
@@ -2057,13 +2057,13 @@ export default function StoreSettingsPage() {
                                       error: "",
                                     }))
                                   }
-                                  className="flex-1 p-3 bg-white border border-zinc-200 rounded-xl font-mono text-lg tracking-[0.3em] text-center outline-none focus:ring-2 focus:ring-black"
+                                  className="flex-1 min-w-0 p-3 bg-white border border-zinc-200 rounded-xl font-mono text-lg tracking-[0.3em] text-center outline-none focus:ring-2 focus:ring-black"
                                 />
                                 <button
                                   type="button"
                                   onClick={verifyOtp}
                                   disabled={otpState.verifying || otpState.code.length !== 6}
-                                  className="px-5 bg-black text-white rounded-xl font-bold disabled:opacity-50 hover:bg-zinc-800 transition-colors"
+                                  className="shrink-0 px-5 bg-black text-white rounded-xl font-bold disabled:opacity-50 hover:bg-zinc-800 transition-colors"
                                 >
                                   {otpState.verifying ? (
                                     <Loader2 className="animate-spin" size={18} />

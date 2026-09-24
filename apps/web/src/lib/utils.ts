@@ -83,3 +83,16 @@ export function getContrastTextColor(hex: string): "#000000" | "#ffffff" {
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#000000" : "#ffffff";
 }
+
+// Fixed-length mask ("d*****4@gmail.com") so on-screen prompts don't expose the address or its length.
+export function maskEmail(email: string | null | undefined): string {
+  if (!email) return "your email";
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return "your email";
+  const local = email.slice(0, at);
+  const masked =
+    local.length <= 2
+      ? `${local[0]}*****`
+      : `${local[0]}*****${local[local.length - 1]}`;
+  return `${masked}${email.slice(at)}`;
+}
