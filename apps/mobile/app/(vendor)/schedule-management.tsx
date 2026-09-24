@@ -12,9 +12,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useVendor } from "@/context/vendor-context";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { router } from "expo-router";
+import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
 import {
-  ArrowLeft,
   Save,
   Clock,
   Calendar as CalendarIcon,
@@ -91,7 +90,6 @@ export default function ScheduleManagementScreen() {
       );
 
       Alert.alert("Success", "Schedule settings updated");
-      router.back();
     } catch (e) {
       Alert.alert("Error", "Failed to update settings");
     } finally {
@@ -117,10 +115,9 @@ export default function ScheduleManagementScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
-      <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center justify-between">
-        <ArrowLeft size={24} color="black" onPress={() => router.back()} />
+      <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center gap-3">
+        <VendorDrawerMenuButton />
         <H1 className="text-xl font-black uppercase">Schedule Management</H1>
-        <View style={{ width: 24 }} />
       </View>
 
       {fetching ? (
