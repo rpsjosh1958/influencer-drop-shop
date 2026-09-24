@@ -34,7 +34,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { HelpTrigger } from "@/context/onboarding-context";
 import { LoadingState } from "@/components/admin/loading-state";
 import { EmptyState } from "@/components/admin/empty-state";
-import { formatCurrency, groupByDate } from "@/lib/utils";
+import { formatClockTime, formatCurrency, groupByDate } from "@/lib/utils";
 import { Portal } from "@/components/ui/portal";
 import {
   format,
@@ -340,7 +340,8 @@ export default function BookingsPage() {
                       <div className="flex items-center gap-2 text-sm text-zinc-500">
                         <Clock size={14} />
                         <span>
-                          {booking.startTime} - {booking.endTime}
+                          {formatClockTime(booking.startTime)} -{" "}
+                          {formatClockTime(booking.endTime)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-sm text-zinc-500 mt-1">
@@ -403,7 +404,8 @@ export default function BookingsPage() {
                       >
                         <td className="px-6 py-4">
                           <div className="font-medium text-black">
-                            {booking.startTime} - {booking.endTime}
+                            {formatClockTime(booking.startTime)} -{" "}
+                            {formatClockTime(booking.endTime)}
                           </div>
                           <div className="text-sm text-zinc-500">
                             {booking.duration} min
@@ -508,7 +510,8 @@ export default function BookingsPage() {
                       <span>Time</span>
                     </div>
                     <div className="font-bold text-black">
-                      {selectedBooking.startTime} - {selectedBooking.endTime}
+                      {formatClockTime(selectedBooking.startTime)} -{" "}
+                      {formatClockTime(selectedBooking.endTime)}
                     </div>
                   </div>
                 </div>

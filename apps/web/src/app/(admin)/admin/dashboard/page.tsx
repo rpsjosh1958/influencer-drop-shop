@@ -47,6 +47,7 @@ import {
   getTimestampSeconds,
   groupByDate,
   formatTimeOfDay,
+  formatClockTime,
 } from "@/lib/utils";
 import type { OrderItem, FirestoreTimestampLike, Product } from "@/types";
 
@@ -400,7 +401,7 @@ export default function AdminDashboard() {
              : diffDays === 1
                ? "tomorrow"
                : next.slot.toLocaleDateString(undefined, { weekday: "short" });
-         detail = `Next slot is ${dayLabel} ${next.b.startTime || ""}`.trim();
+         detail = `Next slot is ${dayLabel} ${formatClockTime(next.b.startTime)}`.trim();
        }
 
        rows.push({

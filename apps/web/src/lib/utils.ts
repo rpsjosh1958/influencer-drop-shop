@@ -69,11 +69,21 @@ export function groupByDate<T>(
   return groups;
 }
 
-/** "2:05 PM"-style time for rows that already sit under a date header. */
+/**
+ * "2:05 PM"-style time for rows that already sit under a date header.
+ * Always 12-hour — the browser's locale (e.g. en-GB) would otherwise show 14:05.
+ */
 export function formatTimeOfDay(date: Date | null): string {
-  return date
-    ? date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
-    : "";
+  return date && !isNaN(date.getTime()) ? format(date, "h:mm a") : "";
+}
+
+/** A stored "HH:mm" booking/slot time ("14:30") as 12-hour ("2:30 PM"). */
+export function formatClockTime(time?: string): string {
+  if (!time) return "";
+  const [hours, minutes] = time.split(":").map(Number);
+  if (isNaN(hours) || isNaN(minutes)) return time;
+  const period = hours >= 12 ? "PM" : "AM";
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${period}`;
 }
 
 /**

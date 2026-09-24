@@ -14,7 +14,7 @@ import { db, functions } from "@/lib/firebase";
 import { httpsCallable } from "firebase/functions";
 import { Order } from "@/types";
 import { Portal } from "@/components/ui/portal";
-import { formatCurrency, toJsDate } from "@/lib/utils";
+import { formatCurrency, formatTimeOfDay, toJsDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
 
 // Mirrors functions/src/refunds.ts, which is what actually enforces it.
@@ -312,12 +312,11 @@ export function AdminOrderModal({
                         <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
                           Refunds available until{" "}
                           <span className="font-bold">
-                            {refundDeadline.toLocaleString("en-GB", {
+                            {refundDeadline.toLocaleDateString("en-GB", {
                               day: "numeric",
                               month: "short",
-                              hour: "2-digit",
-                              minute: "2-digit",
                             })}
+                            , {formatTimeOfDay(refundDeadline)}
                           </span>
                           .
                         </p>
