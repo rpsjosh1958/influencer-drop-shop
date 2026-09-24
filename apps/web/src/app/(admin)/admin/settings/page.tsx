@@ -2043,7 +2043,7 @@ export default function StoreSettingsPage() {
                             </button>
                           ) : (
                             <>
-                              <div className="flex gap-2">
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <input
                                   type="text"
                                   inputMode="numeric"
@@ -2057,16 +2057,16 @@ export default function StoreSettingsPage() {
                                       error: "",
                                     }))
                                   }
-                                  className="flex-1 min-w-0 p-3 bg-white border border-zinc-200 rounded-xl font-mono text-lg tracking-[0.3em] text-center outline-none focus:ring-2 focus:ring-black"
+                                  className="w-full sm:flex-1 min-w-0 p-3 bg-white border border-zinc-200 rounded-xl font-mono text-lg tracking-[0.3em] text-center outline-none focus:ring-2 focus:ring-black"
                                 />
                                 <button
                                   type="button"
                                   onClick={verifyOtp}
                                   disabled={otpState.verifying || otpState.code.length !== 6}
-                                  className="shrink-0 px-5 bg-black text-white rounded-xl font-bold disabled:opacity-50 hover:bg-zinc-800 transition-colors"
+                                  className="w-full sm:w-auto shrink-0 py-3 px-5 bg-black text-white rounded-xl font-bold disabled:opacity-50 hover:bg-zinc-800 transition-colors"
                                 >
                                   {otpState.verifying ? (
-                                    <Loader2 className="animate-spin" size={18} />
+                                    <Loader2 className="animate-spin mx-auto" size={18} />
                                   ) : (
                                     "Verify"
                                   )}
