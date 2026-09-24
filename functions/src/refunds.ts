@@ -9,7 +9,19 @@ interface OrderRefundData {
   refundedAmount?: number;
   paymentMethod?: string;
   status?: string;
+  deliveredAt?: admin.firestore.Timestamp;
+  updatedAt?: admin.firestore.Timestamp;
+  createdAt?: admin.firestore.Timestamp;
 }
+
+const REFUND_WINDOW_AFTER_DELIVERY_MS = 12 * 60 * 60 * 1000;
+
+// Orders delivered before deliveredAt existed fall back to their last write (or creation) time.
+const getDeliveredAtMs = (order: OrderRefundData): number | undefined => {
+  if (order.deliveredAt) return order.deliveredAt.toMillis();
+  if (order.status !== "delivered") return undefined;
+  return (order.updatedAt ?? order.createdAt)?.toMillis();
+};
 
 // Looks up which store an order belongs to from a Paystack reference —
 // reused by both the refund and dispute webhook handlers, neither of which
@@ -53,6 +65,17 @@ export const initiateOrderRefund = async (
   }
   if (typeof order.total !== "number") {
     throw new HttpsError("failed-precondition", "Order has no total amount.");
+  }
+
+  const deliveredAtMs = getDeliveredAtMs(order);
+  if (
+    deliveredAtMs !== undefined &&
+    Date.now() - deliveredAtMs > REFUND_WINDOW_AFTER_DELIVERY_MS
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Refunds are only available for 12 hours after an order is marked delivered."
+    );
   }
 
   const alreadyRefunded = order.refundedAmount || 0;

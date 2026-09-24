@@ -1,7 +1,12 @@
 import { OpenAIStream, StreamingTextResponse } from "ai";
 import OpenAI from "openai";
 import { adminDb, adminAuth } from "@/lib/firebase-admin";
+import { FieldValue } from "firebase-admin/firestore";
 import { getErrorMessage } from "@/lib/errors";
+
+// Same statuses the web/mobile order screens lock; enforced here in code
+// because the Admin SDK bypasses the Firestore rule that locks delivered.
+const LOCKED_ORDER_STATUSES = ["delivered", "refunded", "partially_refunded", "cancelled"];
 
 // The parsed arguments an LLM tool call can send — a superset across every
 // tool below, all optional since each branch only reads its own subset.
@@ -808,11 +813,26 @@ export async function POST(req: Request) {
               .collection("orders");
 
             let count = 0;
+            const update = {
+              status,
+              updatedAt: FieldValue.serverTimestamp(),
+              ...(status === "delivered"
+                ? { deliveredAt: FieldValue.serverTimestamp() }
+                : {}),
+            };
 
             if (orderId) {
               // Single Update
-              await ordersRef.doc(orderId).update({ status });
-              result = `Order ${orderId} updated to ${status}.`;
+              const snap = await ordersRef.doc(orderId).get();
+              const current = snap.data()?.status;
+              if (!snap.exists) {
+                result = `Order ${orderId} not found.`;
+              } else if (LOCKED_ORDER_STATUSES.includes(current)) {
+                result = `Order ${orderId} is already ${current} and can't be changed.`;
+              } else {
+                await ordersRef.doc(orderId).update(update);
+                result = `Order ${orderId} updated to ${status}.`;
+              }
             } else {
               // Bulk Update (Last N)
               const q = await ordersRef
@@ -820,12 +840,21 @@ export async function POST(req: Request) {
                 .limit(limitCount || 5)
                 .get();
               const batch = adminDb.batch();
+              let skipped = 0;
               q.docs.forEach((d: FirebaseFirestore.QueryDocumentSnapshot) => {
-                batch.update(d.ref, { status });
+                if (LOCKED_ORDER_STATUSES.includes(d.data().status)) {
+                  skipped++;
+                  return;
+                }
+                batch.update(d.ref, update);
                 count++;
               });
               if (count > 0) await batch.commit();
-              result = `Updated ${count} recent orders to ${status}.`;
+              result =
+                `Updated ${count} recent orders to ${status}.` +
+                (skipped > 0
+                  ? ` Skipped ${skipped} that were already delivered, refunded, or cancelled.`
+                  : "");
             }
           } else if (fnName === "getStoreInsights") {
             // 1. Wallet

@@ -208,6 +208,9 @@ export interface Order {
   // consistent across the codebase, so a strict union risks false errors.
   status: string;
   createdAt: FirestoreTimestamp; // Firestore Timestamp
+  updatedAt?: FirestoreTimestamp;
+  // Server-stamped when the order is marked delivered; starts the 12h refund window.
+  deliveredAt?: FirestoreTimestamp;
   address?: Address;
   paymentMethod?: string;
   hasReview?: boolean;

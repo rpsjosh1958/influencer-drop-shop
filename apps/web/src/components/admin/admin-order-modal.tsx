@@ -14,8 +14,11 @@ import { db, functions } from "@/lib/firebase";
 import { httpsCallable } from "firebase/functions";
 import { Order } from "@/types";
 import { Portal } from "@/components/ui/portal";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, toJsDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
+
+// Mirrors functions/src/refunds.ts, which is what actually enforces it.
+const REFUND_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 interface AdminOrderModalProps {
   isOpen: boolean;
@@ -82,9 +85,20 @@ export function AdminOrderModal({
   const hasPendingRefund =
     order.refundStatus === "pending" || order.refundStatus === "processing";
   const isTerminalStatus =
+    currentStatus === "delivered" ||
     currentStatus === "refunded" ||
     currentStatus === "partially_refunded" ||
     currentStatus === "cancelled";
+
+  const deliveredAt = toJsDate(
+    order.deliveredAt ??
+      (order.status === "delivered" ? order.updatedAt ?? order.createdAt : undefined)
+  );
+  const refundDeadline = deliveredAt
+    ? new Date(deliveredAt.getTime() + REFUND_WINDOW_MS)
+    : null;
+  const refundWindowClosed =
+    refundDeadline !== null && Date.now() > refundDeadline.getTime();
 
   // Bridges the gap between the callable succeeding and the (async, ~1s)
   // query refetch actually flowing the real refundStatus back into the
@@ -121,7 +135,15 @@ export function AdminOrderModal({
   };
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!order || !storeId || updating) return;
+    if (!order || !storeId || updating || newStatus === currentStatus) return;
+    if (
+      newStatus === "delivered" &&
+      !window.confirm(
+        "Mark this order as delivered? This can't be undone, and refunds will only be possible for 12 hours after."
+      )
+    ) {
+      return;
+    }
     setUpdating(true);
     setCurrentStatus(newStatus);
 
@@ -130,6 +152,7 @@ export function AdminOrderModal({
       await updateDoc(orderRef, {
         status: newStatus,
         updatedAt: serverTimestamp(),
+        ...(newStatus === "delivered" ? { deliveredAt: serverTimestamp() } : {}),
       });
 
       // Add timeline event
@@ -281,13 +304,33 @@ export function AdminOrderModal({
                       )}
                       {order.refundStatus === "failed" && (
                         <p className="text-sm font-bold text-red-600">
-                          The last refund attempt failed. You can try again below.
+                          The last refund attempt failed.
+                          {!refundWindowClosed && " You can try again below."}
+                        </p>
+                      )}
+                      {refundDeadline && !refundWindowClosed && refundable > 0.005 && (
+                        <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                          Refunds available until{" "}
+                          <span className="font-bold">
+                            {refundDeadline.toLocaleString("en-GB", {
+                              day: "numeric",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          .
                         </p>
                       )}
 
                       {refundable <= 0.005 ? (
                         <p className="text-sm text-zinc-500">
                           This order has been fully refunded.
+                        </p>
+                      ) : refundWindowClosed ? (
+                        <p className="text-sm text-zinc-500">
+                          The refund window has closed — refunds are only
+                          available for 12 hours after an order is delivered.
                         </p>
                       ) : !showRefundForm ? (
                         <button

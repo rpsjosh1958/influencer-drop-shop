@@ -100,6 +100,9 @@ export interface Order {
     email?: string;
   };
   createdAt: FirestoreTimestampLike;
+  updatedAt?: FirestoreTimestampLike;
+  // Server-stamped when the order is marked delivered; starts the 12h refund window.
+  deliveredAt?: FirestoreTimestampLike;
   userId?: string;
   customerNote?: string;
   hasReview?: boolean;

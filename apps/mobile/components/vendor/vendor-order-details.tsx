@@ -24,10 +24,13 @@ import {
 } from "lucide-react-native";
 import { H1, P } from "@/components/ui/text";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, updateDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
 import type { Order, FirestoreTimestamp } from "@/types";
+
+// Mirrors functions/src/refunds.ts, which is what actually enforces it.
+const REFUND_WINDOW_MS = 12 * 60 * 60 * 1000;
 
 interface VendorOrderDetailsProps {
   order: Order | null;
@@ -53,6 +56,7 @@ export function VendorOrderDetails({
   // even though refundedAmount/refundStatus (the real source of truth) is
   // untouched. Matches the same fix already shipped on the web admin.
   const isTerminalStatus =
+    order.status === "delivered" ||
     order.status === "refunded" ||
     order.status === "partially_refunded" ||
     order.status === "cancelled";
@@ -61,6 +65,15 @@ export function VendorOrderDetails({
   const refundable = Math.max(0, order.total - refundedSoFar);
   const hasPendingRefund =
     order.refundStatus === "pending" || order.refundStatus === "processing";
+
+  const deliveredAt =
+    order.deliveredAt ??
+    (order.status === "delivered" ? order.updatedAt ?? order.createdAt : undefined);
+  const refundDeadline = deliveredAt
+    ? new Date(deliveredAt.seconds * 1000 + REFUND_WINDOW_MS)
+    : null;
+  const refundWindowClosed =
+    refundDeadline !== null && Date.now() > refundDeadline.getTime();
 
   const formatDate = (timestamp: FirestoreTimestamp | undefined) => {
     if (!timestamp) return "";
@@ -119,6 +132,7 @@ export function VendorOrderDetails({
       await updateDoc(doc(db, "stores", order.storeId, "orders", order.id), {
         status: newStatus,
         updatedAt: Timestamp.now(),
+        ...(newStatus === "delivered" ? { deliveredAt: serverTimestamp() } : {}),
       });
 
       onUpdate();
@@ -131,6 +145,21 @@ export function VendorOrderDetails({
     }
   };
 
+  const selectStatus = (newStatus: string) => {
+    if (newStatus !== "delivered") {
+      handleUpdateStatus(newStatus);
+      return;
+    }
+    Alert.alert(
+      "Mark as delivered?",
+      "This can't be undone, and refunds will only be possible for 12 hours after.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Mark Delivered", onPress: () => handleUpdateStatus("delivered") },
+      ]
+    );
+  };
+
   const showStatusOptions = () => {
     if (Platform.OS === "ios") {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -141,7 +170,7 @@ export function VendorOrderDetails({
         },
         (index) => {
           if (index < statusOptions.length) {
-            handleUpdateStatus(statusOptions[index].value);
+            selectStatus(statusOptions[index].value);
           }
         }
       );
@@ -287,8 +316,9 @@ export function VendorOrderDetails({
                     )}
                     {order.refundStatus === "failed" && (
                       <P className="text-sm font-bold text-red-600">
-                        The last refund attempt failed. You can try again on
-                        the web dashboard.
+                        The last refund attempt failed.
+                        {!refundWindowClosed &&
+                          " You can try again on the web dashboard."}
                       </P>
                     )}
 
@@ -297,21 +327,27 @@ export function VendorOrderDetails({
                       <P className="flex-1 text-blue-800 text-xs font-medium">
                         {refundable <= 0.005
                           ? "This order has been fully refunded."
-                          : "Refunds aren't available in the mobile app yet — issue one from the Web Admin Dashboard (Orders)."}
+                          : refundWindowClosed
+                            ? "The refund window has closed — refunds are only available for 12 hours after an order is delivered."
+                            : refundDeadline
+                              ? `Refunds aren't available in the mobile app yet — issue one from the Web Admin Dashboard before ${refundDeadline.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}.`
+                              : "Refunds aren't available in the mobile app yet — issue one from the Web Admin Dashboard (Orders)."}
                       </P>
                     </View>
 
-                    <Pressable
-                      onPress={() =>
-                        Linking.openURL("https://copdrop.io/admin/orders")
-                      }
-                      className="w-full bg-black py-3 rounded-xl flex-row items-center justify-center gap-2 active:opacity-90 transition-opacity"
-                    >
-                      <P className="text-white font-bold uppercase text-xs">
-                        Manage Refunds on Web Dashboard
-                      </P>
-                      <ExternalLink size={14} color="white" />
-                    </Pressable>
+                    {!refundWindowClosed && (
+                      <Pressable
+                        onPress={() =>
+                          Linking.openURL("https://copdrop.io/admin/orders")
+                        }
+                        className="w-full bg-black py-3 rounded-xl flex-row items-center justify-center gap-2 active:opacity-90 transition-opacity"
+                      >
+                        <P className="text-white font-bold uppercase text-xs">
+                          Manage Refunds on Web Dashboard
+                        </P>
+                        <ExternalLink size={14} color="white" />
+                      </Pressable>
+                    )}
                   </View>
                 </View>
               )}
@@ -454,8 +490,8 @@ export function VendorOrderDetails({
                 <Pressable
                   key={opt.value}
                   onPress={() => {
-                    handleUpdateStatus(opt.value);
                     setShowStatusPicker(false);
+                    selectStatus(opt.value);
                   }}
                   className={`p-4 rounded-xl border border-zinc-100 ${
                     opt.destructive ? "bg-red-50 border-red-100" : "bg-zinc-50"

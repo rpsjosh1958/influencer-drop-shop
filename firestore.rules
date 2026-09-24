@@ -151,8 +151,24 @@ service cloud.firestore {
                      (isAuthenticated() && resource.data.userId == request.auth.uid) ||
                      isSuperAdmin();
         
-        // Only the store owner can update (e.g. status)
-        allow update: if isParentStoreOwner() || isSuperAdmin();
+        // Only the store owner can update (e.g. status). Delivered is final,
+        // and deliveredAt (which starts the 12h refund window enforced in
+        // functions/src/refunds.ts) can only be stamped with server time by
+        // the write that moves the order into delivered — so the window
+        // can't be reset or backdated. Refund status changes come from the
+        // Paystack webhook via the Admin SDK, which bypasses these rules.
+        allow update: if isSuperAdmin() || (
+          isParentStoreOwner()
+          && (resource.data.get('status', '') != 'delivered'
+              || request.resource.data.get('status', '') == 'delivered')
+          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deliveredAt'])
+              || (resource.data.get('status', '') != 'delivered'
+                  && request.resource.data.get('status', '') == 'delivered'
+                  && request.resource.data.deliveredAt == request.time))
+          && (resource.data.get('status', '') == 'delivered'
+              || request.resource.data.get('status', '') != 'delivered'
+              || request.resource.data.get('deliveredAt', null) == request.time)
+        );
       }
       
       // -- Order Timeline --
