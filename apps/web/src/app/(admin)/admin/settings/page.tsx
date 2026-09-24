@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase"; // Added auth
 import { useAdminStore } from "@/components/admin/admin-store-provider";
@@ -149,7 +150,18 @@ export default function StoreSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [success, setSuccess] = useState("");
-  const [activeTab, setActiveTab] = useState("general");
+  // Deep links like /admin/settings?tab=payouts come from the mobile app,
+  // the Finance page and the store switcher's upgrade prompt.
+  const tabParam = useSearchParams().get("tab");
+  const linkedTab = TABS.some((t) => t.id === tabParam) ? tabParam : null;
+  const [activeTab, setActiveTab] = useState(linkedTab ?? "general");
+  // Also follow a new ?tab= while already on this page (adjusting state
+  // during render rather than in an effect).
+  const [appliedLinkedTab, setAppliedLinkedTab] = useState(linkedTab);
+  if (linkedTab !== appliedLinkedTab) {
+    setAppliedLinkedTab(linkedTab);
+    if (linkedTab) setActiveTab(linkedTab);
+  }
 
   // Sync tab with tutorial progress
   useEffect(() => {
