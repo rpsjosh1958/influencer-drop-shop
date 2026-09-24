@@ -1,6 +1,7 @@
-import { View, ScrollView, Pressable, Image, Alert, RefreshControl, TextInput } from "react-native";
+import { View, ScrollView, Pressable, Image, RefreshControl, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
+import { useAlert } from "@/context/alert-context";
 import { H1, P } from "@/components/ui/text";
 import { useNavigation, DrawerActions } from "expo-router/react-navigation";
 import { useState, useEffect, useMemo } from "react";
@@ -14,6 +15,7 @@ import { formatCurrency } from "@/lib/format";
 import type { Product, ServiceItem } from "@/types";
 
 export default function VendorInventory() {
+  const { showAlert } = useAlert();
   const { store, products, loading, refreshStore } = useVendor();
   const [activeTab, setActiveTab] = useState<"products" | "services">(
     "products"
@@ -59,19 +61,23 @@ export default function VendorInventory() {
     if (activeTab === "products") {
       router.push("/(vendor)/product-form" as Href);
     } else {
-      Alert.alert(
-        "Services",
-        "Service creation is currently only available on the Web Dashboard."
-      );
+      showAlert({
+        title: "Services",
+        message: "Service creation is currently only available on the Web Dashboard.",
+        type: "info",
+        singleButton: true,
+      });
     }
   };
 
   const handleProductPress = (product: Product) => {
     if (store?.status === "live") {
-      Alert.alert(
-        "Store is Open",
-        "You must close your store before editing products."
-      );
+      showAlert({
+        title: "Store is Open",
+        message: "You must close your store before editing products.",
+        type: "warning",
+        singleButton: true,
+      });
       return;
     }
     router.push({

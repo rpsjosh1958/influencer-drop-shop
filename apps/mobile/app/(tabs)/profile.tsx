@@ -5,12 +5,8 @@ import {
   Pressable,
   Image,
   TextInput,
-  Alert,
   ActivityIndicator,
-  ActionSheetIOS,
-  Platform,
   TouchableOpacity,
-  type AlertButton,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
@@ -142,7 +138,7 @@ export default function ProfileScreen() {
     }
   }, [userData]);
 
-  const { showAlert } = useAlert();
+  const { showAlert, showActionSheet } = useAlert();
 
   const handleSignOut = () => {
     showAlert({
@@ -317,55 +313,26 @@ export default function ProfileScreen() {
   };
 
   const showAddressOptions = (addr: Address) => {
-    const options = ["Edit", "Remove", "Cancel"];
-    if (!addr.isDefault) {
-      options.unshift("Set as Default");
-    }
-
-    const destructiveButtonIndex = options.indexOf("Remove");
-    const cancelButtonIndex = options.indexOf("Cancel");
-
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
+    showActionSheet({
+      title: "Address Options",
+      message: addr.street,
+      options: [
+        ...(!addr.isDefault && addr.id
+          ? [
+              {
+                label: "Set as Default",
+                onPress: () => handleSetDefaultAddress(addr.id!),
+              },
+            ]
+          : []),
+        { label: "Edit", onPress: () => handleEditAddress(addr) },
         {
-          options,
-          destructiveButtonIndex,
-          cancelButtonIndex,
-        },
-        (buttonIndex) => {
-          const selectedOption = options[buttonIndex];
-          if (selectedOption === "Set as Default" && addr.id) {
-            handleSetDefaultAddress(addr.id);
-          } else if (selectedOption === "Edit") {
-            handleEditAddress(addr);
-          } else if (selectedOption === "Remove") {
-            handleRemoveAddress(addr);
-          }
-        },
-      );
-    } else {
-      // Android / Other Alert fallback
-      const alertButtons: (AlertButton | null)[] = [
-        !addr.isDefault && addr.id
-          ? {
-              text: "Set Default",
-              onPress: () => handleSetDefaultAddress(addr.id!),
-            }
-          : null,
-        { text: "Edit", onPress: () => handleEditAddress(addr) },
-        {
-          text: "Remove",
-          style: "destructive",
+          label: "Remove",
+          destructive: true,
           onPress: () => handleRemoveAddress(addr),
         },
-        { text: "Cancel", style: "cancel" },
-      ];
-      Alert.alert(
-        "Address Options",
-        `options for ${addr.street}`,
-        alertButtons.filter((b): b is AlertButton => b !== null),
-      );
-    }
+      ],
+    });
   };
 
   const changePassword = async () => {
@@ -443,20 +410,16 @@ export default function ProfileScreen() {
         router.replace("/(vendor)/(tabs)/dashboard" as Href);
       } else {
         // 3. NOT VENDOR -> Prompt to Create
-        Alert.alert(
-          "Become a Seller",
-          "You need a store to access the seller portal. Create one on our website!",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Create Store",
-              onPress: () =>
-                Linking.openURL(
-                  "https://copdrop.io/create-store",
-                ), 
-            },
-          ],
-        );
+        showAlert({
+          title: "Become a Seller",
+          message:
+            "You need a store to access the seller portal. Create one on our website!",
+          type: "info",
+          confirmLabel: "Create Store",
+          onConfirm: () => {
+            Linking.openURL("https://copdrop.io/create-store");
+          },
+        });
       }
     } catch (e) {
       console.error(e);

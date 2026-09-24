@@ -3,7 +3,6 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
@@ -17,6 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useVendor } from "@/context/vendor-context";
+import { useAlert } from "@/context/alert-context";
 import {
   collection,
   addDoc,
@@ -64,6 +64,7 @@ interface ProductVariant {
 }
 
 export default function ProductFormScreen() {
+  const { showAlert } = useAlert();
   const { store } = useVendor();
   const queryClient = useQueryClient();
   const { id } = useLocalSearchParams();
@@ -214,11 +215,21 @@ export default function ProductFormScreen() {
             setOptions(data.options || []);
             setVariants(data.variants || []);
           } else {
-            Alert.alert("Error", "Product not found");
+            showAlert({
+              title: "Error",
+              message: "Product not found",
+              type: "error",
+              singleButton: true,
+            });
             router.back();
           }
         } catch (e) {
-          Alert.alert("Error", "Failed to load product");
+          showAlert({
+            title: "Error",
+            message: "Failed to load product",
+            type: "error",
+            singleButton: true,
+          });
         } finally {
           setFetching(false);
         }
@@ -253,7 +264,12 @@ export default function ProductFormScreen() {
         uploadImage(result.assets[0].uri);
       }
     } catch (e) {
-      Alert.alert("Error", "Failed to pick image");
+      showAlert({
+        title: "Error",
+        message: "Failed to pick image",
+        type: "error",
+        singleButton: true,
+      });
     }
   };
 
@@ -269,7 +285,12 @@ export default function ProductFormScreen() {
       const downloadURL = await getDownloadURL(storageRef);
       setImages((prev) => [...prev, downloadURL]);
     } catch (e) {
-      Alert.alert("Error", "Failed to upload image");
+      showAlert({
+        title: "Error",
+        message: "Failed to upload image",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setUploading(false);
     }
@@ -283,22 +304,39 @@ export default function ProductFormScreen() {
   const handleSave = async () => {
     if (!store) return;
     if (!name.trim() || !price) {
-      Alert.alert("Missing Info", "Name and Price are required.");
+      showAlert({
+        title: "Missing Info",
+        message: "Name and Price are required.",
+        type: "warning",
+        singleButton: true,
+      });
       return;
     }
     if (images.length === 0) {
-      Alert.alert("Missing Info", "Please add at least one image.");
+      showAlert({
+        title: "Missing Info",
+        message: "Please add at least one image.",
+        type: "warning",
+        singleButton: true,
+      });
       return;
     }
     if (hasVariants && variants.length === 0) {
-      Alert.alert(
-        "Missing Info",
-        "Please configure variants or disable options."
-      );
+      showAlert({
+        title: "Missing Info",
+        message: "Please configure variants or disable options.",
+        type: "warning",
+        singleButton: true,
+      });
       return;
     }
     if (!hasVariants && !stock) {
-      Alert.alert("Missing Info", "Please enter stock quantity.");
+      showAlert({
+        title: "Missing Info",
+        message: "Please enter stock quantity.",
+        type: "warning",
+        singleButton: true,
+      });
       return;
     }
 
@@ -343,14 +381,24 @@ export default function ProductFormScreen() {
           doc(db, "stores", store.id, "products", id as string),
           productData
         );
-        Alert.alert("Success", "Product updated successfully");
+        showAlert({
+          title: "Success",
+          message: "Product updated successfully",
+          type: "success",
+          singleButton: true,
+        });
       } else {
         await addDoc(collection(db, "stores", store.id, "products"), {
           ...productData,
           storeId: store.id,
           createdAt: serverTimestamp(),
         });
-        Alert.alert("Success", "Product created successfully");
+        showAlert({
+          title: "Success",
+          message: "Product created successfully",
+          type: "success",
+          singleButton: true,
+        });
       }
 
       // Invalidate query to force refresh on inventory screen
@@ -359,7 +407,12 @@ export default function ProductFormScreen() {
       router.back();
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "Failed to save product");
+      showAlert({
+        title: "Error",
+        message: "Failed to save product",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setLoading(false);
     }

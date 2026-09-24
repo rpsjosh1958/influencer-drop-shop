@@ -67,7 +67,7 @@ import {
 } from "date-fns";
 import { useRouter } from "expo-router";
 import { TextInput } from "react-native";
-import { useAlert } from "@/context/alert-context";
+import { AlertHost, useAlert } from "@/context/alert-context";
 import { formatCurrency } from "@/lib/format";
 
 const { width } = Dimensions.get("window");
@@ -808,6 +808,7 @@ export function BookingModal({
           />
         </View>
       </Animated.View>
+      <AlertHost />
     </Modal>
   );
 }

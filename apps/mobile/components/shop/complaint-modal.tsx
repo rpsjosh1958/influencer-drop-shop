@@ -10,7 +10,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { X, Send, AlertCircle, User } from "lucide-react-native";
@@ -18,6 +17,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { User as FirebaseUser } from "firebase/auth";
+import { AlertHost, useAlert } from "@/context/alert-context";
 
 interface ComplaintModalProps {
   visible: boolean;
@@ -34,6 +34,7 @@ export function ComplaintModal({
   user,
   forcedTarget,
 }: ComplaintModalProps) {
+  const { showAlert } = useAlert();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [target, setTarget] = useState<"store" | "platform">(
@@ -56,7 +57,12 @@ export function ComplaintModal({
       !formData.subject ||
       !formData.message
     ) {
-      Alert.alert("Missing Fields", "Please fill in all fields.");
+      showAlert({
+        title: "Missing Fields",
+        message: "Please fill in all fields.",
+        type: "warning",
+        singleButton: true,
+      });
       return;
     }
 
@@ -78,24 +84,30 @@ export function ComplaintModal({
         userId: user?.uid || null,
       });
 
-      Alert.alert("Success", "Complaint sent successfully.", [
-        {
-          text: "OK",
-          onPress: () => {
-            setFormData({
-              name: user?.displayName || "",
-              email: user?.email || "",
-              phone: user?.phoneNumber || "",
-              subject: "",
-              message: "",
-            });
-            onClose();
-          },
+      showAlert({
+        title: "Success",
+        message: "Complaint sent successfully.",
+        type: "success",
+        singleButton: true,
+        onConfirm: () => {
+          setFormData({
+            name: user?.displayName || "",
+            email: user?.email || "",
+            phone: user?.phoneNumber || "",
+            subject: "",
+            message: "",
+          });
+          onClose();
         },
-      ]);
+      });
     } catch (error) {
       console.error("Error submitting complaint:", error);
-      Alert.alert("Error", "Failed to submit complaint. Please try again.");
+      showAlert({
+        title: "Error",
+        message: "Failed to submit complaint. Please try again.",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setLoading(false);
     }
@@ -296,6 +308,7 @@ export function ComplaintModal({
           </View>
         </KeyboardAvoidingView>
       </View>
+      <AlertHost />
     </Modal>
   );
 }

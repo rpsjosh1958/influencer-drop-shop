@@ -7,10 +7,10 @@ import {
   Dimensions,
   Text,
   RefreshControl,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useVendor } from "@/context/vendor-context";
+import { useAlert } from "@/context/alert-context";
 import { H1, P, H2 } from "@/components/ui/text";
 import {
   CreditCard,
@@ -45,6 +45,7 @@ import type { Order, Booking } from "@/types";
 const { width } = Dimensions.get("window");
 
 export default function VendorDashboard() {
+  const { showAlert } = useAlert();
   const {
     store,
     metrics,
@@ -82,14 +83,15 @@ export default function VendorDashboard() {
     // offline) — going live is the expected/positive action and doesn't
     // need a safety check.
     if (store?.status === "live") {
-      Alert.alert(
-        "Close your storefront?",
-        "Customers won't be able to browse or check out until you switch it back to Live.",
-        [
-          { text: "Cancel", style: "cancel" },
-          { text: "Close Store", style: "destructive", onPress: doToggleStatus },
-        ],
-      );
+      showAlert({
+        title: "Close your storefront?",
+        message:
+          "Customers won't be able to browse or check out until you switch it back to Live.",
+        type: "warning",
+        confirmLabel: "Close Store",
+        destructive: true,
+        onConfirm: doToggleStatus,
+      });
       return;
     }
     doToggleStatus();

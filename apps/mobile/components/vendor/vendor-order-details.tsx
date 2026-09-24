@@ -5,9 +5,6 @@ import {
   Modal,
   Pressable,
   Image,
-  Alert,
-  ActionSheetIOS,
-  Platform,
   Linking,
 } from "react-native";
 import {
@@ -28,6 +25,7 @@ import { doc, updateDoc, Timestamp, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
 import type { Order, FirestoreTimestamp } from "@/types";
+import { AlertHost, useAlert } from "@/context/alert-context";
 
 // Mirrors functions/src/refunds.ts, which is what actually enforces it.
 const REFUND_WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -46,7 +44,7 @@ export function VendorOrderDetails({
   onUpdate,
 }: VendorOrderDetailsProps) {
   const [updating, setUpdating] = useState(false);
-  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const { showAlert, showActionSheet } = useAlert();
 
   if (!order) return null;
 
@@ -136,9 +134,19 @@ export function VendorOrderDetails({
       });
 
       onUpdate();
-      Alert.alert("Success", `Order updated to ${newStatus}`);
+      showAlert({
+        title: "Success",
+        message: `Order updated to ${newStatus}`,
+        type: "success",
+        singleButton: true,
+      });
     } catch (e) {
-      Alert.alert("Error", "Failed to update status");
+      showAlert({
+        title: "Error",
+        message: "Failed to update status",
+        type: "error",
+        singleButton: true,
+      });
       console.error(e);
     } finally {
       setUpdating(false);
@@ -150,35 +158,25 @@ export function VendorOrderDetails({
       handleUpdateStatus(newStatus);
       return;
     }
-    Alert.alert(
-      "Mark as delivered?",
-      "This can't be undone, and refunds will only be possible for 12 hours after.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Mark Delivered", onPress: () => handleUpdateStatus("delivered") },
-      ]
-    );
+    showAlert({
+      title: "Mark as delivered?",
+      message:
+        "This can't be undone, and refunds will only be possible for 12 hours after.",
+      type: "warning",
+      confirmLabel: "Mark Delivered",
+      onConfirm: () => handleUpdateStatus("delivered"),
+    });
   };
 
   const showStatusOptions = () => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [...statusOptions.map((o) => o.label), "Cancel"],
-          destructiveButtonIndex: statusOptions.findIndex((o) => o.destructive),
-          cancelButtonIndex: statusOptions.length,
-        },
-        (index) => {
-          if (index < statusOptions.length) {
-            selectStatus(statusOptions[index].value);
-          }
-        }
-      );
-    } else {
-      // Android Custom Picker Logic (Alert has 3 button limit)
-      // We will trigger a state to show a custom view instead
-      setShowStatusPicker(true);
-    }
+    showActionSheet({
+      title: "Update Status",
+      options: statusOptions.map((o) => ({
+        label: o.label,
+        destructive: o.destructive,
+        onPress: () => selectStatus(o.value),
+      })),
+    });
   };
 
   return (
@@ -467,55 +465,7 @@ export function VendorOrderDetails({
         </View>
       </View>
 
-      {/* Custom Status Picker for Android */}
-      <Modal
-        visible={showStatusPicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowStatusPicker(false)}
-      >
-        <Pressable
-          className="flex-1 bg-black/60 items-center justify-center p-6"
-          onPress={() => setShowStatusPicker(false)}
-        >
-          <Pressable
-            className="bg-white w-full max-w-sm rounded-3xl overflow-hidden p-6 shadow-xl"
-            onPress={(e) => e.stopPropagation()}
-          >
-            <H1 className="text-center text-xl font-black uppercase mb-6">
-              Update Status
-            </H1>
-            <View className="space-y-2">
-              {statusOptions.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => {
-                    setShowStatusPicker(false);
-                    selectStatus(opt.value);
-                  }}
-                  className={`p-4 rounded-xl border border-zinc-100 ${
-                    opt.destructive ? "bg-red-50 border-red-100" : "bg-zinc-50"
-                  }`}
-                >
-                  <P
-                    className={`text-center font-bold ${
-                      opt.destructive ? "text-red-600" : "text-zinc-900"
-                    }`}
-                  >
-                    {opt.label}
-                  </P>
-                </Pressable>
-              ))}
-            </View>
-            <Pressable
-              onPress={() => setShowStatusPicker(false)}
-              className="mt-4 bg-black p-4 rounded-xl"
-            >
-              <P className="text-center font-bold text-white">Cancel</P>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <AlertHost />
     </Modal>
   );
 }

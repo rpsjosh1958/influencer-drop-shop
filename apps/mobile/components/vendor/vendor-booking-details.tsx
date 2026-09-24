@@ -4,9 +4,6 @@ import {
   ScrollView,
   Modal,
   Pressable,
-  Alert,
-  ActionSheetIOS,
-  Platform,
 } from "react-native";
 import {
   X,
@@ -26,6 +23,7 @@ import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { formatCurrency } from "@/lib/format";
 import type { Booking } from "@/types";
+import { AlertHost, useAlert } from "@/context/alert-context";
 
 interface VendorBookingDetailsProps {
   booking: Booking | null;
@@ -41,6 +39,7 @@ export function VendorBookingDetails({
   onUpdate,
 }: VendorBookingDetailsProps) {
   const [loading, setLoading] = useState(false);
+  const { showAlert, showActionSheet } = useAlert();
 
   if (!booking) return null;
 
@@ -95,45 +94,34 @@ export function VendorBookingDetails({
       );
 
       onUpdate();
-      Alert.alert("Success", `Booking updated to ${newStatus}`);
+      showAlert({
+        title: "Success",
+        message: `Booking updated to ${newStatus}`,
+        type: "success",
+        singleButton: true,
+      });
     } catch (e) {
-      Alert.alert("Error", "Failed to update booking");
+      showAlert({
+        title: "Error",
+        message: "Failed to update booking",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const showActionSheet = () => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [...statusOptions.map((o) => o.label), "Cancel"],
-          destructiveButtonIndex: statusOptions.findIndex((o) => o.destructive),
-          cancelButtonIndex: statusOptions.length,
-        },
-        (idx) => {
-          if (idx < statusOptions.length)
-            handleStatusChange(statusOptions[idx].value);
-        }
-      );
-    } else {
-      Alert.alert(
-        "Update Status",
-        "Select new status",
-        statusOptions
-          .map((o) => ({
-            text: o.label,
-            style: (o.destructive ? "destructive" : "default") as
-              | "destructive"
-              | "default"
-              | "cancel",
-            onPress: () => {
-              handleStatusChange(o.value);
-            },
-          }))
-          .concat([{ text: "Cancel", style: "cancel", onPress: () => {} }])
-      );
-    }
+  const showStatusOptions = () => {
+    showActionSheet({
+      title: "Update Status",
+      message: "Select new status",
+      options: statusOptions.map((o) => ({
+        label: o.label,
+        destructive: o.destructive,
+        onPress: () => handleStatusChange(o.value),
+      })),
+    });
   };
 
   return (
@@ -180,7 +168,7 @@ export function VendorBookingDetails({
                       Status
                     </P>
                     <Pressable
-                      onPress={showActionSheet}
+                      onPress={showStatusOptions}
                       className={`px-4 py-2 rounded-full border flex-row items-center gap-2 ${getStatusColor(
                         booking.status
                       )}`}
@@ -280,6 +268,7 @@ export function VendorBookingDetails({
           </SafeAreaView>
         </View>
       </View>
+      <AlertHost />
     </Modal>
   );
 }

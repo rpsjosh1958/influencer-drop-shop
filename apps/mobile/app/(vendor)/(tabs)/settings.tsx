@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import { View, ScrollView, Pressable, Alert } from "react-native";
+import { View, ScrollView, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { router, type Href } from "expo-router";
@@ -19,42 +19,44 @@ import { auth } from "@/lib/firebase";
 import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
+import { useAlert } from "@/context/alert-context";
 
 export default function VendorSettings() {
+  const { showAlert } = useAlert();
   const handleExit = () => {
     router.replace("/(tabs)/profile" as Href);
   };
 
   const handleLogout = async () => {
-    Alert.alert("Sign Out", "Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          await signOut(auth);
-          // "appMode" and the active-store id are otherwise never cleared,
-          // so index.tsx's post-login routing would send the NEXT account
-          // that signs in on this device straight into the vendor
-          // dashboard (even a plain customer with no store — they'd land
-          // in vendor mode with nothing to show) just because a vendor
-          // had been signed in before.
-          await AsyncStorage.multiRemove([
-            "appMode",
-            "@vendor_active_store_id",
-          ]).catch(() => {});
-          // router.replace to a root-level sibling from deep inside the
-          // vendor Drawer/Tabs nesting can leave stale screens behind in
-          // the stack (surfaced as a "GO_BACK not handled" warning when
-          // back is pressed on the login screen right after signing out)
-          // — dismiss the nested stack first so login is a clean root.
-          if (router.canDismiss()) {
-            router.dismissAll();
-          }
-          router.replace("/(auth)/login");
-        },
+    showAlert({
+      title: "Sign Out",
+      message: "Are you sure?",
+      type: "warning",
+      confirmLabel: "Sign Out",
+      destructive: true,
+      onConfirm: async () => {
+        await signOut(auth);
+        // "appMode" and the active-store id are otherwise never cleared,
+        // so index.tsx's post-login routing would send the NEXT account
+        // that signs in on this device straight into the vendor
+        // dashboard (even a plain customer with no store — they'd land
+        // in vendor mode with nothing to show) just because a vendor
+        // had been signed in before.
+        await AsyncStorage.multiRemove([
+          "appMode",
+          "@vendor_active_store_id",
+        ]).catch(() => {});
+        // router.replace to a root-level sibling from deep inside the
+        // vendor Drawer/Tabs nesting can leave stale screens behind in
+        // the stack (surfaced as a "GO_BACK not handled" warning when
+        // back is pressed on the login screen right after signing out)
+        // — dismiss the nested stack first so login is a clean root.
+        if (router.canDismiss()) {
+          router.dismissAll();
+        }
+        router.replace("/(auth)/login");
       },
-    ]);
+    });
   };
 
   return (

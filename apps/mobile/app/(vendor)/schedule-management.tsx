@@ -3,13 +3,13 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { useState, useEffect, useMemo } from "react";
 import { useVendor } from "@/context/vendor-context";
+import { useAlert } from "@/context/alert-context";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
@@ -30,6 +30,7 @@ import {
 } from "date-fns";
 
 export default function ScheduleManagementScreen() {
+  const { showAlert } = useAlert();
   const { store } = useVendor();
   const [cancellationHours, setCancellationHours] = useState("24");
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
@@ -70,7 +71,12 @@ export default function ScheduleManagementScreen() {
     if (!store) return;
     const hours = parseInt(cancellationHours);
     if (isNaN(hours) || hours < 0) {
-      Alert.alert("Error", "Please enter a valid number of hours");
+      showAlert({
+        title: "Error",
+        message: "Please enter a valid number of hours",
+        type: "error",
+        singleButton: true,
+      });
       return;
     }
     setLoading(true);
@@ -89,9 +95,19 @@ export default function ScheduleManagementScreen() {
         { merge: true },
       );
 
-      Alert.alert("Success", "Schedule settings updated");
+      showAlert({
+        title: "Success",
+        message: "Schedule settings updated",
+        type: "success",
+        singleButton: true,
+      });
     } catch (e) {
-      Alert.alert("Error", "Failed to update settings");
+      showAlert({
+        title: "Error",
+        message: "Failed to update settings",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setLoading(false);
     }

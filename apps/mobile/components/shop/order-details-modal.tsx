@@ -14,6 +14,7 @@ import { useStore } from "@/context/store-context";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ReviewForm } from "./review-form";
+import { AlertHost } from "@/context/alert-context";
 import { Order, type FirestoreTimestamp } from "../../types";
 import { formatCurrency } from "@/lib/format";
 
@@ -246,6 +247,7 @@ export function OrderDetailsModal({
           </SafeAreaView>
         </View>
       </View>
+      <AlertHost />
     </Modal>
   );
 }

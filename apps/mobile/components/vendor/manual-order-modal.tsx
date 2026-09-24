@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
@@ -24,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { useQueryClient } from "@tanstack/react-query";
 import { getErrorMessage } from "@/lib/errors";
+import { AlertHost, useAlert } from "@/context/alert-context";
 
 interface ProductVariant {
   id: string;
@@ -64,6 +64,7 @@ export function ManualOrderModal({
   storeId,
   storeName,
 }: ManualOrderModalProps) {
+  const { showAlert } = useAlert();
   const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -127,8 +128,22 @@ export function ManualOrderModal({
   };
 
   const handleSubmit = async () => {
-    if (cart.length === 0) return Alert.alert("Error", "Please add at least one item.");
-    if (!customerName.trim()) return Alert.alert("Error", "Please enter a customer name.");
+    if (cart.length === 0) {
+      return showAlert({
+        title: "Error",
+        message: "Please add at least one item.",
+        type: "error",
+        singleButton: true,
+      });
+    }
+    if (!customerName.trim()) {
+      return showAlert({
+        title: "Error",
+        message: "Please enter a customer name.",
+        type: "error",
+        singleButton: true,
+      });
+    }
     if (!storeId) return;
 
     setIsSubmitting(true);
@@ -223,7 +238,12 @@ export function ManualOrderModal({
       onClose();
     } catch (error) {
       console.error("Manual order error:", error);
-      Alert.alert("Order Failed", getErrorMessage(error) || "Something went wrong.");
+      showAlert({
+        title: "Order Failed",
+        message: getErrorMessage(error) || "Something went wrong.",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -374,6 +394,7 @@ export function ManualOrderModal({
           )}
         </KeyboardAvoidingView>
       </SafeAreaView>
+      <AlertHost />
     </Modal>
   );
 }

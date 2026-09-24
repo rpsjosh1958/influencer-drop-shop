@@ -3,18 +3,18 @@ import {
   ScrollView,
   TextInput,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
   Image,
-  Pressable as NativePressable
+  Pressable as NativePressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H1, P } from "@/components/ui/text";
 import { useState, useEffect } from "react";
 import { useVendor } from "@/context/vendor-context";
+import { useAlert } from "@/context/alert-context";
 import { doc, updateDoc } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { router } from "expo-router";
@@ -26,6 +26,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 const Pressable = NativePressable;
 
 export default function EditStoreScreen() {
+  const { showAlert } = useAlert();
   const { store } = useVendor();
   const [name, setName] = useState(store?.name || "");
   const [loading, setLoading] = useState(false);
@@ -53,7 +54,12 @@ export default function EditStoreScreen() {
         uploadImage(result.assets[0].uri);
       }
     } catch (e) {
-      Alert.alert("Error", "Failed to pick image");
+      showAlert({
+        title: "Error",
+        message: "Failed to pick image",
+        type: "error",
+        singleButton: true,
+      });
     }
   };
 
@@ -73,7 +79,12 @@ export default function EditStoreScreen() {
       setLogo(downloadURL);
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "Failed to upload image");
+      showAlert({
+        title: "Error",
+        message: "Failed to upload image",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setUploading(false);
     }
@@ -82,7 +93,12 @@ export default function EditStoreScreen() {
   const handleSave = async () => {
     if (!store) return;
     if (!name.trim()) {
-      Alert.alert("Error", "Store name is required");
+      showAlert({
+        title: "Error",
+        message: "Store name is required",
+        type: "error",
+        singleButton: true,
+      });
       return;
     }
     setLoading(true);
@@ -91,10 +107,20 @@ export default function EditStoreScreen() {
         name: name.trim(),
         logo: logo,
       });
-      Alert.alert("Success", "Store profile updated");
+      showAlert({
+        title: "Success",
+        message: "Store profile updated",
+        type: "success",
+        singleButton: true,
+      });
       router.back();
     } catch (e) {
-      Alert.alert("Error", "Failed to update profile");
+      showAlert({
+        title: "Error",
+        message: "Failed to update profile",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setLoading(false);
     }

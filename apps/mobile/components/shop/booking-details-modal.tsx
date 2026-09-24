@@ -36,7 +36,7 @@ import {
   AvailabilitySettings,
 } from "../../../web/src/types";
 import { differenceInHours, parseISO } from "date-fns";
-import { useAlert } from "@/context/alert-context";
+import { AlertHost, useAlert } from "@/context/alert-context";
 import { formatCurrency } from "@/lib/format";
 
 interface BookingDetailsModalProps {
@@ -430,6 +430,7 @@ export function BookingDetailsModal({
           </SafeAreaView>
         </View>
       </View>
+      <AlertHost />
     </Modal>
   );
 }

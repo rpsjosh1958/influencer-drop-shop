@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   StyleSheet,
-  Alert,
 } from "react-native";
 import { Star, Send } from "lucide-react-native";
 import {
@@ -18,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../lib/firebase"; // FIXED PATH: ../../lib/firebase
 import { Order } from "../../types"; // FIXED PATH: ../../types
+import { useAlert } from "@/context/alert-context";
 
 interface ReviewFormProps {
   order: Order;
@@ -30,6 +30,7 @@ export function ReviewForm({
   storeId,
   onReviewSubmitted,
 }: ReviewFormProps) {
+  const { showAlert } = useAlert();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -37,7 +38,12 @@ export function ReviewForm({
 
   const handleSubmit = async () => {
     if (rating === 0) {
-      Alert.alert("Error", "Please select a star rating.");
+      showAlert({
+        title: "Error",
+        message: "Please select a star rating.",
+        type: "error",
+        singleButton: true,
+      });
       return;
     }
     setSubmitting(true);
@@ -61,11 +67,21 @@ export function ReviewForm({
         hasReview: true,
       });
 
-      Alert.alert("Success", "Thank you for your feedback!");
+      showAlert({
+        title: "Success",
+        message: "Thank you for your feedback!",
+        type: "success",
+        singleButton: true,
+      });
       onReviewSubmitted();
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to submit review. Please try again.");
+      showAlert({
+        title: "Error",
+        message: "Failed to submit review. Please try again.",
+        type: "error",
+        singleButton: true,
+      });
     } finally {
       setSubmitting(false);
     }
