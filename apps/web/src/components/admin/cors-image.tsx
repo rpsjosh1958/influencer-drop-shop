@@ -24,7 +24,9 @@ export const CorsImage = ({
 
     const load = async () => {
       try {
-        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(src)}`;
+        // v=2: browsers cached the CDN's wrong image under the v1 URLs for a
+        // year (immutable) — see the Cache-Control note in the proxy route.
+        const proxyUrl = `/api/image-proxy?url=${encodeURIComponent(src)}&v=2`;
         const res = await fetch(proxyUrl);
         if (!res.ok) throw new Error("Proxy fetch failed");
 

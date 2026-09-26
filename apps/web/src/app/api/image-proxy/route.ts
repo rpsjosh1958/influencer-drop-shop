@@ -56,7 +56,13 @@ export async function GET(req: NextRequest) {
     return new NextResponse(buffer, {
       headers: {
         "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
+        // Browser cache only. Netlify's CDN keys this route on the path and
+        // ignores ?url= (the Next runtime's Netlify-Vary only lists its own
+        // query params), so a CDN-cacheable response got served for every
+        // url — share cards showed one cached photo for the logo and every
+        // product. Browsers key on the full URL, so they cache correctly.
+        "Cache-Control": "private, max-age=31536000, immutable",
+        "Netlify-CDN-Cache-Control": "no-store",
       },
     });
   } catch (error) {
