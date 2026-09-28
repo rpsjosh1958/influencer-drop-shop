@@ -10,7 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
 import "../global.css";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { AnimatedSplash } from "@/components/animated-splash";
@@ -42,11 +42,11 @@ export default function RootLayout() {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    if (authInitialized) {
-      setSplashFinished(true);
-    }
-  }, [authInitialized]);
+  // The splash used to be dismissed here as soon as auth resolved, which
+  // cut its animation off at a different point every launch (however long
+  // auth took). AnimatedSplash now decides: it plays in full and only
+  // leaves once auth is also ready (`ready` below).
+  const finishSplash = useCallback(() => setSplashFinished(true), []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -85,26 +85,6 @@ export default function RootLayout() {
                           />
                         </Stack>
 
-                        {/* Splash Overlay */}
-                        {(!splashFinished || !authInitialized) && (
-                          <View
-                            style={{
-                              ...StyleSheet.absoluteFillObject,
-                              zIndex: 99999,
-                              backgroundColor: "#ffffff",
-                            }}
-                          >
-                            <AnimatedSplash
-                              onFinish={() => {
-                                // Only finish if auth is also ready?
-                                // Actually AnimatedSplash handles the wait usually.
-                                // Let's just set the flag.
-                                // If auth isn't ready, the view stays because of !authInitialized check above.
-                                setSplashFinished(true);
-                              }}
-                            />
-                          </View>
-                        )}
                       </View>
                       <StatusBar style="auto" />
                     </ThemeProvider>
@@ -115,6 +95,22 @@ export default function RootLayout() {
           </StoreProvider>
         </PaystackProvider>
       </QueryClientProvider>
+
+      {/* Splash Overlay — last child of the root, so it's drawn over
+          everything, including the in-app notification banner (zIndex 100
+          at the provider level, which used to show on top of it). */}
+      {!splashFinished && (
+        <View
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            zIndex: 99999,
+            elevation: 99999,
+            backgroundColor: "#ffffff",
+          }}
+        >
+          <AnimatedSplash ready={authInitialized} onFinish={finishSplash} />
+        </View>
+      )}
     </GestureHandlerRootView>
   );
 }
