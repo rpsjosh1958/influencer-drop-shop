@@ -284,16 +284,22 @@ service cloud.firestore {
     // --- Notifications (Root) ---
     match /notifications/{notificationId} {
         allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.userId == 'all');
-        // Platform-wide broadcasts ('all') and store broadcasts (one doc
-        // per past customer) are only ever written server-side via the
-        // Admin SDK, which bypasses these rules entirely — so blocking
-        // 'all' here closes off a client from writing a platform-wide
-        // broadcast directly, without breaking legitimate single-target
-        // client writes like a customer notifying a store owner of a
-        // cancelled booking.
-        allow create: if isAuthenticated() && request.resource.data.userId != 'all';
-        // User can mark their own notifications as read
-        allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+        // Every notification is written server-side (Admin SDK, which
+        // bypasses these rules). onNotificationCreated pushes each new doc
+        // to the recipient's phone, so a client create would let any
+        // signed-in user push arbitrary text to anyone — vendors' uids are
+        // public via stores/{id}.ownerId. (The one client writer, a
+        // customer's booking cancellation, now goes through
+        // onBookingStatusUpdated.)
+        allow create: if false;
+        // Recipients can only flip the read flag.
+        allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+          && request.resource.data.read is bool;
+        // Recipients can delete their own. Platform-wide ('all') broadcasts
+        // are shared, so they're hidden per user via
+        // users/{uid}.dismissedBroadcastIds instead.
+        allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // Default Deny (Block everything else)

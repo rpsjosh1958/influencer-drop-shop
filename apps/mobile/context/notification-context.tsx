@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   ReactNode,
   useRef,
@@ -20,8 +21,11 @@ import {
   onSnapshot,
   doc,
   updateDoc,
+  deleteDoc,
   setDoc,
   limit,
+  arrayUnion,
+  writeBatch,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -79,6 +83,9 @@ interface NotificationContextType {
   loading: boolean;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  // Deletes every notification currently listed (for the current mode).
+  clearAll: () => Promise<void>;
   latestNotification: Notification | null; // For Banner
   refetch: () => Promise<void>;
   mode: "customer" | "vendor";
@@ -89,13 +96,29 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
   undefined
 );
 
+// Platform-wide broadcasts (userId "all") are one shared doc, so users can't
+// mark or delete them. Their read/dismissed state lives on the user's own
+// doc instead (users/{uid}.readBroadcastIds / dismissedBroadcastIds), which
+// syncs across devices and the web. Everything else, store broadcasts
+// included (one doc per customer), is the user's own doc.
+const isPlatformBroadcast = (n: Pick<Notification, "userId">) =>
+  n.userId === "all";
+
+// Pre-sync, broadcast reads were kept per device under this key. Uploaded
+// once on sign-in, then removed.
+const LEGACY_READ_BROADCASTS_KEY = "read_broadcasts";
+
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { setStoreId } = useStore();
   const [user, setUser] = useState<User | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  // As fetched (already filtered to the current mode); read/dismissed
+  // broadcast state is applied on top below.
+  const [rawNotifications, setRawNotifications] = useState<Notification[]>([]);
+  const [broadcastState, setBroadcastState] = useState<{
+    read: string[];
+    dismissed: string[];
+  }>({ read: [], dismissed: [] });
   const [loading, setLoading] = useState(true);
-  const [latestNotification, setLatestNotification] =
-    useState<Notification | null>(null);
 
   const notificationListener = useRef<Notifications.EventSubscription | null>(
     null
@@ -219,7 +242,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (!u) {
-        setNotifications([]);
+        setRawNotifications([]);
+        setBroadcastState({ read: [], dismissed: [] });
         setLoading(false);
       }
     });
@@ -256,68 +280,92 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     // OR we rely on separate queries.
     // For now, let's fetch all for the user and filter in the callback to keep it real-time.
 
-    const unsub = onSnapshot(q, async (snapshot) => {
+    const unsub = onSnapshot(q, (snapshot) => {
       const items: Notification[] = [];
-
-      const readBroadcasts = JSON.parse(
-        (await AsyncStorage.getItem("read_broadcasts")) || "[]"
-      );
 
       snapshot.forEach((doc) => {
         const data = doc.data();
-        let isRead = data.read;
-
-        if (
-          (data.type === "broadcast" || data.userId === "all") &&
-          readBroadcasts.includes(doc.id)
-        ) {
-          isRead = true;
-        }
 
         // Mode Filtering Logic
         const isVendorType = vendorTypes.includes(data.type);
 
         if (mode === "vendor" && isVendorType) {
-          items.push({ id: doc.id, ...data, read: isRead } as Notification);
+          items.push({ id: doc.id, ...data } as Notification);
         } else if (mode === "customer" && !isVendorType) {
-          items.push({ id: doc.id, ...data, read: isRead } as Notification);
+          items.push({ id: doc.id, ...data } as Notification);
         }
       });
 
-      setNotifications(items);
-
-      if (items.length > 0 && !items[0].read) {
-        setLatestNotification(items[0]);
-      }
-
+      setRawNotifications(items);
       setLoading(false);
     });
 
     return () => unsub();
   }, [user, mode]);
 
-  const markAsRead = async (id: string) => {
-    try {
-      const notif = notifications.find((n) => n.id === id);
-      const isBroadcast =
-        notif && (notif.type === "broadcast" || notif.userId === "all");
+  // Per-user broadcast read/dismissed state.
+  useEffect(() => {
+    if (!user) return;
+    return onSnapshot(
+      doc(db, "users", user.uid),
+      (snap) => {
+        const data = snap.data();
+        setBroadcastState({
+          read: data?.readBroadcastIds ?? [],
+          dismissed: data?.dismissedBroadcastIds ?? [],
+        });
+      },
+      (e) => console.log("Failed to load broadcast state", e)
+    );
+  }, [user]);
 
-      if (isBroadcast) {
-        // Store locally
-        const readIds = JSON.parse(
-          (await AsyncStorage.getItem("read_broadcasts")) || "[]"
+  // One-time upload of the old per-device broadcast reads.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const legacy: string[] = JSON.parse(
+        (await AsyncStorage.getItem(LEGACY_READ_BROADCASTS_KEY)) || "[]"
+      );
+      if (legacy.length > 0) {
+        await setDoc(
+          doc(db, "users", user.uid),
+          { readBroadcastIds: arrayUnion(...legacy) },
+          { merge: true }
         );
-        if (!readIds.includes(id)) {
-          readIds.push(id);
-          await AsyncStorage.setItem(
-            "read_broadcasts",
-            JSON.stringify(readIds)
-          );
-        }
-        // Update local state
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-        );
+      }
+      await AsyncStorage.removeItem(LEGACY_READ_BROADCASTS_KEY);
+    })().catch((e) => console.log("Failed to migrate broadcast reads", e));
+  }, [user]);
+
+  const notifications = useMemo(() => {
+    const read = new Set(broadcastState.read);
+    const dismissed = new Set(broadcastState.dismissed);
+    return rawNotifications
+      .filter((n) => !(isPlatformBroadcast(n) && dismissed.has(n.id)))
+      // readBroadcastIds also covers store broadcasts that were only marked
+      // read on-device before the sync (see LEGACY_READ_BROADCASTS_KEY).
+      .map((n) => ({ ...n, read: n.read || read.has(n.id) }));
+  }, [rawNotifications, broadcastState]);
+
+  // The newest one, if unread — the in-app banner shows each id once.
+  const latestNotification =
+    notifications.length > 0 && !notifications[0].read ? notifications[0] : null;
+
+  const saveBroadcastState = (field: "readBroadcastIds" | "dismissedBroadcastIds", ids: string[]) =>
+    setDoc(
+      doc(db, "users", user!.uid),
+      { [field]: arrayUnion(...ids) },
+      { merge: true }
+    );
+
+  // Firestore's local cache fires the snapshots straight away, so the UI
+  // updates without any optimistic state here.
+  const markAsRead = async (id: string) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (!user || !notif || notif.read) return;
+    try {
+      if (isPlatformBroadcast(notif)) {
+        await saveBroadcastState("readBroadcastIds", [id]);
       } else {
         await updateDoc(doc(db, "notifications", id), { read: true });
       }
@@ -327,32 +375,53 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   };
 
   const markAllAsRead = async () => {
-    const broadcastIds: string[] = [];
-
-    // Process local broadcasts
-    notifications
-      .filter(
-        (n) => !n.read && (n.type === "broadcast" || n.userId === "all")
-      )
-      .forEach((n) => broadcastIds.push(n.id));
-
-    if (broadcastIds.length > 0) {
-      const readIds = JSON.parse(
-        (await AsyncStorage.getItem("read_broadcasts")) || "[]"
-      );
-      const newIds = [...new Set([...readIds, ...broadcastIds])];
-      await AsyncStorage.setItem("read_broadcasts", JSON.stringify(newIds));
-    }
-
-    // Process server notifications
-    notifications.forEach(async (n) => {
-      if (!n.read && n.type !== "broadcast" && n.userId !== "all") {
-        await updateDoc(doc(db, "notifications", n.id), { read: true });
+    const unread = notifications.filter((n) => !n.read);
+    if (!user || unread.length === 0) return;
+    try {
+      const broadcastIds = unread.filter(isPlatformBroadcast).map((n) => n.id);
+      if (broadcastIds.length > 0) {
+        await saveBroadcastState("readBroadcastIds", broadcastIds);
       }
-    });
+      const batch = writeBatch(db);
+      unread
+        .filter((n) => !isPlatformBroadcast(n))
+        .forEach((n) => batch.update(doc(db, "notifications", n.id), { read: true }));
+      await batch.commit();
+    } catch (e) {
+      console.error("Failed to mark all read", e);
+    }
+  };
 
-    // Update local state
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const deleteNotification = async (id: string) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (!user || !notif) return;
+    try {
+      if (isPlatformBroadcast(notif)) {
+        await saveBroadcastState("dismissedBroadcastIds", [id]);
+      } else {
+        await deleteDoc(doc(db, "notifications", id));
+      }
+    } catch (e) {
+      console.error("Failed to delete notification", e);
+    }
+  };
+
+  const clearAll = async () => {
+    if (!user || notifications.length === 0) return;
+    try {
+      const broadcastIds = notifications.filter(isPlatformBroadcast).map((n) => n.id);
+      if (broadcastIds.length > 0) {
+        await saveBroadcastState("dismissedBroadcastIds", broadcastIds);
+      }
+      // At most 50 listed, well under a batch's 500-write limit.
+      const batch = writeBatch(db);
+      notifications
+        .filter((n) => !isPlatformBroadcast(n))
+        .forEach((n) => batch.delete(doc(db, "notifications", n.id)));
+      await batch.commit();
+    } catch (e) {
+      console.error("Failed to clear notifications", e);
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -369,6 +438,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         loading,
         markAsRead,
         markAllAsRead,
+        deleteNotification,
+        clearAll,
         latestNotification,
         refetch,
         mode,

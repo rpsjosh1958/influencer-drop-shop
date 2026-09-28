@@ -19,8 +19,6 @@ import {
   getDoc,
   updateDoc,
   serverTimestamp,
-  addDoc,
-  collection,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
@@ -168,24 +166,8 @@ export function BookingDetailsModal() {
         }
       );
 
-      // 2. Notify Admin
-      const storeSnap = await getDoc(doc(db, "stores", booking.storeId));
-      if (storeSnap.exists()) {
-        const storeData = storeSnap.data();
-        await addDoc(collection(db, "notifications"), {
-          userId: storeData.ownerId,
-          type: "booking_cancelled",
-          title: "Booking Cancelled ❌",
-          message: `Customer ${booking.customerName} cancelled their appointment for ${booking.serviceName}.`,
-          read: false,
-          createdAt: serverTimestamp(),
-          data: {
-            bookingId: booking.id,
-            storeId: booking.storeId,
-            storeName: storeData.name,
-          },
-        });
-      }
+      // The store owner is notified server-side (onBookingStatusUpdated,
+      // off cancelledBy: "customer") — clients can't create notifications.
 
       setBooking((prev) => (prev ? { ...prev, status: "cancelled" } : null));
     } catch (e) {

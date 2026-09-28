@@ -12,6 +12,8 @@ import { isToday, isYesterday, format as formatDate } from "date-fns";
 import { VendorComplaintDetails } from "@/components/vendor/vendor-complaint-details";
 import { getNotificationRoute } from "@/lib/notification-routing";
 import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
+import { SwipeableNotificationRow } from "@/components/swipeable-notification-row";
+import { useAlert } from "@/context/alert-context";
 
 const getDateLabel = (seconds?: number) => {
   if (!seconds) return "Unknown";
@@ -22,7 +24,26 @@ const getDateLabel = (seconds?: number) => {
 };
 
 export default function VendorNotifications() {
-  const { notifications, loading, refetch, markAsRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    loading,
+    refetch,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
+  const { showAlert } = useAlert();
+  const confirmClearAll = () =>
+    showAlert({
+      title: "Clear all alerts?",
+      message: "This removes every alert in your list.",
+      type: "warning",
+      confirmLabel: "Clear All",
+      destructive: true,
+      onConfirm: clearAll,
+    });
   const [selectedComplaint, setSelectedComplaint] = useState<{
     id: string;
     storeId: string;
@@ -72,7 +93,19 @@ export default function VendorNotifications() {
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       <View className="px-6 py-4 border-b border-zinc-100 flex-row items-center gap-3">
         <VendorDrawerMenuButton />
-        <H1 className="text-2xl font-black uppercase">Alerts</H1>
+        <H1 className="text-2xl font-black uppercase flex-1">Alerts</H1>
+        {notifications.length > 0 && (
+          <View className="flex-row items-center gap-4">
+            {unreadCount > 0 && (
+              <Pressable onPress={markAllAsRead} hitSlop={8}>
+                <P className="text-zinc-500 text-xs font-bold uppercase">Read all</P>
+              </Pressable>
+            )}
+            <Pressable onPress={confirmClearAll} hitSlop={8}>
+              <P className="text-red-500 text-xs font-bold uppercase">Clear</P>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <ScrollView
@@ -94,47 +127,51 @@ export default function VendorNotifications() {
                 {group.label}
               </P>
               {group.items.map((n) => (
-                <Pressable
+                <SwipeableNotificationRow
                   key={n.id}
-                  onPress={() => handlePress(n)}
-                  className={`mb-4 p-4 rounded-2xl border ${
-                    n.read
-                      ? "bg-white border-zinc-100"
-                      : "bg-blue-50 border-blue-100"
-                  }`}
+                  onDismiss={() => deleteNotification(n.id)}
                 >
-                  <View className="flex-row gap-3">
-                    {!n.read && (
-                      <View className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
-                    )}
-                    <View className="flex-1">
-                      <P
-                        className={`font-bold text-base mb-1 ${
-                          !n.read ? "text-blue-900" : "text-black"
-                        }`}
-                      >
-                        {n.title}
-                      </P>
-                      <P
-                        className={`${!n.read ? "text-blue-700" : "text-zinc-500"}`}
-                      >
-                        {n.message}
-                      </P>
-                      <P
-                        className={`text-xs mt-2 font-bold uppercase ${
-                          !n.read ? "text-blue-400" : "text-zinc-400"
-                        }`}
-                      >
-                        {n.createdAt?.toDate
-                          ? n.createdAt.toDate().toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
-                          : "Just now"}
-                      </P>
+                  <Pressable
+                    onPress={() => handlePress(n)}
+                    className={`p-4 rounded-3xl border ${
+                      n.read
+                        ? "bg-white border-zinc-100"
+                        : "bg-blue-50 border-blue-100"
+                    }`}
+                  >
+                    <View className="flex-row gap-3">
+                      {!n.read && (
+                        <View className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
+                      )}
+                      <View className="flex-1">
+                        <P
+                          className={`font-bold text-base mb-1 ${
+                            !n.read ? "text-blue-900" : "text-black"
+                          }`}
+                        >
+                          {n.title}
+                        </P>
+                        <P
+                          className={`${!n.read ? "text-blue-700" : "text-zinc-500"}`}
+                        >
+                          {n.message}
+                        </P>
+                        <P
+                          className={`text-xs mt-2 font-bold uppercase ${
+                            !n.read ? "text-blue-400" : "text-zinc-400"
+                          }`}
+                        >
+                          {n.createdAt?.toDate
+                            ? n.createdAt.toDate().toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "Just now"}
+                        </P>
+                      </View>
                     </View>
-                  </View>
-                </Pressable>
+                  </Pressable>
+                </SwipeableNotificationRow>
               ))}
             </View>
           ))

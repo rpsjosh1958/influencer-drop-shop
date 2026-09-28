@@ -709,8 +709,35 @@ export const onBookingStatusUpdated = onDocumentUpdated(
       const store = storeDoc.data();
       if (!store) return;
 
-      // Push to customer — skip guest bookings, no account/token to notify.
-      if (after.customerId && after.customerId !== "guest") {
+      const cancelledByCustomer =
+        after.status === "cancelled" && after.cancelledBy === "customer";
+
+      // Tell the vendor when a customer cancels. This used to be written by
+      // the customer's own client (booking-details-modal on web/mobile), but
+      // client-created notifications are blocked now — each one triggers a
+      // push (onNotificationCreated), so any signed-in user could push
+      // arbitrary text to anyone.
+      if (cancelledByCustomer && store.ownerId) {
+        await sendNotificationToUser(
+          store.ownerId,
+          "Booking Cancelled ❌",
+          `${after.customerName || "A customer"} cancelled their appointment for ${after.serviceName || "a service"}.`,
+          "booking_cancelled",
+          {
+            bookingId: event.params.bookingId,
+            storeId,
+            storeName: store.name,
+          }
+        );
+      }
+
+      // Push to customer — skip guest bookings, no account/token to notify,
+      // and skip cancellations the customer made themselves.
+      if (
+        after.customerId &&
+        after.customerId !== "guest" &&
+        !cancelledByCustomer
+      ) {
         let title = "Booking Update";
         let body = `Your booking with ${store.name || "the store"} is now "${after.status}".`;
 
@@ -1316,4 +1343,5 @@ export { migrateToMultiVendor } from "./migrate_to_multi_vendor";
 export { checkSubscriptionExpiry };
 export { sendPasswordReset } from "./auth";
 export { sendPayoutOtp, verifyPayoutOtp } from "./otp";
+export { cleanupOldNotifications } from "./notifications";
 export * from "./onboarding";

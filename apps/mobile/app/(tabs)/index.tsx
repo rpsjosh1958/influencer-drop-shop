@@ -67,6 +67,7 @@ import {
   openUrl,
   socialProfileUrl,
 } from "@/lib/links";
+import { useAlert } from "@/context/alert-context";
 
 const { width } = Dimensions.get("window");
 
@@ -316,7 +317,24 @@ export default function ShopHome() {
     "all",
   );
 
-  const { notifications, unreadCount, markAsRead } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+  } = useNotifications();
+  const { showAlert } = useAlert();
+  const confirmClearAll = () =>
+    showAlert({
+      title: "Clear all notifications?",
+      message: "This removes every notification in your list.",
+      type: "warning",
+      confirmLabel: "Clear All",
+      destructive: true,
+      onConfirm: clearAll,
+    });
 
   // Notification Filter Logic
   const filteredNotifications = useMemo(() => {
@@ -475,7 +493,7 @@ export default function ShopHome() {
                 </Pressable>
               </View>
 
-              <View className="flex-row gap-2 mb-6">
+              <View className="flex-row gap-2 mb-3">
                 {(["all", "unread", "read"] as const).map((f) => (
                   <Pressable
                     key={f}
@@ -497,6 +515,23 @@ export default function ShopHome() {
                 ))}
               </View>
 
+              {notifications.length > 0 && (
+                <View className="flex-row justify-end gap-5 mb-4">
+                  {unreadCount > 0 && (
+                    <Pressable onPress={markAllAsRead} hitSlop={8}>
+                      <P className="text-zinc-400 text-xs font-bold uppercase tracking-wider">
+                        Mark all read
+                      </P>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={confirmClearAll} hitSlop={8}>
+                    <P className="text-red-400 text-xs font-bold uppercase tracking-wider">
+                      Clear all
+                    </P>
+                  </Pressable>
+                </View>
+              )}
+
               <ScrollView
                 className="flex-1"
                 contentContainerStyle={{ paddingBottom: 40 }}
@@ -506,7 +541,7 @@ export default function ShopHome() {
                   {filteredNotifications.map((item, index) => (
                     <SwipeableNotificationRow
                       key={item.id}
-                      onDismiss={() => markAsRead(item.id)}
+                      onDismiss={() => deleteNotification(item.id)}
                       hint={index === 0 && isNotificationOpen}
                     >
                       <Pressable
@@ -576,7 +611,7 @@ export default function ShopHome() {
 
               <View className="py-4 justify-end opacity-50">
                 <P className="text-zinc-500 text-center text-xs uppercase tracking-widest">
-                  Swipe right to close • Swipe items to read
+                  Swipe right to close • Swipe an item left to delete
                 </P>
               </View>
             </SafeAreaView>

@@ -1,13 +1,14 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ShoppingBag, Zap, Bell } from "lucide-react";
+import { X, ShoppingBag, Zap, Bell, Trash2 } from "lucide-react";
 import { useNotifications, Notification } from "@/context/notification-context";
 import { formatDistanceToNow } from "date-fns";
 import { useBodyScrollLock } from "@/hooks/use-body-scroll-lock";
 import { useShopUI } from "@/context/shop-ui-context";
 import { toJsDate } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { useAlert } from "@/context/alert-context";
 
 interface NotificationDropdownProps {
   isOpen: boolean;
@@ -18,7 +19,25 @@ export function NotificationDropdown({
   isOpen,
   onClose,
 }: NotificationDropdownProps) {
-  const { notifications, markAsRead, loading } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll,
+    loading,
+  } = useNotifications();
+  const { showAlert } = useAlert();
+
+  const confirmClearAll = () =>
+    showAlert({
+      title: "Clear all notifications?",
+      message: "This removes every notification in your list.",
+      type: "error",
+      confirmLabel: "Clear All",
+      onConfirm: clearAll,
+    });
   const { openOrderDetails, openBookingDetails } = useShopUI();
   const router = useRouter();
 
@@ -48,12 +67,30 @@ export function NotificationDropdown({
                 <Bell size={16} className="text-white" />
                 <h3 className="text-white font-bold text-sm">Notifications</h3>
               </div>
-              <button
-                onClick={onClose}
-                className="p-1 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-colors"
-              >
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-[11px] font-bold text-zinc-400 hover:text-white transition-colors"
+                  >
+                    Mark all read
+                  </button>
+                )}
+                {notifications.length > 0 && (
+                  <button
+                    onClick={confirmClearAll}
+                    className="text-[11px] font-bold text-red-400 hover:text-red-300 transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="p-1 hover:bg-zinc-800 rounded-full text-zinc-500 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
             {/* List */}
@@ -73,8 +110,8 @@ export function NotificationDropdown({
                 </div>
               ) : (
                 notifications.map((item) => (
+                  <div key={item.id} className="relative group">
                   <button
-                    key={item.id}
                     onClick={() => {
                       if (!item.read) markAsRead(item.id);
                       const orderId = item.data?.orderId || item.orderId;
@@ -90,7 +127,7 @@ export function NotificationDropdown({
                         router.push(`/shop/${item.data.storeId}`);
                       }
                     }}
-                    className={`w-full text-left p-3 rounded-xl flex gap-3 transition-all ${
+                    className={`w-full text-left p-3 pr-9 rounded-xl flex gap-3 transition-all ${
                       item.read
                         ? "hover:bg-zinc-800/50 opacity-60 hover:opacity-100"
                         : "bg-zinc-800/40 hover:bg-zinc-800 border-l-2 border-cyan-500"
@@ -135,6 +172,15 @@ export function NotificationDropdown({
                       )}
                     </div>
                   </button>
+                  {/* Hover-only on desktop; always shown on touch screens. */}
+                  <button
+                    onClick={() => deleteNotification(item.id)}
+                    aria-label="Delete notification"
+                    className="absolute right-2 bottom-2 p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                  </div>
                 ))
               )}
             </div>
