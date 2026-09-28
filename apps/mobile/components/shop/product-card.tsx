@@ -1,5 +1,5 @@
-import { Pressable, View } from "react-native";
-import { MotiView, MotiImage } from "moti";
+import { useEffect, useState } from "react";
+import { Animated, Image, Pressable, View } from "react-native";
 import { P, H2 } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
 import { formatCurrency } from "@/lib/format";
@@ -30,6 +30,21 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, index, onPress }: ProductCardProps) {
+  // Plain Animated fade rather than Moti: Moti 0.30 predates Reanimated 4,
+  // and its from-scale (0.95) entrance could leave cards rendered at 95% of
+  // their grid cell, pinned left — uneven gaps across the grid. No scale
+  // here, so a card always ends at exactly its layout size.
+  const [opacity] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: 500,
+      // Capped so cards far down a long list don't wait seconds to appear.
+      delay: Math.min(index, 8) * 100,
+      useNativeDriver: true,
+    }).start();
+  }, [opacity, index]);
+
   const { store } = useStore();
   const primaryColor = store?.theme?.primaryColor || "black";
 
@@ -49,17 +64,10 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
   const displayStock = stock > 0 ? stock : hasVariantStock ? "Available" : 0;
 
   return (
-    <MotiView
-      from={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ type: "timing", duration: 500, delay: index * 100 }}
-      // No flex-1: grid cells have no fixed height, and flex-1 there gives
-      // the card a 0 flex-basis, so a relayout (e.g. toggling Filters)
-      // collapsed each cell and the cards stacked on top of each other.
-    >
+    <Animated.View style={{ opacity }}>
       <Pressable onPress={() => onPress(product)} className="active:opacity-95">
         <View className="aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-3 relative shadow-sm">
-          <MotiImage
+          <Image
             source={imageSource}
             className={`w-full h-full ${
               isSoldOut ? "opacity-70 grayscale" : ""
@@ -113,6 +121,6 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
           </P>
         </View>
       </Pressable>
-    </MotiView>
+    </Animated.View>
   );
 }
