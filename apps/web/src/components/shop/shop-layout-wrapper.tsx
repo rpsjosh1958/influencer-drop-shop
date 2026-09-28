@@ -18,6 +18,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { useRouter, usePathname, useParams } from "next/navigation";
 import { useStore } from "./store-provider";
 import { CartProvider } from "./cart-provider";
@@ -33,6 +34,7 @@ import { NotificationDropdown } from "./notification-dropdown";
 import { AddedToCartToast } from "./added-to-cart-toast";
 import { NotificationToast } from "./notification-toast";
 import { HeaderSearch } from "./header-search";
+import { StoreSwitcher } from "./store-switcher";
 import { ShopUIProvider } from "@/context/shop-ui-context";
 import { OrderDetailsModal } from "./order-details-modal";
 import { BookingDetailsModal } from "./booking-details-modal";
@@ -169,71 +171,85 @@ export function ShopLayoutWrapper({ children }: { children: React.ReactNode }) {
               exit={{ opacity: 0, y: -100 }}
               className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black text-white p-6 text-center"
             >
-              {/* Top Right Header for Logged In Users */}
-              {user && (
-                <div className="absolute top-6 right-6 flex items-center gap-4 z-50">
-                  <div className="relative">
-                    <button
-                      onClick={() =>
-                        setIsNotificationsOpen(!isNotificationsOpen)
-                      }
-                      className="p-3 hover:bg-zinc-900 rounded-full transition-colors text-zinc-400 hover:text-white relative"
-                      title="Notifications"
-                    >
-                      <Bell size={24} />
-                      <NotificationBadge />
-                    </button>
-                    <NotificationDropdown
-                      isOpen={isNotificationsOpen}
-                      onClose={() => setIsNotificationsOpen(false)}
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => setIsOrdersOpen(true)}
-                    className="p-3 hover:bg-zinc-900 rounded-full transition-colors text-zinc-400 hover:text-white"
-                    title="Your Orders"
-                  >
-                    <Package size={24} />
-                  </button>
-
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                      className="p-3 hover:bg-zinc-900 rounded-full transition-colors text-zinc-400 hover:text-white"
-                    >
-                      <User size={24} />
-                    </button>
-
-                    <AnimatePresence>
-                      {isDropdownOpen && (
-                        <motion.div
-                          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                          animate={{ opacity: 1, scale: 1, y: 0 }}
-                          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                          className="absolute top-full right-0 mt-2 w-48 bg-zinc-900 rounded-xl shadow-xl border border-zinc-800 overflow-hidden z-50 py-1 text-left"
-                        >
-                          <button
-                            onClick={() => {
-                              setIsDropdownOpen(false);
-                              setIsProfileOpen(true);
-                            }}
-                            className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-800 flex items-center gap-2"
-                          >
-                            <User size={16} /> Profile
-                          </button>
-                          <button
-                            onClick={handleLogout}
-                            className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-900/20 text-red-500 flex items-center gap-2"
-                          >
-                            <LogOut size={16} /> Sign Out
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+              {/* Header — the shop's own header (store switcher, account
+                  icons) isn't rendered while closed, so the black screen
+                  gets its own, light-on-dark. */}
+              <div className="absolute top-0 inset-x-0 flex items-center justify-between gap-4 p-4 md:p-6 z-50 text-left">
+                <div className="min-w-0">
+                  <StoreSwitcher />
                 </div>
-              )}
+                {user ? (
+                  <div className="flex items-center gap-1 md:gap-4 shrink-0">
+                    <div className="relative">
+                      <button
+                        onClick={() =>
+                          setIsNotificationsOpen(!isNotificationsOpen)
+                        }
+                        className="p-2 md:p-3 hover:bg-zinc-900 rounded-full transition-colors text-zinc-400 hover:text-white relative"
+                        title="Notifications"
+                      >
+                        <Bell size={24} />
+                        <NotificationBadge />
+                      </button>
+                      <NotificationDropdown
+                        isOpen={isNotificationsOpen}
+                        onClose={() => setIsNotificationsOpen(false)}
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => setIsOrdersOpen(true)}
+                      className="p-2 md:p-3 hover:bg-zinc-900 rounded-full transition-colors text-zinc-400 hover:text-white"
+                      title="Your Orders"
+                    >
+                      <Package size={24} />
+                    </button>
+
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="p-2 md:p-3 hover:bg-zinc-900 rounded-full transition-colors text-zinc-400 hover:text-white"
+                      >
+                        <User size={24} />
+                      </button>
+
+                      <AnimatePresence>
+                        {isDropdownOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            className="absolute top-full right-0 mt-2 w-48 bg-zinc-900 rounded-xl shadow-xl border border-zinc-800 overflow-hidden z-50 py-1 text-left"
+                          >
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false);
+                                setIsProfileOpen(true);
+                              }}
+                              className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-zinc-800 flex items-center gap-2"
+                            >
+                              <User size={16} /> Profile
+                            </button>
+                            <button
+                              onClick={handleLogout}
+                              className="w-full text-left px-4 py-3 text-sm font-bold hover:bg-red-900/20 text-red-500 flex items-center gap-2"
+                            >
+                              <LogOut size={16} /> Sign Out
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
+                ) : (
+                  <Link
+                    href={`/shop/${storeId}/login`}
+                    className="shrink-0 px-4 py-2 rounded-full border border-zinc-700 text-sm font-bold text-zinc-200 hover:bg-zinc-900 hover:text-white transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </div>
 
               <motion.div
                 initial={{ scale: 0.9, opacity: 0 }}

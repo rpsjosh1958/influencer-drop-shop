@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
+import { useStore } from "./store-provider";
 
 interface Store {
   id: string;
@@ -47,7 +48,15 @@ export function StoreSwitcher() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const currentStore = stores.find((s) => s.id === currentStoreId);
+  // The list only holds live, approved stores, so a closed or still-in-review
+  // store isn't in it — fall back to the store this page is showing rather
+  // than a generic "DROP.".
+  const { store } = useStore();
+  const currentStore: Store | undefined =
+    stores.find((s) => s.id === currentStoreId) ??
+    (store
+      ? { id: store.id, name: store.name, logo: store.logo, plan: store.plan }
+      : undefined);
 
   const filteredStores = stores.filter((store) =>
     store.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -65,7 +74,7 @@ export function StoreSwitcher() {
   };
 
   if (loading)
-    return <div className="h-6 w-20 bg-zinc-100 rounded animate-pulse" />;
+    return <div className="h-6 w-20 bg-zinc-500/20 rounded animate-pulse" />;
 
   return (
     <div className="relative">
