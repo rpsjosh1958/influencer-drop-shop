@@ -91,14 +91,18 @@ function TabBar({ state, descriptors, navigation }: BottomTabBarProps) {
 
 import { useNotifications } from "@/context/notification-context";
 import { useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function TabLayout() {
   const { setMode } = useNotifications();
 
+  // Only the notification mode follows which side is on screen. The saved
+  // appMode (what the next launch opens) changes only on an explicit switch
+  // — Exit Seller Mode, a customer login, a store-less vendor account —
+  // because this layout also mounts on incidental trips into the shop (a
+  // notification tap, a vendor load that bounced here), and saving
+  // "customer" on every mount made the next launch open the shop.
   useEffect(() => {
     setMode("customer");
-    AsyncStorage.setItem("appMode", "customer");
   }, []);
 
   return (

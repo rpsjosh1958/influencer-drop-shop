@@ -37,10 +37,8 @@ export default function Login() {
       // Validate
       const data = loginSchema.parse(form);
 
-      // Set App Mode if intent is vendor
-      if (isVendor) {
-        await AsyncStorage.setItem("appMode", "vendor");
-      }
+      // Which side the next launch opens.
+      await AsyncStorage.setItem("appMode", isVendor ? "vendor" : "customer");
 
       // Auth
       await signInWithEmailAndPassword(auth, data.email, data.password);

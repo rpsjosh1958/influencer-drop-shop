@@ -74,6 +74,10 @@ interface VendorContextType {
     complaints: number;
   };
   loading: boolean;
+  // The profile or owned-stores fetch failed (e.g. offline at launch) —
+  // different from genuinely owning no stores.
+  storesError: boolean;
+  retryStores: () => void;
   isLocked: boolean;
   switchStore: (id: string) => Promise<void>;
   toggleStoreStatus: () => Promise<void>;
@@ -114,7 +118,12 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   });
 
   // 2. Fetch User Profile (Plan & Store IDs)
-  const { data: userData, isLoading: userDataLoading } = useQuery({
+  const {
+    data: userData,
+    isLoading: userDataLoading,
+    isError: userDataError,
+    refetch: refetchUserData,
+  } = useQuery({
     queryKey: ["vendor-user-profile", user?.uid],
     queryFn: async () => {
       if (!user) return null;
@@ -128,7 +137,12 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   const ownedStoreIds = userData?.ownedStores || [];
 
   // 3. Fetch All Owned Store Objects
-  const { data: stores = [], isLoading: storesLoading } = useQuery({
+  const {
+    data: stores = [],
+    isLoading: storesLoading,
+    isError: storesQueryError,
+    refetch: refetchStores,
+  } = useQuery({
     queryKey: ["vendor-owned-stores", ownedStoreIds],
     queryFn: async () => {
       if (!ownedStoreIds.length || !user) return [];
@@ -395,6 +409,11 @@ export function VendorProvider({ children }: { children: ReactNode }) {
         metrics,
         badgeCounts,
         loading: combinedFetching,
+        storesError: userDataError || storesQueryError,
+        retryStores: () => {
+          refetchUserData();
+          refetchStores();
+        },
         isLocked,
         switchStore,
         toggleStoreStatus,

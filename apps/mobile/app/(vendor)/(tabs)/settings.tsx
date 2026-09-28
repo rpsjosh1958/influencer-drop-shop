@@ -53,6 +53,8 @@ export default function VendorSettings() {
     }
   };
   const handleExit = () => {
+    // Explicit switch: the next launch should open the shop.
+    AsyncStorage.setItem("appMode", "customer");
     router.replace("/(tabs)/profile" as Href);
   };
 

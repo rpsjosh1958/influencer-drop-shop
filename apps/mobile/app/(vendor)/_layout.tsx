@@ -21,7 +21,7 @@ import { useNotifications } from "@/context/notification-context";
 import { useEffect, useState } from "react";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { P } from "@/components/ui/text";
 import Constants from "expo-constants";
 import { DrawerLabelBadge } from "@/components/vendor/drawer-label-badge";
@@ -89,7 +89,8 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
 
 function VendorLayout() {
   const { setMode } = useNotifications();
-  const { badgeCounts, store, ownedStores, loading } = useVendor();
+  const { badgeCounts, store, ownedStores, loading, storesError, retryStores } =
+    useVendor();
   const router = useRouter();
   // Tracks only the FIRST time loading resolves, not every subsequent
   // flip. `loading` legitimately goes true→false repeatedly for the
@@ -103,11 +104,17 @@ function VendorLayout() {
   // flipped `loading` again and blew away the navigation state.
   const [initiallyResolved, setInitiallyResolved] = useState(false);
 
-  const hasNoStores = !loading && ownedStores.length === 0;
+  // Only a successful load with zero stores counts — a failed load (e.g.
+  // offline at launch) used to land here too, bounce a real vendor to the
+  // shop and save appMode "customer", so every later launch opened the shop.
+  const hasNoStores = !loading && !storesError && ownedStores.length === 0;
+  const loadFailed = !loading && storesError && ownedStores.length === 0;
 
   useEffect(() => {
     if (loading) return;
     setInitiallyResolved(true);
+
+    if (loadFailed) return; // retry screen below; keep the saved mode
 
     if (hasNoStores) {
       // A signed-in user with zero owned stores landed here — most likely
@@ -122,7 +129,35 @@ function VendorLayout() {
 
     setMode("vendor");
     AsyncStorage.setItem("appMode", "vendor");
-  }, [loading, hasNoStores]);
+  }, [loading, hasNoStores, loadFailed]);
+
+  if (loadFailed) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white px-8">
+        <P className="text-lg font-black text-center mb-2">
+          Couldn&apos;t load your store
+        </P>
+        <P className="text-zinc-500 text-center mb-6">
+          Check your connection and try again.
+        </P>
+        <Pressable
+          onPress={retryStores}
+          className="bg-black w-full py-4 rounded-2xl items-center mb-3"
+        >
+          <P className="text-white font-bold">Try again</P>
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            AsyncStorage.setItem("appMode", "customer");
+            router.replace("/(tabs)");
+          }}
+          className="py-2"
+        >
+          <P className="text-zinc-500 font-bold">Go to shop</P>
+        </Pressable>
+      </View>
+    );
+  }
 
   if (!initiallyResolved || hasNoStores) {
     return (
