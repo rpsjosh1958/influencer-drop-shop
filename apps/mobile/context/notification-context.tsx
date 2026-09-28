@@ -30,6 +30,7 @@ import {
 import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { getNotificationRoute } from "@/lib/notification-routing";
+import { whenSplashDone } from "@/lib/splash-gate";
 import { useStore } from "@/context/store-context";
 import type { FirestoreTimestamp } from "@/types";
 
@@ -209,6 +210,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== "granted") {
+        // The system prompt would otherwise pop up over the splash.
+        await whenSplashDone();
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }

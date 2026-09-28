@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { AnimatedSplash } from "@/components/animated-splash";
+import { markSplashDone } from "@/lib/splash-gate";
 import { View, useColorScheme } from "react-native";
 import { PaystackProvider } from "react-native-paystack-webview";
 import { NotificationProvider } from "@/context/notification-context";
@@ -46,7 +47,10 @@ export default function RootLayout() {
   // cut its animation off at a different point every launch (however long
   // auth took). AnimatedSplash now decides: it plays in full and only
   // leaves once auth is also ready (`ready` below).
-  const finishSplash = useCallback(() => setSplashFinished(true), []);
+  const finishSplash = useCallback(() => {
+    setSplashFinished(true);
+    markSplashDone();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
