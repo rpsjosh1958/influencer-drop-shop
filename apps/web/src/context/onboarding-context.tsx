@@ -92,6 +92,24 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     category: "dashboard",
   },
   {
+    target: "dashboard-view-store",
+    title: "View Your Store",
+    content:
+      "Opens your storefront in a new tab, exactly as customers see it — handy for checking a product, banner or theme change after you've made it.",
+    path: "/admin/dashboard",
+    placement: "bottom",
+    category: "dashboard",
+  },
+  {
+    target: "dashboard-share-store",
+    title: "Share Your Store",
+    content:
+      "Create a ready-to-post image of your store with its QR code. Pick a design and a Story or Post size, then download it for Instagram, TikTok or WhatsApp Status — or just copy your store link.",
+    path: "/admin/dashboard",
+    placement: "bottom",
+    category: "dashboard",
+  },
+  {
     target: "dashboard-filter",
     title: "Date/Month Filter",
     content:

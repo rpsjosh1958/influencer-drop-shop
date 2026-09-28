@@ -177,6 +177,7 @@ export function AdminPageHeader({
 
         {storeId && (
           <a
+            data-tour="dashboard-view-store"
             href={`/shop/${storeId}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -189,6 +190,7 @@ export function AdminPageHeader({
 
         {storeId && (
           <button
+            data-tour="dashboard-share-store"
             onClick={() => setShowShareStore(true)}
             className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 text-[9px] font-black uppercase tracking-wide text-zinc-500 hover:text-black dark:hover:text-white hover:border-zinc-300 dark:hover:border-zinc-500 bg-white dark:bg-zinc-900 whitespace-nowrap"
           >
