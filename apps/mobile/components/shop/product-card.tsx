@@ -53,7 +53,9 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
       from={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ type: "timing", duration: 500, delay: index * 100 }}
-      className="flex-1"
+      // No flex-1: grid cells have no fixed height, and flex-1 there gives
+      // the card a 0 flex-basis, so a relayout (e.g. toggling Filters)
+      // collapsed each cell and the cards stacked on top of each other.
     >
       <Pressable onPress={() => onPress(product)} className="active:opacity-95">
         <View className="aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-3 relative shadow-sm">
