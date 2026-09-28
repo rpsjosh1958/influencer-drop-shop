@@ -18,7 +18,7 @@ export interface StoreConfig {
   logo?: string;
   isVerified?: boolean;
   plan?: "starter" | "growth";
-  status: "live" | "maintenance";
+  status: "live" | "maintenance" | "closed";
   rating?: number;
   reviewCount?: number;
   ratingDistribution?: Record<string, number>;
@@ -78,8 +78,19 @@ const STORAGE_KEY = "copdrop_active_store_id";
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [storeId, setStoreIdState] = useState<string | null>(null);
-  const [store, setStore] = useState<StoreConfig | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Whether the persisted store id has been read yet.
+  const [hydrated, setHydrated] = useState(false);
+  // The last snapshot, tagged with the id it's for. Only exposed once it
+  // matches storeId, so while a store loads (first launch, or right after
+  // switching) `store` is null and `loading` is true — never the previous
+  // store's data, and never an empty store that reads as "closed".
+  const [snapshot, setSnapshot] = useState<{
+    storeId: string;
+    store: StoreConfig | null;
+  } | null>(null);
+  const store = snapshot && snapshot.storeId === storeId ? snapshot.store : null;
+  const loading =
+    !hydrated || (storeId !== null && snapshot?.storeId !== storeId);
 
   // 1. Load persisted store ID on mount
   useEffect(() => {
@@ -96,6 +107,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         console.error("Failed to load store ID", e);
+      } finally {
+        setHydrated(true);
       }
     };
     loadStoreId();
@@ -104,29 +117,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // 2. Fetch Store Data when storeId changes
   useEffect(() => {
     console.log("[StoreProvider] storeId changed:", storeId);
-    if (!storeId) {
-      setStore(null);
-      setLoading(false);
-      return;
-    }
+    if (!storeId) return;
 
-    setLoading(true);
     const unsub = onSnapshot(
       doc(db, "stores", storeId),
       (doc) => {
         if (doc.exists()) {
           const data = doc.data();
           console.log("[StoreProvider] Fetched store data:", data.name);
-          setStore({ id: doc.id, ...data } as StoreConfig);
+          setSnapshot({ storeId, store: { id: doc.id, ...data } as StoreConfig });
         } else {
           console.log("[StoreProvider] Store not found for ID:", storeId);
-          setStore(null);
+          setSnapshot({ storeId, store: null });
         }
-        setLoading(false);
       },
       (error) => {
         console.error("Error fetching store:", error);
-        setLoading(false);
+        setSnapshot({ storeId, store: null });
       },
     );
 

@@ -37,8 +37,11 @@ interface Store {
   isSuspended?: boolean;
 }
 
-export function StoreSwitcher() {
+// onDark: on the black closed / pick-a-store screen, where the theme color
+// (black by default) would be invisible.
+export function StoreSwitcher({ onDark = false }: { onDark?: boolean }) {
   const { store, setStoreId, storeId } = useStore();
+  const triggerColor = onDark ? "white" : store?.theme?.primaryColor || "black";
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -117,14 +120,18 @@ export function StoreSwitcher() {
         ) : (
           <View
             className="h-8 w-8 rounded-full items-center justify-center"
-            style={{ backgroundColor: store?.theme?.primaryColor || "black" }}
+            style={{
+              backgroundColor: onDark
+                ? "#27272a" // zinc-800
+                : store?.theme?.primaryColor || "black",
+            }}
           >
             <StoreIcon size={14} color="white" />
           </View>
         )}
         <H1
           className="text-xl tracking-tighter uppercase shrink"
-          style={{ color: store?.theme?.primaryColor || "black" }}
+          style={{ color: triggerColor }}
           numberOfLines={1}
           ellipsizeMode="tail"
         >
@@ -133,7 +140,7 @@ export function StoreSwitcher() {
         {store?.isVerified && (
           <BadgeCheck size={16} color="#3b82f6" fill="white" />
         )}
-        <ChevronDown size={16} color={store?.theme?.primaryColor || "black"} />
+        <ChevronDown size={16} color={triggerColor} />
       </Pressable>
 
       <Modal

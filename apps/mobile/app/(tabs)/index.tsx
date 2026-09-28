@@ -97,7 +97,7 @@ interface Category {
 
 export default function ShopHome() {
   const router = useRouter();
-  const { storeId, store, setStoreId } = useStore();
+  const { storeId, store, setStoreId, loading: storeLoading } = useStore();
 
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(
     null,
@@ -123,7 +123,9 @@ export default function ShopHome() {
   // Hero Slideshow
   const [currentHeroImageIndex, setCurrentHeroImageIndex] = useState(0);
 
-  // Use store status instead of system config
+  // Use store status instead of system config. Only meaningful once the
+  // store has loaded — `store` is null while it loads, which used to read
+  // as closed (see the checks before rendering below).
   const isLive = store?.status === "live";
 
   // Data Fetching via TanStack Query
@@ -411,7 +413,7 @@ export default function ShopHome() {
     ).slice(0, 5);
   }, [searchQuery, products]);
 
-  if (loading && !products.length) {
+  if (storeLoading || (loading && !products.length)) {
     return (
       <GestureHandlerRootView className="flex-1 bg-black">
         <StatusBar style="dark" />
@@ -441,7 +443,13 @@ export default function ShopHome() {
     );
   }
 
-  if (isLive === false) {
+  // No store to show: the first-launch fallback id doesn't exist, or the
+  // saved store was deleted.
+  if (!store) {
+    return <ShopClosed reason="no-store" />;
+  }
+
+  if (!isLive) {
     return <ShopClosed />;
   }
 
