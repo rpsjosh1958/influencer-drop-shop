@@ -13,6 +13,8 @@ import {
   orderBy,
   doc,
   updateDoc,
+  setDoc,
+  arrayUnion,
   getDocs,
   getDoc,
   onSnapshot,
@@ -134,7 +136,6 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   });
 
   const userPlan = userData?.plan || "starter";
-  const ownedStoreIds = userData?.ownedStores || [];
 
   // 3. Fetch All Owned Store Objects
   const {
@@ -143,9 +144,14 @@ export function VendorProvider({ children }: { children: ReactNode }) {
     isError: storesQueryError,
     refetch: refetchStores,
   } = useQuery({
-    queryKey: ["vendor-owned-stores", ownedStoreIds],
+    // Looked up by ownerId, the source of truth (and what Switch to Seller
+    // Mode checks). This used to only run when users/{uid}.ownedStores
+    // listed something, but that list is only written when a store is
+    // created and is never re-synced — a vendor whose list was empty
+    // looked store-less here and got bounced to the shop on every launch.
+    queryKey: ["vendor-owned-stores", user?.uid],
     queryFn: async () => {
-      if (!ownedStoreIds.length || !user) return [];
+      if (!user) return [];
 
       const q = query(
         collection(db, "stores"),
@@ -164,8 +170,27 @@ export function VendorProvider({ children }: { children: ReactNode }) {
         return timeA - timeB;
       });
     },
-    enabled: ownedStoreIds.length > 0,
+    enabled: !!user,
   });
+
+  // Put any owned store missing from users/{uid}.ownedStores back on the
+  // list — the web dashboard still reads that list to find a vendor's
+  // stores. Once per store id per session.
+  const [healedStoreIds] = useState(() => new Set<string>());
+  useEffect(() => {
+    if (!user || !userData || stores.length === 0) return;
+    const listed = new Set<string>(userData.ownedStores || []);
+    const missing = stores
+      .map((s) => s.id)
+      .filter((id) => !listed.has(id) && !healedStoreIds.has(id));
+    if (missing.length === 0) return;
+    missing.forEach((id) => healedStoreIds.add(id));
+    setDoc(
+      doc(db, "users", user.uid),
+      { ownedStores: arrayUnion(...missing) },
+      { merge: true }
+    ).catch((e) => console.log("Failed to repair ownedStores", e));
+  }, [user, userData, stores, healedStoreIds]);
 
   // 4. Compute Managed Stores (Apply Lock Logic)
   const ownedStores = useMemo(() => {
@@ -349,12 +374,8 @@ export function VendorProvider({ children }: { children: ReactNode }) {
   // signed in, every query below reads as artificially "not loading"
   // (they're all `enabled: false` while `user` is still null), which
   // would otherwise look identical to "genuinely resolved, zero stores."
-  // userDataLoading matters on its own too, not just as an input to
-  // storesLoading — ownedStoreIds (and therefore whether the owned-stores
-  // query even runs) depends on userData having resolved first, so
-  // without this a consumer checking "loading is false, ownedStores is
-  // empty" could momentarily see a false "no stores" during the brief
-  // window before userData itself has loaded.
+  // userDataLoading matters on its own too — the plan (and so which
+  // stores are locked) comes from userData.
   const combinedFetching =
     !authResolved ||
     userDataLoading ||
