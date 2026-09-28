@@ -41,6 +41,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { OnboardingProvider } from "@/context/onboarding-context";
 import { ThemeProvider } from "next-themes";
 import { StoreSwitcher } from "@/components/admin/store-switcher";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 export default function AdminLayout({
   children,
@@ -85,7 +86,13 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // The sidebar's Logout asks first (confirmingLogout); the no-store screen
+  // below logs out straight away.
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
   const handleLogout = async () => {
+    setLoggingOut(true);
     try {
       await signOut(auth);
       await fetch("/api/auth/session", { method: "DELETE" });
@@ -93,6 +100,9 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
       router.push("/admin");
     } catch (error) {
       console.error("Logout failed", error);
+    } finally {
+      setLoggingOut(false);
+      setConfirmingLogout(false);
     }
   };
 
@@ -256,7 +266,7 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               setMobileMenuOpen={setMobileMenuOpen}
               showBroadcast={showBroadcast}
               setShowBroadcast={setShowBroadcast}
-              handleLogout={handleLogout}
+              handleLogout={() => setConfirmingLogout(true)}
             />
 
             {/* Main Content Area */}
@@ -266,6 +276,17 @@ function AdminLayoutContent({ children }: { children: React.ReactNode }) {
               </div>
             </main>
             <AiAssistant />
+            <ConfirmModal
+              isOpen={confirmingLogout}
+              title="Log out?"
+              message="You'll need to sign in again to manage your store."
+              confirmLabel="Log Out"
+              destructive
+              loading={loggingOut}
+              icon={<LogOut size={20} />}
+              onConfirm={handleLogout}
+              onCancel={() => setConfirmingLogout(false)}
+            />
           </OnboardingProvider>
         </AdminStoreProvider>
       </ThemeProvider>
