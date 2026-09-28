@@ -32,7 +32,10 @@ import {
 import { H1, P } from "@/components/ui/text";
 import { useCart, type CartItem } from "@/context/cart-context";
 import { useAlert } from "@/context/alert-context";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { auth } from "@/lib/firebase";
@@ -191,6 +194,8 @@ export function FloatingCart() {
   const { showAlert } = useAlert();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const insets = useSafeAreaInsets();
+  const collapsedBottom = 60 + insets.bottom + 8;
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
@@ -261,8 +266,9 @@ export function FloatingCart() {
     const borderRadius = interpolate(expansion.value, [0, 1], [30, 0]);
 
     const right = interpolate(expansion.value, [0, 1], [BUTTON_RIGHT, 0]);
-    // Animate bottom from floated position (20) to 0
-    const bottom = interpolate(expansion.value, [0, 1], [100, 0]); // Lowered from 134 to 100
+    // Collapsed, it floats just above the tab bar (60 + the bottom inset —
+    // see app/(tabs)/_layout.tsx), so it clears Android's 3-button nav bar.
+    const bottom = interpolate(expansion.value, [0, 1], [collapsedBottom, 0]);
 
     return {
       width,
