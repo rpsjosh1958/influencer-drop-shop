@@ -11,6 +11,7 @@ import {
   CheckCircle,
   Briefcase,
   Calendar,
+  Gift,
 } from "lucide-react";
 import { StoreConfig } from "@/components/shop/store-provider";
 import {
@@ -22,7 +23,11 @@ import {
   getDoc,
   serverTimestamp,
 } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from "@/lib/firebase";
+import { getErrorMessage } from "@/lib/errors";
+import { toJsDate } from "@/lib/utils";
+import type { FirestoreTimestampLike } from "@/types";
 import { 
   FileText, 
   ShieldCheck, 
@@ -68,9 +73,15 @@ export function VendorDetailsModal({
       ghanaCardBackUrl?: string;
       companyDoc?: string;
     };
+    plan?: string;
+    planExpiresAt?: FirestoreTimestampLike | number;
+    isTrial?: boolean;
   } | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [updatingOnboarding, setUpdatingOnboarding] = useState(false);
+  const [giftDays, setGiftDays] = useState("30");
+  const [giftNote, setGiftNote] = useState("");
+  const [gifting, setGifting] = useState(false);
 
   const fetchDetails = useCallback(async () => {
     if (!store?.id) return;
@@ -199,7 +210,56 @@ export function VendorDetailsModal({
     }
   };
 
+  // Plan writes are server-only (firestore.rules), so this goes through the
+  // grantGrowthDays callable, which re-checks super admin and the day range.
+  const handleGiftGrowth = async () => {
+    const days = Number(giftDays);
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      alert("Enter a whole number of days from 1 to 365.");
+      return;
+    }
+    if (!giftNote.trim()) {
+      alert("Add a reason for the gift.");
+      return;
+    }
+    if (
+      !confirm(
+        `Gift ${days} day${days === 1 ? "" : "s"} of Growth to ${
+          store.name || "this vendor"
+        }? It's added on top of any Growth time they have, on every store they own.`
+      )
+    )
+      return;
+
+    setGifting(true);
+    try {
+      const grantGrowthDays = httpsCallable<
+        { storeId: string; days: number; note: string },
+        { planExpiresAt: number }
+      >(functions, "grantGrowthDays");
+      const { data } = await grantGrowthDays({
+        storeId: store.id,
+        days,
+        note: giftNote,
+      });
+      setGiftNote("");
+      setOwnerData((prev) =>
+        prev && { ...prev, plan: "growth", planExpiresAt: data.planExpiresAt }
+      );
+      onUpdate({ ...store, plan: "growth" });
+      alert(`Done. Growth until ${new Date(data.planExpiresAt).toLocaleDateString()}.`);
+    } catch (error) {
+      console.error("Gift failed", error);
+      alert(getErrorMessage(error) || "Failed to gift Growth");
+    } finally {
+      setGifting(false);
+    }
+  };
+
   if (!isOpen) return null;
+
+  const ownerGrowthUntil =
+    ownerData?.plan === "growth" ? toJsDate(ownerData.planExpiresAt) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
@@ -548,6 +608,67 @@ export function VendorDetailsModal({
                   <ThumbsDown size={16} /> Reject
                 </button>
               </div>
+            </div>
+          </div>
+
+          {/* Gift Growth */}
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+              <Gift size={12} className="text-blue-500" />
+              Gift Growth Plan
+            </h3>
+            <div className="bg-zinc-950 rounded-2xl border border-zinc-800 p-6 space-y-4">
+              <p className="text-sm text-zinc-400">
+                {ownerGrowthUntil ? (
+                  <>
+                    Owner is on Growth{ownerData?.isTrial ? " (trial)" : ""} until{" "}
+                    <span className="text-white font-bold">
+                      {ownerGrowthUntil.toLocaleDateString()}
+                    </span>
+                    . Gifted days are added on top.
+                  </>
+                ) : (
+                  "Owner is on Starter. Gifted days start today."
+                )}{" "}
+                Applies to every store they own.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="sm:w-28">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 block">
+                    Days
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    step={1}
+                    value={giftDays}
+                    onChange={(e) => setGiftDays(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-zinc-500 uppercase mb-2 block">
+                    Reason (internal)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={500}
+                    value={giftNote}
+                    onChange={(e) => setGiftNote(e.target.value)}
+                    placeholder="e.g. Launch partner, downtime compensation"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-sm text-white placeholder:text-zinc-700 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleGiftGrowth}
+                disabled={gifting || loading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition-all"
+              >
+                <Gift size={16} />
+                {gifting ? "Gifting..." : `Gift ${giftDays || 0} days of Growth`}
+              </button>
             </div>
           </div>
 

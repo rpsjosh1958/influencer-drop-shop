@@ -21,7 +21,7 @@ import { checkSubscriptionExpiry } from "./subscriptions";
 import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
-import { BILLING_PLANS } from "./billing";
+import { BILLING_PLANS, extendGrowthExpiry } from "./billing";
 import { reserveStockAndPrice, releaseStock } from "./stock";
 import { initiateOrderRefund } from "./refunds";
 import { sendNotificationToUser } from "./notifications";
@@ -1253,6 +1253,86 @@ export const confirmSubscriptionPayment = onCall(async (request) => {
   }
 
   return { success: true };
+});
+
+// --- SUPER ADMIN: GIFT GROWTH ---
+
+// Gifts Growth days to a store's owner. The plan lives on the user doc, so
+// it covers every store they own (onUserSubscriptionUpdated copies it down,
+// which also re-syncs isVerified and the Paystack fee split). Days stack on
+// top of any Growth time left, and every gift is logged to plan_grants.
+export const grantGrowthDays = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "User must be logged in");
+  }
+  const grantedBy = request.auth.uid;
+  const db = admin.firestore();
+  // super_admins/{uid} is only created by /api/super-admin/init after the
+  // SUPER_ADMIN_EMAILS allowlist check, and clients can't write it.
+  const superAdminDoc = await db.collection("super_admins").doc(grantedBy).get();
+  if (!superAdminDoc.exists) {
+    throw new HttpsError("permission-denied", "Super admin only");
+  }
+
+  const { storeId, days, note } = request.data;
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Days must be a whole number from 1 to 365"
+    );
+  }
+  const reason = typeof note === "string" ? note.trim().slice(0, 500) : "";
+  if (typeof storeId !== "string" || !storeId || !reason) {
+    throw new HttpsError("invalid-argument", "Missing store or note");
+  }
+
+  const storeDoc = await db.collection("stores").doc(storeId).get();
+  const ownerId = storeDoc.data()?.ownerId;
+  if (!ownerId) {
+    throw new HttpsError("not-found", "Store not found");
+  }
+
+  const userRef = db.collection("users").doc(ownerId);
+  const expiresAt = await db.runTransaction(async (t) => {
+    const userSnap = await t.get(userRef);
+    if (!userSnap.exists) {
+      throw new HttpsError("not-found", "Store owner not found");
+    }
+    const user = userSnap.data();
+    const now = admin.firestore.Timestamp.now();
+    const newExpiresAt = extendGrowthExpiry(user, days, now);
+
+    t.update(userRef, { plan: "growth", planExpiresAt: newExpiresAt });
+    t.set(db.collection("plan_grants").doc(), {
+      source: "admin_gift",
+      userId: ownerId,
+      storeId,
+      days,
+      note: reason,
+      grantedBy,
+      previousPlan: user?.plan || "starter",
+      previousExpiresAt: user?.planExpiresAt || null,
+      newExpiresAt,
+      createdAt: now,
+    });
+    return newExpiresAt;
+  });
+
+  const until = expiresAt.toDate().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Africa/Accra",
+  });
+  await sendNotificationToUser(
+    ownerId,
+    "You've been gifted Growth 🎁",
+    `The Drop added ${days} day${days === 1 ? "" : "s"} of Growth to your account. You're on Growth until ${until}.`,
+    "plan_gift",
+    { screen: "/(vendor)/billing" }
+  );
+
+  return { planExpiresAt: expiresAt.toMillis() };
 });
 
 // Vendor (or their store's owner) triggers a real Paystack refund — full
