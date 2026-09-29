@@ -27,3 +27,12 @@ export const extendGrowthExpiry = (
     base.nanoseconds
   );
 };
+
+// "29 Oct 2026" — how plan expiry dates read in vendor notifications.
+export const formatPlanDate = (ts: admin.firestore.Timestamp) =>
+  ts.toDate().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Africa/Accra",
+  });

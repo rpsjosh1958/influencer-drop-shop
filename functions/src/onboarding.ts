@@ -3,6 +3,11 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import { getEmailLayout } from "./email-layout";
+import {
+  ownerHasApprovedStore,
+  rewardReferralOnApproval,
+  REFERRAL_REWARD_DAYS,
+} from "./referrals";
 
 /*
  * TRIGGER: When a new Store is created
@@ -21,6 +26,10 @@ export const onStoreOnboardingCreated = onDocumentCreated(
     if (!ownerId) return;
 
     try {
+      // onStoreCreated auto-approves stores from owners already through
+      // review — they get the approval email instead of "under review".
+      if (await ownerHasApprovedStore(ownerId, storeId)) return;
+
       const db = admin.firestore();
       
       // Fetch Owner Data
@@ -105,6 +114,15 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
 
     // 1. Handle onboardingStatus changes
     if (before.onboardingStatus !== after.onboardingStatus) {
+      let referralRewarded = false;
+      if (after.onboardingStatus === "approved") {
+        try {
+          referralRewarded = await rewardReferralOnApproval(after.ownerId, after.name);
+        } catch (err) {
+          logger.error(`Referral reward failed for ${after.ownerId}`, err);
+        }
+      }
+
       const db = admin.firestore();
       const userDoc = await db.collection("users").doc(after.ownerId).get();
       const user = userDoc.data();
@@ -131,6 +149,15 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
             <p style="font-size: 16px; color: #fff; margin: 0;">
               🎁 <strong>You've unlocked a 30-Day Free Trial of Growth Plan.</strong><br/>
               <span style="color: #999; font-size: 14px;">Enjoy a reduction to 2% platform fees, verified badge eligibility, and mobile app store visibilty.</span>
+            </p>
+          </div>
+          ` : ""}
+
+          ${referralRewarded ? `
+          <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 40px; border: 1px solid #333;">
+            <p style="font-size: 16px; color: #fff; margin: 0;">
+              🤝 <strong>Referral bonus: +${REFERRAL_REWARD_DAYS} days of Growth.</strong><br/>
+              <span style="color: #999; font-size: 14px;">Added on top of your plan for signing up with a referral code.</span>
             </p>
           </div>
           ` : ""}

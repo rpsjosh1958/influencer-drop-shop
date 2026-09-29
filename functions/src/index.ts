@@ -21,14 +21,16 @@ import { checkSubscriptionExpiry } from "./subscriptions";
 import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
-import { BILLING_PLANS, extendGrowthExpiry } from "./billing";
+import { BILLING_PLANS, extendGrowthExpiry, formatPlanDate } from "./billing";
 import { reserveStockAndPrice, releaseStock } from "./stock";
 import { initiateOrderRefund } from "./refunds";
 import { sendNotificationToUser } from "./notifications";
 import { getEmailLayout, emailButton, emailCallout } from "./email-layout";
 import { assertValidPayoutOtp } from "./otp";
+import { ownerHasApprovedStore } from "./referrals";
 
 export { broadcastToStoreCustomers } from "./broadcast";
+export { getReferralCode, redeemReferralCode } from "./referrals";
 
 admin.initializeApp();
 
@@ -183,12 +185,25 @@ export const onStoreCreated = onDocumentCreated(
         logger.info(`User ${ownerId} has already used trial. Defaulting to Starter for new store.`);
       }
 
+      // Every store is created pending (firestore.rules). An owner who's
+      // already been through review gets extra stores approved and live
+      // straight away; anyone else waits for the super admin. The
+      // pending -> approved flip sends the usual approval email.
+      const autoApprove = await ownerHasApprovedStore(ownerId, event.params.storeId);
+
       // Sync Store with the Account Plan
       await snapshot.ref.update({
         plan,
         isTrial,
         planExpiresAt: expiresAt,
-        isVerified: false, // New stores are 'pending' KYC, so impossible to be verified instantly
+        isVerified: plan === "growth" && autoApprove,
+        ...(autoApprove && {
+          onboardingStatus: "approved",
+          status: "live",
+          onboardingNotes: "Auto-approved: owner already has an approved store",
+          onboardingReviewerId: "system",
+          onboardingUpdatedAt: now,
+        }),
       });
       logger.info(
         `Synced Plan (${plan}) to Store ${event.params.storeId}`
@@ -1318,16 +1333,10 @@ export const grantGrowthDays = onCall(async (request) => {
     return newExpiresAt;
   });
 
-  const until = expiresAt.toDate().toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Africa/Accra",
-  });
   await sendNotificationToUser(
     ownerId,
     "You've been gifted Growth 🎁",
-    `The Drop added ${days} day${days === 1 ? "" : "s"} of Growth to your account. You're on Growth until ${until}.`,
+    `The Drop added ${days} day${days === 1 ? "" : "s"} of Growth to your account. You're on Growth until ${formatPlanDate(expiresAt)}.`,
     "plan_gift",
     { screen: "/(vendor)/billing" }
   );

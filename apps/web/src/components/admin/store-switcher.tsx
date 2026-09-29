@@ -263,7 +263,11 @@ function AddStoreModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => vo
       await setDoc(idRef, {
         name: storeName,
         ownerId: user.uid,
-        status: "live",
+        // Created pending + offline like every store (firestore.rules);
+        // onStoreCreated approves it and takes it live within seconds if
+        // this owner already has an approved store.
+        status: "closed",
+        onboardingStatus: "pending",
         plan: "starter", // onStoreCreated will upgrade to trial/inherit user plan
         type: storeType,
         category,

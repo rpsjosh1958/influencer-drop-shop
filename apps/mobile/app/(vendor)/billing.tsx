@@ -1,17 +1,20 @@
-import { View, ScrollView, Pressable, Linking, ActivityIndicator } from "react-native";
+import { View, ScrollView, Pressable, Linking, ActivityIndicator, Share } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { H1, P } from "@/components/ui/text";
 import { formatCurrency } from "@/lib/format";
 import { useQuery } from "@tanstack/react-query";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { auth, db, functions } from "@/lib/firebase";
 import {
   ArrowLeft,
   BadgeCheck,
   Zap,
   CheckCircle2,
   ExternalLink,
+  Gift,
+  Share2,
 } from "lucide-react-native";
 import type { FirestoreTimestamp } from "@/types";
 
@@ -58,6 +61,20 @@ export default function VendorBilling() {
       };
     },
     enabled: !!auth.currentUser,
+  });
+
+  // Minted server-side on first ask (functions/src/referrals.ts).
+  const { data: referral } = useQuery({
+    queryKey: ["referralCode", auth.currentUser?.uid],
+    queryFn: async () =>
+      (
+        await httpsCallable<void, { code: string; rewardedCount: number }>(
+          functions,
+          "getReferralCode"
+        )()
+      ).data,
+    enabled: !!auth.currentUser,
+    staleTime: Infinity,
   });
 
   const plan = data?.plan || "starter";
@@ -122,6 +139,41 @@ export default function VendorBilling() {
               </P>
             </View>
           </View>
+
+          {referral && (
+            <View className="bg-white border border-zinc-100 rounded-3xl p-6 shadow-sm">
+              <View className="flex-row items-center gap-2 mb-2">
+                <Gift size={18} color="#9333ea" />
+                <P className="text-lg font-black">Refer a Vendor</P>
+              </View>
+              <P className="text-zinc-500 text-sm">
+                When a new vendor signs up with your code and their store is
+                approved, you both get an extra month of Growth.
+              </P>
+              <P className="text-3xl font-black tracking-[6px] text-center my-4">
+                {referral.code}
+              </P>
+              {referral.rewardedCount > 0 && (
+                <P className="text-[11px] font-bold text-purple-600 text-center mb-3">
+                  {referral.rewardedCount} vendor
+                  {referral.rewardedCount === 1 ? "" : "s"} joined with your code
+                </P>
+              )}
+              <Pressable
+                onPress={() =>
+                  Share.share({
+                    message: `Open your store on The Drop with my code ${referral.code} and we both get a free month of Growth: https://copdrop.io/create-store?ref=${referral.code}`,
+                  })
+                }
+                className="w-full bg-black py-3.5 rounded-xl flex-row items-center justify-center gap-2 active:opacity-90"
+              >
+                <Share2 size={16} color="white" />
+                <P className="text-white font-bold uppercase text-xs tracking-widest">
+                  Share Invite
+                </P>
+              </Pressable>
+            </View>
+          )}
 
           {/* Growth Plan Details */}
           <View className="bg-zinc-900 rounded-3xl p-6">

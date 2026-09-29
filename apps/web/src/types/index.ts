@@ -171,6 +171,7 @@ export interface StoreConfig {
   plan: "starter" | "growth";
   planExpiresAt?: FirestoreTimestampLike;
   planChangedAt?: FirestoreTimestampLike;
+  isTrial?: boolean;
   isVerified?: boolean;
   isSuspended?: boolean;
   onboardingStatus?: "pending" | "approved" | "rejected" | "needs_more_info";

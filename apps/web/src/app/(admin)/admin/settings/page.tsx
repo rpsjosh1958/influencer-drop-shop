@@ -41,6 +41,7 @@ import { functions } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
+import { ReferralCard } from "@/components/admin/referral-card";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
 import { formatCurrency, toJsDate, getContrastTextColor, maskEmail } from "@/lib/utils";
@@ -362,6 +363,8 @@ export default function StoreSettingsPage() {
       delete payload.createdAt;
       delete payload.planExpiresAt;
       delete payload.planChangedAt;
+      delete payload.isTrial;
+      delete payload.pendingRefundDebt;
 
       // Reset onboarding status if saving after requested info
       if (onboardingStatus === "needs_more_info") {
@@ -1757,6 +1760,8 @@ export default function StoreSettingsPage() {
                           )}
                         </div>
                       </div>
+
+                      <ReferralCard />
 
                       {/* GROWTH UPGRADE CARD */}
                       <div

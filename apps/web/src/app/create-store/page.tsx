@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { auth, db, storage } from "@/lib/firebase"; 
+import { auth, db, storage, functions } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
 import {
   doc,
   setDoc,
@@ -101,6 +102,9 @@ export default function CreateStoreWizard() {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("copdrop_last_visited_store");
       if (saved) setLastVisitedStore(saved);
+      // Referral share links are /create-store?ref=CODE.
+      const ref = new URLSearchParams(window.location.search).get("ref");
+      if (ref) setFormData((prev) => ({ ...prev, referralCode: ref.toUpperCase() }));
     }
   }, []);
 
@@ -139,6 +143,7 @@ export default function CreateStoreWizard() {
     storeSlug: "",
     category: "Fashion",
     storeType: "product", // "product" | "service" | "hybrid"
+    referralCode: "",
   });
 
   // State
@@ -392,6 +397,14 @@ export default function CreateStoreWizard() {
       const storeSnap = await getDoc(storeRef);
       if (storeSnap.exists()) {
         throw new Error("Store URL is already taken. Try a different name.");
+      }
+
+      // Checked and recorded before the store exists so a bad code can
+      // still be fixed; the reward itself lands when the store is approved.
+      if (formData.referralCode.trim()) {
+        await httpsCallable(functions, "redeemReferralCode")({
+          code: formData.referralCode,
+        });
       }
 
       // Derive features from store type
@@ -761,6 +774,12 @@ export default function CreateStoreWizard() {
                       <span className="text-zinc-400 font-bold text-xs select-none uppercase tracking-tighter">copdrop.io/shop/</span>
                       <input name="storeSlug" value={formData.storeSlug} onChange={handleChange} className="flex-1 p-4 bg-transparent focus:outline-none font-black text-black text-sm" required />
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className={labelClasses}>Referral Code (Optional)</label>
+                    <input name="referralCode" value={formData.referralCode} onChange={handleChange} placeholder="e.g. K7M2QX" maxLength={12} autoCapitalize="characters" autoComplete="off" className={`${inputClasses} uppercase tracking-widest`} />
+                    <p className="text-[11px] text-zinc-400 ml-1">Got a code from another vendor? You both get an extra month of Growth once your store is approved.</p>
                   </div>
 
                   <div className="bg-zinc-50 p-5 rounded-2xl border border-zinc-100 relative overflow-hidden group">

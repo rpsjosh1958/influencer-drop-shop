@@ -39,16 +39,23 @@ service cloud.firestore {
     // --- Users (SENSITIVE DATA) ---
     // Contains Phone, Ghana Card, Email. STRICT ACCESS.
     match /users/{userId} {
+      // Plan/billing fields are server-side only (verified payment, trial,
+      // expiry, gift and referral Cloud Functions) — a client write here
+      // would let a user grant themselves the Growth plan for free. Checked
+      // on create too: a brand-new doc could otherwise carry plan:'growth'
+      // with a far-future expiry, and onStoreCreated inherits whatever plan
+      // the user doc already has.
+      function touchesPlanFields(keys) {
+        return keys.hasAny(['plan', 'planExpiresAt', 'planStartedAt', 'isTrial', 'hasUsedTrial', 'billingCycle']);
+      }
       allow read: if isOwner(userId) || isSuperAdmin();
-      allow create: if isOwner(userId);
-      // Plan/billing fields are server-side only (set by verified payment
-      // Cloud Functions or the trial/expiry triggers) — a client write here
-      // would let a user grant themselves the Growth plan for free.
+      allow create: if isOwner(userId) && !touchesPlanFields(request.resource.data.keys());
       allow update: if isOwner(userId) &&
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(
-          ['plan', 'planExpiresAt', 'planStartedAt', 'isTrial', 'hasUsedTrial', 'billingCycle']
-        );
-      allow delete: if isOwner(userId);
+        !touchesPlanFields(request.resource.data.diff(resource.data).affectedKeys());
+      // No client deletes user docs (account deletion goes through support
+      // email), and deleting + recreating one would reset hasUsedTrial and
+      // hand out a second free trial.
+      allow delete: if false;
     }
     
     // --- System Logs ---
@@ -69,9 +76,20 @@ service cloud.firestore {
       
       // Authenticated users can create a store — a second+ store requires
       // the Growth plan (see isOnGrowthOrHasNoStores above).
+      // Every store starts unreviewed and offline: onStoreCreated
+      // auto-approves it if the owner already has an approved store,
+      // otherwise the super admin reviews it. Without this a client could
+      // create a store already approved/live/verified and skip KYC (the
+      // "Add New Store" switcher used to create stores straight to live).
       allow create: if isAuthenticated()
         && request.resource.data.ownerId == request.auth.uid
-        && isOnGrowthOrHasNoStores();
+        && isOnGrowthOrHasNoStores()
+        && request.resource.data.onboardingStatus == 'pending'
+        && request.resource.data.get('status', 'closed') != 'live'
+        && request.resource.data.get('isVerified', false) == false
+        && request.resource.data.get('isSuspended', false) == false
+        && request.resource.data.get('plan', 'starter') == 'starter'
+        && !request.resource.data.keys().hasAny(['planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'pendingRefundDebt']);
 
       // Only the owner can edit their store settings (Name, Theme, etc.)
       // Super Admin can edit anything (Approval, Suspension, etc.)
@@ -86,8 +104,10 @@ service cloud.firestore {
         // (onStoreCreated / onUserSubscriptionUpdated / onStoreUpdated)
         // after a verified Paystack payment (subscriptionPayments.ts). A
         // direct client write of plan:'growth' here would unlock every
-        // Growth-gated feature on the store for free.
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle'])
+        // Growth-gated feature on the store for free. pendingRefundDebt is
+        // what the vendor owes back after a refund (wallet.ts/refunds.ts) —
+        // writable, it could just be zeroed.
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'pendingRefundDebt'])
         && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
         // onboardingStatus was previously untouched by the blocklist above —
         // an owner could self-write straight to "approved", bypassing admin
