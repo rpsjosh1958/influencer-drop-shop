@@ -75,6 +75,11 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [customerNote, setCustomerNote] = useState("");
+  const [discountInput, setDiscountInput] = useState("");
+  const [discount, setDiscount] = useState<{ code: string; amount: number } | null>(null);
+  const [discountError, setDiscountError] = useState("");
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
+  const payable = total - (discount?.amount || 0);
   const [phone, setPhone] = useState("");
 
   const [country, setCountry] = useState("Ghana");
@@ -289,6 +294,26 @@ export default function CheckoutPage() {
     setLoading(false);
   };
 
+  // Display only — the subtotal here is the client's; initializeOrderPayment
+  // re-validates the code against the real server-side subtotal.
+  const applyDiscount = async () => {
+    if (!discountInput.trim()) return;
+    setDiscountError("");
+    setApplyingDiscount(true);
+    try {
+      const { data } = await httpsCallable<
+        { storeId: string; code: string; subtotal: number },
+        { code: string; amount: number }
+      >(functions, "previewDiscount")({ storeId, code: discountInput, subtotal: total });
+      setDiscount(data);
+    } catch (err) {
+      setDiscount(null);
+      setDiscountError(getErrorMessage(err) || "That discount code isn't valid");
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
+
   const handlePaymentStart = async (e: React.FormEvent) => {
     e.preventDefault();
     setPriceChanges([]);
@@ -305,6 +330,10 @@ export default function CheckoutPage() {
       // Something drifted — let the buyer see the updated total/notice
       // before we take them to payment, instead of surprising them with a
       // Paystack popup amount that doesn't match what's on screen.
+      if (discount) {
+        setDiscount(null);
+        setDiscountError("Your bag changed. Apply your code again.");
+      }
       return;
     }
 
@@ -338,6 +367,7 @@ export default function CheckoutPage() {
         },
         customerNote,
         guestEmail: email,
+        discountCode: discount?.code,
       });
 
       // Stock is now reserved server-side — remember the reference so
@@ -456,9 +486,59 @@ export default function CheckoutPage() {
                 </span>
               </div>
             ))}
-            <div className="border-t border-zinc-100 pt-4 mt-4 flex justify-between items-center font-bold text-lg">
+            <div className="border-t border-zinc-100 pt-4 mt-4">
+              <div className="flex gap-2">
+                <input
+                  value={discountInput}
+                  onChange={(e) => setDiscountInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      applyDiscount();
+                    }
+                  }}
+                  placeholder="Discount code"
+                  aria-label="Discount code"
+                  autoCapitalize="characters"
+                  className="flex-1 min-w-0 p-3 rounded-xl border border-zinc-200 bg-white outline-none focus:ring-2 focus:ring-black uppercase text-sm font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={applyDiscount}
+                  disabled={applyingDiscount || !discountInput.trim()}
+                  className="px-4 rounded-xl bg-zinc-900 text-white text-sm font-bold disabled:opacity-40"
+                >
+                  {applyingDiscount ? <Loader2 size={16} className="animate-spin" /> : "Apply"}
+                </button>
+              </div>
+              {discountError && (
+                <p className="text-xs text-red-600 mt-2">{discountError}</p>
+              )}
+            </div>
+            {discount && (
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-zinc-500">
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(total)}</span>
+                </div>
+                <div className="flex justify-between text-green-700 font-medium">
+                  <span className="flex items-center gap-2">
+                    Discount ({discount.code})
+                    <button
+                      type="button"
+                      onClick={() => setDiscount(null)}
+                      className="text-xs text-zinc-400 underline"
+                    >
+                      Remove
+                    </button>
+                  </span>
+                  <span>−{formatCurrency(discount.amount)}</span>
+                </div>
+              </div>
+            )}
+            <div className="border-t border-zinc-100 pt-4 flex justify-between items-center font-bold text-lg">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span>{formatCurrency(payable)}</span>
             </div>
           </div>
         </div>
@@ -678,7 +758,7 @@ export default function CheckoutPage() {
               ) : (
                 <>
                   <Truck size={20} />
-                  PAY {formatCurrency(total)} NOW
+                  PAY {formatCurrency(payable)} NOW
                 </>
               )}
             </button>

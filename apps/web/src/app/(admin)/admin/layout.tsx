@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Megaphone,
   Tag,
+  TicketPercent,
   Settings,
   Wallet,
   Menu,
@@ -327,7 +328,8 @@ function DynamicSidebar({
       items.push(
         { name: "Products", href: "/admin/products", icon: Package },
         { name: "Categories", href: "/admin/categories", icon: Tag },
-        { name: "Orders", href: "/admin/orders", icon: ShoppingBag }
+        { name: "Orders", href: "/admin/orders", icon: ShoppingBag },
+        { name: "Discounts", href: "/admin/discounts", icon: TicketPercent }
       );
     }
 

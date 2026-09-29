@@ -3,6 +3,7 @@ import { test } from "node:test";
 import * as assert from "node:assert/strict";
 import * as admin from "firebase-admin";
 import { extendGrowthExpiry } from "./billing";
+import { discountAmount } from "./discounts";
 
 const DAY = 24 * 60 * 60;
 const now = new admin.firestore.Timestamp(1_800_000_000, 0);
@@ -26,4 +27,14 @@ test("extendGrowthExpiry adds to remaining Growth time, never restarts it", () =
     at(30).seconds
   );
   assert.equal(extendGrowthExpiry(undefined, 90, now).seconds, at(90).seconds);
+});
+
+test("discountAmount never drops the charge below GHS 1", () => {
+  assert.equal(discountAmount("percent", 20, 150), 30);
+  assert.equal(discountAmount("percent", 33, 10), 3.3);
+  assert.equal(discountAmount("fixed", 10, 50), 10);
+  assert.equal(discountAmount("fixed", 50, 20), 19); // capped: leaves GHS 1
+  assert.equal(discountAmount("percent", 100, 20), 19);
+  assert.equal(discountAmount("percent", 500, 20), 19); // >100% clamped
+  assert.equal(discountAmount("fixed", 5, 0.5), 0); // nothing left to discount
 });

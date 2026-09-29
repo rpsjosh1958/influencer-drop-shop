@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { format, isThisYear, isToday, isTomorrow, isYesterday } from "date-fns";
-import type { FirestoreTimestampLike } from "@/types";
+import type { DiscountCode, FirestoreTimestampLike } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -97,6 +97,15 @@ export function formatCurrency(amount: number | string) {
     currency: "GHS",
     minimumFractionDigits: 2,
   }).format(val);
+}
+
+/** "20% off" / "GHS 10.00 off orders over GHS 100.00" */
+export function describeDiscount(
+  d: Pick<DiscountCode, "type" | "value" | "minOrder">,
+) {
+  const off =
+    d.type === "percent" ? `${d.value}% off` : `${formatCurrency(d.value)} off`;
+  return d.minOrder ? `${off} orders over ${formatCurrency(d.minOrder)}` : off;
 }
 
 /**

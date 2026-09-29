@@ -28,9 +28,11 @@ import { sendNotificationToUser } from "./notifications";
 import { getEmailLayout, emailButton, emailCallout } from "./email-layout";
 import { assertValidPayoutOtp } from "./otp";
 import { ownerHasApprovedStore } from "./referrals";
+import { computeDiscount } from "./discounts";
 
 export { broadcastToStoreCustomers } from "./broadcast";
 export { getReferralCode, redeemReferralCode } from "./referrals";
+export { previewDiscount } from "./discounts";
 
 admin.initializeApp();
 
@@ -1023,7 +1025,7 @@ export const linkPayoutMethod = onCall(async (request) => {
 // transaction split to that subaccount. Callable by guests (no auth
 // requirement) since guest checkout is supported.
 export const initializeOrderPayment = onCall(async (request) => {
-  const { storeId, items, shipping, customerNote, guestEmail } =
+  const { storeId, items, shipping, customerNote, guestEmail, discountCode } =
     request.data;
 
   if (
@@ -1085,10 +1087,17 @@ export const initializeOrderPayment = onCall(async (request) => {
     items
   );
 
-  const expectedAmountPesewas = Math.round(totalGHS * 100);
   const reference = `drop_${crypto.randomBytes(12).toString("hex")}`;
 
   try {
+    // Inside the try so a bad/expired code still releases the stock above.
+    const discount = discountCode
+      ? await computeDiscount(storeId, discountCode, totalGHS)
+      : null;
+    const expectedAmountPesewas = Math.round(
+      (totalGHS - (discount?.amount || 0)) * 100
+    );
+
     await db
       .collection("payment_intents")
       .doc(reference)
@@ -1102,6 +1111,7 @@ export const initializeOrderPayment = onCall(async (request) => {
         customerName: shipping.fullName || "",
         storeName: store.name || "Unknown Store",
         expectedAmountPesewas,
+        ...(discount && { subtotal: totalGHS, discount }),
         status: "pending",
         createdAt: admin.firestore.Timestamp.now(),
       });

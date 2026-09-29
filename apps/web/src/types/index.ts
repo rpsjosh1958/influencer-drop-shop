@@ -72,6 +72,20 @@ export interface Category {
   createdAt: FirestoreTimestampLike;
 }
 
+// stores/{storeId}/discount_codes/{code} — the doc id is the code itself.
+// Validated/applied server-side only (functions/src/discounts.ts).
+export interface DiscountCode {
+  id: string;
+  type: "percent" | "fixed";
+  value: number;
+  active: boolean;
+  minOrder: number | null;
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: FirestoreTimestampLike | null;
+  createdAt: FirestoreTimestampLike;
+}
+
 export interface OrderItem {
   id: string;
   productId?: string;

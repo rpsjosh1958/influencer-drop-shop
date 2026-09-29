@@ -12,6 +12,9 @@ interface PaymentIntentData {
   customerName: string;
   storeName: string;
   expectedAmountPesewas: number;
+  // Set only when a discount code was applied (initializeOrderPayment).
+  subtotal?: number;
+  discount?: { code: string; amount: number };
   status: "pending" | "consumed";
 }
 
@@ -86,6 +89,9 @@ export const createOrderFromVerifiedPayment = async (
       storeId: intent.storeId,
       storeName: intent.storeName,
       ...(vendorNetAmount !== undefined ? { vendorNetAmount } : {}),
+      ...(intent.discount
+        ? { subtotal: intent.subtotal, discount: intent.discount }
+        : {}),
     });
   } catch (err) {
     // ALREADY_EXISTS (gRPC code 6) — webhook and confirmOrderPayment raced;
@@ -100,6 +106,20 @@ export const createOrderFromVerifiedPayment = async (
   }
 
   await intentRef.update({ status: "consumed" });
+
+  // Only the call that actually created the order gets here, so a code's
+  // use is counted exactly once per paid order.
+  if (intent.discount) {
+    await db
+      .collection("stores")
+      .doc(intent.storeId)
+      .collection("discount_codes")
+      .doc(intent.discount.code)
+      .update({ usedCount: admin.firestore.FieldValue.increment(1) })
+      .catch((err) =>
+        logger.error(`Couldn't count use of discount ${intent.discount?.code}`, err)
+      );
+  }
 
   return { created: true, storeId: intent.storeId };
 };
