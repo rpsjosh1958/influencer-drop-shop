@@ -250,7 +250,7 @@ export const onUserSubscriptionUpdated = onDocumentUpdated(
 
 /*
  * TRIGGER: When Store is Updated (e.g. Plan Upgrade)
- * ACTION: If upgrading to Growth via Paystack or Admin, update USER and then let sync handle other stores.
+ * ACTION: Release legacy pending funds on upgrade; keep the Paystack fee split in sync with the plan.
  */
 export const onStoreUpdated = onDocumentUpdated(
   "stores/{storeId}",
@@ -261,63 +261,21 @@ export const onStoreUpdated = onDocumentUpdated(
     const before = snapshot.before.data();
     const after = snapshot.after.data();
     const storeId = event.params.storeId;
-    const ownerId = after.ownerId;
 
-    // Check for Plan Upgrade: Starter -> Growth
-    // Gated on isTrial !== true because onStoreCreated's own trial-grant
-    // write (a brand-new store going starter -> growth the moment it's
-    // created, to hand out the 30-day trial) is indistinguishable from a
-    // real paid upgrade by the plan transition alone — both produce the
-    // exact same before/after diff. Without this guard, every single
-    // new-vendor trial activation was mistaken for a paid upgrade here,
-    // which clobbered the correct isTrial:true back to false (killing the
-    // "You've unlocked a 30-Day Free Trial" block in the approval email),
-    // AND prematurely set isVerified:true on a store that hadn't been
-    // through onboarding review yet. A real paid upgrade (via
-    // subscriptionPayments.ts -> onUserSubscriptionUpdated's cascade)
-    // always writes isTrial:false, so this still fires correctly for
-    // genuine upgrades.
-    if (before.plan === "starter" && after.plan === "growth" && after.isTrial !== true) {
-      logger.info(
-        `Detected Plan Upgrade for Store ${storeId}. Updating User document ${ownerId}...`
-      );
-      
-      const now = admin.firestore.Timestamp.now();
-      const cycle = after.billingCycle || "monthly";
-      let days = 30;
-
-      if (cycle === "quarterly") days = 90;
-      if (cycle === "annual") days = 365;
-
-      const expiresAt = new admin.firestore.Timestamp(
-        now.seconds + days * 24 * 60 * 60,
-        now.nanoseconds
-      );
-
-      // CRITICAL: Update the USER document. 
-      // The onUserSubscriptionUpdated trigger will then sync this to all OTHER stores.
-      if (ownerId) {
-        await admin.firestore().collection("users").doc(ownerId).update({
-          plan: "growth",
-          planExpiresAt: expiresAt,
-          isTrial: false,
-          billingCycle: cycle,
-        });
-      }
-
-      await snapshot.after.ref.update({
-        planExpiresAt: expiresAt,
-        isVerified: true,
-        planChangedAt: now,
-      });
-
+    // The user doc is the plan's source of truth — every grant (payment,
+    // trial, referral, gift) writes plan/planExpiresAt/isTrial there and
+    // onUserSubscriptionUpdated copies it down here, isVerified included.
+    // This used to also "detect the upgrade" and write a fresh now+30d
+    // (from a billingCycle store docs never carry) back up to the user doc,
+    // overwriting the real expiry every time — a quarterly/annual payment
+    // or any extension would have been cut back to 30 days.
+    if (before.plan === "starter" && after.plan === "growth") {
       await releasePendingFunds(storeId);
     }
 
     // Keep the store's Paystack Subaccount fee split in sync with whatever
     // its plan is now — covers upgrades, downgrades, and expiry-driven
-    // downgrades alike (all of which land here via the plan fan-out),
-    // unlike the block above which only handled the starter->growth case.
+    // downgrades alike (all of which land here via the plan fan-out).
     // Skipped while a refund debt is still being recovered (see
     // refunds.ts/wallet.ts) — that intentionally runs the subaccount at an
     // elevated rate regardless of plan, and a plan change landing mid-

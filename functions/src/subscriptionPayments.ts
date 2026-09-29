@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
-import { BILLING_PLANS } from "./billing";
+import { BILLING_PLANS, extendGrowthExpiry } from "./billing";
 
 interface SubscriptionIntentData {
   userId: string;
@@ -59,13 +59,12 @@ export const applySubscriptionPaymentIfVerified = async (
       return { applied: false };
     }
 
-    const now = admin.firestore.Timestamp.now();
-    const expiresAt = new admin.firestore.Timestamp(
-      now.seconds + plan.days * 24 * 60 * 60,
-      now.nanoseconds
-    );
-
     const userRef = db.collection("users").doc(intent.userId);
+    const userSnap = await t.get(userRef);
+    const now = admin.firestore.Timestamp.now();
+    // Paying with trial/gift days left adds to them instead of wiping them.
+    const expiresAt = extendGrowthExpiry(userSnap.data(), plan.days, now);
+
     t.update(userRef, {
       plan: "growth",
       isTrial: false,

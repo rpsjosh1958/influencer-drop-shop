@@ -85,12 +85,8 @@ service cloud.firestore {
         // server-side only, written by the Cloud Functions plan-sync chain
         // (onStoreCreated / onUserSubscriptionUpdated / onStoreUpdated)
         // after a verified Paystack payment (subscriptionPayments.ts). A
-        // direct client write of plan:'growth' here was previously
-        // unblocked, and onStoreUpdated's "before.plan==starter &&
-        // after.plan==growth" upgrade-detection block can't tell a spoofed
-        // write from a real one — it would have set isVerified:true,
-        // released pending funds, and cascaded a free Growth plan to every
-        // store the user owns.
+        // direct client write of plan:'growth' here would unlock every
+        // Growth-gated feature on the store for free.
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle'])
         && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
         // onboardingStatus was previously untouched by the blocklist above —
