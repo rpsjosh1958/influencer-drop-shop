@@ -202,6 +202,8 @@ export interface Order {
   items: CartItem[];
   total: number;
   subtotal: number;
+  // Set only when a discount code was applied — total is what was paid.
+  discount?: { code: string; amount: number };
   // Loosely typed to match apps/web/src/types/index.ts's Order — the real
   // set of values in use (pending/paid/processing/packaged/sent-out/
   // shipped/delivered/completed/cancelled/refunded/manual) isn't fully

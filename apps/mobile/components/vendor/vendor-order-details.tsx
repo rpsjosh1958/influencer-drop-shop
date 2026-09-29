@@ -263,6 +263,11 @@ export function VendorOrderDetails({
                   <H1 className="text-2xl font-black">
                     {formatCurrency(order.total)}
                   </H1>
+                  {order.discount && (
+                    <P className="text-xs text-green-700 font-bold mt-1">
+                      {order.discount.code} −{formatCurrency(order.discount.amount)}
+                    </P>
+                  )}
                 </View>
               </View>
 

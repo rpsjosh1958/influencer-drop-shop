@@ -467,7 +467,19 @@ export function AdminOrderModal({
                       </div>
                     ))}
                   </div>
-                  <div className="flex justify-between items-center mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                  {order.discount && (
+                    <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 space-y-1 text-sm">
+                      <div className="flex justify-between text-zinc-500">
+                        <span>Subtotal</span>
+                        <span>{formatCurrency(order.subtotal ?? order.total + order.discount.amount)}</span>
+                      </div>
+                      <div className="flex justify-between text-green-700 dark:text-green-400 font-medium">
+                        <span>Discount ({order.discount.code})</span>
+                        <span>−{formatCurrency(order.discount.amount)}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className={`flex justify-between items-center border-zinc-100 dark:border-zinc-800 ${order.discount ? "mt-3" : "mt-6 pt-6 border-t"}`}>
                     <span className="font-bold text-zinc-400 text-lg uppercase tracking-widest">
                       Total Amount
                     </span>

@@ -57,6 +57,31 @@ export default function CheckoutScreen() {
   const [initializing, setInitializing] = useState(true);
   const [customerNote, setCustomerNote] = useState("");
   const [user, setUser] = useState<User | null>(null);
+  const [discountInput, setDiscountInput] = useState("");
+  const [discount, setDiscount] = useState<{ code: string; amount: number } | null>(null);
+  const [discountError, setDiscountError] = useState("");
+  const [applyingDiscount, setApplyingDiscount] = useState(false);
+  const payable = total - (discount?.amount || 0);
+
+  // Display only — the subtotal here is the client's; initializeOrderPayment
+  // re-validates the code against the real server-side subtotal.
+  const applyDiscount = async () => {
+    if (!discountInput.trim() || !storeId) return;
+    setDiscountError("");
+    setApplyingDiscount(true);
+    try {
+      const { data } = await httpsCallable<
+        { storeId: string; code: string; subtotal: number },
+        { code: string; amount: number }
+      >(functions, "previewDiscount")({ storeId, code: discountInput, subtotal: total });
+      setDiscount(data);
+    } catch (err) {
+      setDiscount(null);
+      setDiscountError(getErrorMessage(err) || "That discount code isn't valid");
+    } finally {
+      setApplyingDiscount(false);
+    }
+  };
 
   // Empty cart and not mid-checkout (e.g. back-navigated here directly, or
   // the cart got cleared some other way) — nothing to check out, bail back
@@ -207,6 +232,7 @@ export default function CheckoutScreen() {
         },
         customerNote,
         guestEmail: email,
+        discountCode: discount?.code,
       });
 
       // Stock is now reserved server-side — remember the reference so
@@ -310,9 +336,59 @@ export default function CheckoutScreen() {
                     </View>
                   ))}
                   <View className="h-px bg-zinc-200 my-2" />
-                  <View className="flex-row justify-between items-center">
+                  <View className="flex-row gap-2 mb-1">
+                    <TextInput
+                      placeholder="Discount code"
+                      value={discountInput}
+                      onChangeText={setDiscountInput}
+                      onSubmitEditing={applyDiscount}
+                      autoCapitalize="characters"
+                      autoCorrect={false}
+                      returnKeyType="done"
+                      className="flex-1 bg-white border border-zinc-200 rounded-xl px-4 h-12 font-medium text-base text-black"
+                      placeholderTextColor="#a1a1aa"
+                    />
+                    <Pressable
+                      onPress={applyDiscount}
+                      disabled={applyingDiscount || !discountInput.trim()}
+                      className={`px-5 h-12 rounded-xl bg-black items-center justify-center ${
+                        applyingDiscount || !discountInput.trim() ? "opacity-40" : ""
+                      }`}
+                    >
+                      {applyingDiscount ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <P className="text-white font-bold">Apply</P>
+                      )}
+                    </Pressable>
+                  </View>
+                  {!!discountError && (
+                    <P className="text-xs text-red-600 mb-1">{discountError}</P>
+                  )}
+                  {discount && (
+                    <>
+                      <View className="flex-row justify-between mt-2">
+                        <P className="text-zinc-500">Subtotal</P>
+                        <P className="text-zinc-500">{formatCurrency(total)}</P>
+                      </View>
+                      <View className="flex-row justify-between items-center mt-1">
+                        <View className="flex-row items-center gap-2">
+                          <P className="text-green-700 font-medium">
+                            Discount ({discount.code})
+                          </P>
+                          <Pressable onPress={() => setDiscount(null)} hitSlop={8}>
+                            <P className="text-xs text-zinc-400 underline">Remove</P>
+                          </Pressable>
+                        </View>
+                        <P className="text-green-700 font-medium">
+                          −{formatCurrency(discount.amount)}
+                        </P>
+                      </View>
+                    </>
+                  )}
+                  <View className="flex-row justify-between items-center mt-2">
                     <P className="font-bold text-lg">Total</P>
-                    <P className="font-black text-xl">{formatCurrency(total)}</P>
+                    <P className="font-black text-xl">{formatCurrency(payable)}</P>
                   </View>
                 </View>
               </View>
@@ -426,7 +502,7 @@ export default function CheckoutScreen() {
           <View className="px-6 py-6 border-t border-zinc-100 bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-10">
             <SlideToPay
               ref={sliderRef}
-              amount={total}
+              amount={payable}
               onSuccess={handlePayPress}
               isLoading={loading}
             />

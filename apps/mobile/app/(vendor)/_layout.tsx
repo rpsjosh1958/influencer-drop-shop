@@ -16,6 +16,7 @@ import {
   Wallet,
   Share2,
   Megaphone,
+  TicketPercent,
 } from "lucide-react-native";
 import { useNotifications } from "@/context/notification-context";
 import { useEffect, useState } from "react";
@@ -246,6 +247,20 @@ function VendorLayout() {
             title: "Products",
             drawerIcon: ({ color, size }) => (
               <Package size={22} color={color} />
+            ),
+            drawerItemStyle: {
+              ...baseDrawerItemStyle,
+              display: hasProducts ? "flex" : "none",
+            },
+          }}
+        />
+        <Drawer.Screen
+          name="discounts"
+          options={{
+            drawerLabel: "Discounts",
+            title: "Discounts",
+            drawerIcon: ({ color, size }) => (
+              <TicketPercent size={22} color={color} />
             ),
             drawerItemStyle: {
               ...baseDrawerItemStyle,

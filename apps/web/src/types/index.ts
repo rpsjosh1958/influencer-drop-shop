@@ -122,6 +122,9 @@ export interface Order {
   hasReview?: boolean;
   storeId?: string;
   vendorNetAmount?: number;
+  // Set only when a discount code was applied — total is what was paid.
+  subtotal?: number;
+  discount?: { code: string; amount: number };
   paymentMethod?: string;
   // Refunds — refundedAmount is the cumulative amount actually confirmed
   // refunded (refund.processed); pendingRefundAmount/refundStatus track a
