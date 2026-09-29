@@ -5,40 +5,43 @@ import { useRouter, type Href } from "expo-router";
 import { getNotificationRoute } from "@/lib/notification-routing";
 import { ShoppingBag, Zap } from "lucide-react-native";
 import { P } from "./ui/text";
-import { MotiView } from "moti";
+import { MotiView, AnimatePresence } from "moti";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 
+const AUTO_HIDE_MS = 5000;
+
 export function InAppNotificationBanner() {
   const { latestNotification, markAsRead, mode } = useNotifications();
-  const [visible, setVisible] = useState(false);
-  const [currentNotif, setCurrentNotif] = useState<Notification | null>(null);
+  const [hiddenId, setHiddenId] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
+  // latestNotification is already "newest, if unread"; the banner shows it
+  // until it's hidden by id.
+  const currentNotif: Notification | null =
+    latestNotification && latestNotification.id !== hiddenId
+      ? latestNotification
+      : null;
+  const currentId = currentNotif?.id;
+
+  // Keyed on the id, not the object: the context rebuilds notification
+  // objects on every snapshot (any users/{uid} change does it), which used
+  // to re-run this, cancel the hide timer and never re-arm it — so the
+  // banner never left.
   useEffect(() => {
-    if (latestNotification && !latestNotification.read) {
-      // If we already showed this specific ID, don't show again (local state check)
-      // ideally we track "lastShownId".
-      if (currentNotif?.id !== latestNotification.id) {
-        setCurrentNotif(latestNotification);
-        setVisible(true);
+    if (!currentId) return;
+    const timer = setTimeout(() => setHiddenId(currentId), AUTO_HIDE_MS);
+    return () => clearTimeout(timer);
+  }, [currentId]);
 
-        // Auto hide
-        const timer = setTimeout(() => {
-          setVisible(false);
-        }, 5000);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [latestNotification]);
-
-  if (!visible || !currentNotif) return null;
+  const hide = () => currentId && setHiddenId(currentId);
 
   const handlePress = () => {
+    if (!currentNotif) return;
     markAsRead(currentNotif.id);
-    setVisible(false);
+    hide();
 
     const route = getNotificationRoute(currentNotif);
     if (route) {
@@ -48,7 +51,9 @@ export function InAppNotificationBanner() {
       // complaint modal actually opens, so land there rather than a route
       // that doesn't exist.
       router.push(
-        (mode === "vendor" ? "/(vendor)/(tabs)/notifications" : "/(tabs)") as Href
+        (mode === "vendor"
+          ? "/(vendor)/(tabs)/notifications"
+          : "/(tabs)") as Href,
       );
     } else {
       router.push((mode === "vendor" ? "/(vendor)/(tabs)" : "/(tabs)") as Href);
@@ -57,47 +62,54 @@ export function InAppNotificationBanner() {
 
   const pan = Gesture.Pan().onUpdate((e) => {
     if (e.translationY < -10) {
-      runOnJS(setVisible)(false);
+      runOnJS(hide)();
     }
   });
 
+  // AnimatePresence is what makes `exit` actually play (slide up and out);
+  // without it the banner just vanished when unmounted.
   return (
-    <GestureDetector gesture={pan}>
-      <MotiView
-        from={{ translateY: -100, opacity: 0 }}
-        animate={{ translateY: 0, opacity: 1 }}
-        exit={{ translateY: -200, opacity: 0 }}
-        transition={{ type: "timing", duration: 400 }}
-        style={{
-          position: "absolute",
-          top: insets.top + 10,
-          left: 16,
-          right: 16,
-          zIndex: 100,
-        }}
-      >
-        <Pressable
-          onPress={handlePress}
-          className="bg-zinc-900 rounded-2xl p-4 shadow-xl border border-zinc-800 flex-row gap-3 items-center"
+    <AnimatePresence>
+      {currentNotif && (
+        <MotiView
+          key={currentNotif.id}
+          from={{ translateY: -100, opacity: 0 }}
+          animate={{ translateY: 0, opacity: 1 }}
+          exit={{ translateY: -200, opacity: 0 }}
+          transition={{ type: "timing", duration: 400 }}
+          style={{
+            position: "absolute",
+            top: insets.top + 10,
+            left: 16,
+            right: 16,
+            zIndex: 100,
+          }}
         >
-          <View className="h-10 w-10 rounded-full bg-zinc-800 items-center justify-center border border-zinc-700">
-            {currentNotif.type === "drop" ||
-            currentNotif.type === "broadcast" ? (
-              <Zap size={18} color="#fbbf24" fill="#fbbf24" />
-            ) : (
-              <ShoppingBag size={18} color="white" />
-            )}
-          </View>
-          <View className="flex-1">
-            <P className="text-white font-bold text-sm mb-0.5">
-              {currentNotif.title}
-            </P>
-            <P className="text-zinc-400 text-xs" numberOfLines={1}>
-              {currentNotif.message}
-            </P>
-          </View>
-        </Pressable>
-      </MotiView>
-    </GestureDetector>
+          <GestureDetector gesture={pan}>
+            <Pressable
+              onPress={handlePress}
+              className="bg-zinc-900 rounded-2xl p-4 shadow-xl border border-zinc-800 flex-row gap-3 items-center"
+            >
+              <View className="h-10 w-10 rounded-full bg-zinc-800 items-center justify-center border border-zinc-700">
+                {currentNotif.type === "drop" ||
+                currentNotif.type === "broadcast" ? (
+                  <Zap size={18} color="#fbbf24" fill="#fbbf24" />
+                ) : (
+                  <ShoppingBag size={18} color="white" />
+                )}
+              </View>
+              <View className="flex-1">
+                <P className="text-white font-bold text-sm mb-0.5">
+                  {currentNotif.title}
+                </P>
+                <P className="text-zinc-400 text-xs" numberOfLines={1}>
+                  {currentNotif.message}
+                </P>
+              </View>
+            </Pressable>
+          </GestureDetector>
+        </MotiView>
+      )}
+    </AnimatePresence>
   );
 }
