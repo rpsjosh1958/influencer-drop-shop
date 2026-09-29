@@ -87,7 +87,7 @@ export function AdminProductCardMobile({
         </Tooltip>
 
         <Tooltip
-          content={isLive ? "Cannot edit while LIVE" : "Edit Item"}
+          content={isLive ? "Cannot edit while store is OPEN" : "Edit Item"}
           side="top"
           className="flex-1"
         >

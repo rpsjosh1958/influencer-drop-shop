@@ -334,7 +334,7 @@ export default function ServicesPage() {
                   </button>
 
                   <Tooltip
-                    content={isLive ? "Cannot edit while LIVE" : "Edit Service"}
+                    content={isLive ? "Cannot edit while store is OPEN" : "Edit Service"}
                     side="top"
                   >
                     <button
