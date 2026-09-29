@@ -16,7 +16,6 @@ import { toPng } from "html-to-image";
 import {
   StorePromoCard,
   StorePromoTemplate,
-  StorePromoFormat,
 } from "./store-promo-card";
 import { Portal } from "@/components/ui/portal";
 
@@ -41,7 +40,6 @@ export const StoreShareModal = ({
   const [template, setTemplate] = useState<StorePromoTemplate>(
     rackAvailable ? "rack" : "signal"
   );
-  const [format, setFormat] = useState<StorePromoFormat>("story");
   const [generating, setGenerating] = useState(false);
   const [imagesReady, setImagesReady] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -80,7 +78,7 @@ export const StoreShareModal = ({
       }
 
       const link = document.createElement("a");
-      link.download = `${storeSlug}-${template}-${format}.png`;
+      link.download = `${storeSlug}-${template}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -118,9 +116,8 @@ export const StoreShareModal = ({
           <div className="fixed left-[-9999px] top-0 pointer-events-none opacity-0">
             <div id="hidden-store-promo-target">
               <StorePromoCard
-                key={`${template}-${format}`}
+                key={template}
                 template={template}
-                format={format}
                 storeName={storeName}
                 storeLogo={storeLogo}
                 storeSlug={storeSlug}
@@ -142,9 +139,8 @@ export const StoreShareModal = ({
             <div className="flex-1 flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-950 rounded-2xl p-4 md:p-8 min-h-[400px]">
               <div className="shadow-2xl shadow-black/50 transform scale-[0.6] md:scale-[0.7] origin-center -my-16 md:-my-10">
                 <StorePromoCard
-                  key={`preview-${template}-${format}`}
+                  key={`preview-${template}`}
                   template={template}
-                  format={format}
                   storeName={storeName}
                   storeLogo={storeLogo}
                   storeSlug={storeSlug}
@@ -216,27 +212,6 @@ export const StoreShareModal = ({
                     <LayoutGrid size={16} />
                     Rack
                   </button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="inline-flex bg-zinc-100 dark:bg-zinc-800 rounded-full p-1 gap-1">
-                  {(["story", "post"] as StorePromoFormat[]).map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => {
-                        setFormat(f);
-                        setImagesReady(false);
-                      }}
-                      className={`px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-colors ${
-                        format === f
-                          ? "bg-white dark:bg-zinc-900 text-black dark:text-white shadow-sm"
-                          : "text-zinc-500"
-                      }`}
-                    >
-                      {f === "story" ? "Story · 9:16" : "Post · 4:5"}
-                    </button>
-                  ))}
                 </div>
               </div>
 

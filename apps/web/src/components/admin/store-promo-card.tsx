@@ -4,7 +4,6 @@ import { Product } from "@/types";
 import { CorsImage } from "./cors-image";
 
 export type StorePromoTemplate = "signal" | "rack";
-export type StorePromoFormat = "story" | "post";
 
 const FLYER_FONT_FAMILY = "'Helvetica Neue', Arial, sans-serif";
 
@@ -69,7 +68,6 @@ function fitSingleLine(
 
 interface StorePromoCardProps {
   template: StorePromoTemplate;
-  format: StorePromoFormat;
   storeName: string;
   storeLogo?: string;
   storeSlug: string;
@@ -77,24 +75,21 @@ interface StorePromoCardProps {
   onImageLoad?: () => void;
 }
 
-const DIMENSIONS: Record<StorePromoFormat, { width: number; height: number }> = {
-  story: { width: 360, height: 640 },
-  post: { width: 360, height: 450 },
-};
+// 9:16 — made for WhatsApp status / Instagram stories.
+const WIDTH = 360;
+const HEIGHT = 640;
 
 // NOTE: explicit hex colors + inline styles throughout (matches
 // PromoCard's established approach) — Tailwind v4's oklch() color
 // functions crash html-to-image's rasterizer.
 export const StorePromoCard = ({
   template,
-  format,
   storeName,
   storeLogo,
   storeSlug,
   products,
   onImageLoad,
 }: StorePromoCardProps) => {
-  const { width, height } = DIMENSIONS[format];
   const shopUrl = `https://copdrop.io/shop/${storeSlug}`;
   const rackProducts = products.slice(0, 3);
 
@@ -120,17 +115,13 @@ export const StorePromoCard = ({
   const [loadedCount, setLoadedCount] = useState(0);
   const requiredImages =
     1 + // header logo (real or fallback)
-    (format === "story" ? 1 : 0) + // corner watermark, story only
+    1 + // corner watermark
     (template === "rack" ? rackProducts.length : 0);
 
   const signalNameStyle = useMemo(
     () =>
-      fitStoreName(
-        storeName,
-        format === "story" ? 44 : 34,
-        format === "story" ? 20 : 16
-      ),
-    [storeName, format]
+      fitStoreName(storeName, 44, 20),
+    [storeName]
   );
   const rackNameSize = useMemo(
     () => fitSingleLine(storeName, 18, 12),
@@ -187,8 +178,8 @@ export const StorePromoCard = ({
     <div
       style={{
         position: "relative",
-        width,
-        height,
+        width: WIDTH,
+        height: HEIGHT,
         overflow: "hidden",
         fontFamily: FLYER_FONT_FAMILY,
         backgroundColor: "#0A0A0C",
@@ -206,8 +197,7 @@ export const StorePromoCard = ({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "space-between",
-            padding:
-              format === "story" ? "56px 40px 40px" : "36px 40px 30px",
+            padding: "56px 40px 40px",
             textAlign: "center",
           }}
         >
@@ -239,8 +229,8 @@ export const StorePromoCard = ({
                 alt={storeName}
                 onLoad={handleImgLoad}
                 style={{
-                  height: format === "story" ? 84 : 64,
-                  maxWidth: format === "story" ? 220 : 170,
+                  height: 84,
+                  maxWidth: 220,
                   width: "auto",
                   objectFit: "contain",
                   filter: "drop-shadow(0 12px 20px rgba(0,0,0,0.5))",
@@ -252,7 +242,7 @@ export const StorePromoCard = ({
                 alt={storeName}
                 onLoad={handleImgLoad}
                 style={{
-                  height: format === "story" ? 84 : 64,
+                  height: 84,
                   width: "auto",
                   objectFit: "contain",
                   filter: "drop-shadow(0 12px 20px rgba(0,0,0,0.5))",
@@ -285,7 +275,7 @@ export const StorePromoCard = ({
                 flexDirection: "column",
                 alignItems: "center",
                 gap: "10px",
-                marginTop: format === "story" ? "28px" : "16px",
+                marginTop: "28px",
               }}
             >
               <p
@@ -337,8 +327,7 @@ export const StorePromoCard = ({
             inset: 0,
             display: "flex",
             flexDirection: "column",
-            padding:
-              format === "story" ? "26px 30px 40px" : "22px 28px 32px",
+            padding: "26px 30px 40px",
           }}
         >
           <div
@@ -394,7 +383,7 @@ export const StorePromoCard = ({
             // flex/absolute positioning for the same reason), which was
             // silently collapsing these tiles to zero height in the
             // exported PNG even though the images themselves had loaded.
-            const heroFlex = format === "story" ? 1.55 : 1.15;
+            const heroFlex = 1.55;
             const tile = (p: Product) => (
               <div
                 key={p.id}
@@ -547,21 +536,19 @@ export const StorePromoCard = ({
         Powered by CopDrop.io
       </p>
 
-      {format === "story" && (
-        <img
-          src={FALLBACK_LOGO_SRC}
-          alt="The Drop"
-          onLoad={handleImgLoad}
-          style={{
-            position: "absolute",
-            bottom: 14,
-            right: 14,
-            width: 22,
-            height: 22,
-            opacity: 0.9,
-          }}
-        />
-      )}
+      <img
+        src={FALLBACK_LOGO_SRC}
+        alt="The Drop"
+        onLoad={handleImgLoad}
+        style={{
+          position: "absolute",
+          bottom: 14,
+          right: 14,
+          width: 22,
+          height: 22,
+          opacity: 0.9,
+        }}
+      />
     </div>
   );
 };

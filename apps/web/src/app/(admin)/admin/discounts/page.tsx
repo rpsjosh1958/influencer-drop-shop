@@ -17,11 +17,12 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { DiscountCode } from "@/types";
-import { Plus, Trash2, TicketPercent, AlertCircle, Loader2, Copy, Info } from "lucide-react";
+import { Plus, Trash2, TicketPercent, AlertCircle, Loader2, Copy, Info, Share2 } from "lucide-react";
 import { useAdminStore } from "@/components/admin/admin-store-provider";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { LoadingState } from "@/components/admin/loading-state";
 import { EmptyState } from "@/components/admin/empty-state";
+import { DiscountShareModal } from "@/components/admin/discount-share-modal";
 import { describeDiscount, toJsDate } from "@/lib/utils";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -76,9 +77,10 @@ function InfoField({
 // applies them server-side (functions/src/discounts.ts) — this page only
 // manages them.
 export default function DiscountsPage() {
-  const { storeId, loading: storeLoading } = useAdminStore();
+  const { storeId, storeName, storeLogo, loading: storeLoading } = useAdminStore();
   const queryClient = useQueryClient();
   const [form, setForm] = useState(EMPTY_FORM);
+  const [sharing, setSharing] = useState<DiscountCode | null>(null);
   // Read once per visit, for the "Expired" labels — not worth a ticking clock.
   const [now] = useState(() => Date.now());
   const set = (field: keyof typeof EMPTY_FORM) =>
@@ -339,6 +341,14 @@ export default function DiscountsPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      {live && (
+                        <button
+                          onClick={() => setSharing(d)}
+                          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-lg bg-black dark:bg-white text-white dark:text-black hover:opacity-90"
+                        >
+                          <Share2 size={14} /> Share
+                        </button>
+                      )}
                       <button
                         onClick={() => toggleMutation.mutate(d)}
                         disabled={toggleMutation.isPending}
@@ -366,6 +376,16 @@ export default function DiscountsPage() {
           )}
         </div>
       </div>
+
+      {sharing && (
+        <DiscountShareModal
+          code={sharing}
+          storeSlug={storeId}
+          storeName={storeName || ""}
+          storeLogo={storeLogo || undefined}
+          onClose={() => setSharing(null)}
+        />
+      )}
     </div>
   );
 }
