@@ -120,7 +120,7 @@ export function Tooltip({
       {mounted &&
         createPortal(
           <AnimatePresence>
-            {isVisible && (
+            {isVisible && content && (
               <motion.div
                 initial="initial"
                 animate="animate"

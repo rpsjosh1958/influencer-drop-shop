@@ -42,6 +42,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
 import { ReferralCard } from "@/components/admin/referral-card";
+import { Tooltip } from "@/components/ui/tooltip";
 import { PasswordInput } from "@/components/ui/password-input";
 import { HelpTrigger, useOnboarding } from "@/context/onboarding-context";
 import { formatCurrency, toJsDate, getContrastTextColor, maskEmail } from "@/lib/utils";
@@ -724,13 +725,29 @@ export default function StoreSettingsPage() {
           {TABS.map((tab) => {
             const isLocked = (tab.id === "billing" || tab.id === "payouts") && !isTypeSelected;
             const isActive = activeTab === tab.id;
+            // Inactive tabs are icon-only, so hovering names them (and says
+            // why a locked one is locked). Always wrapped, with no text on
+            // the active tab, so switching tabs doesn't remount the button
+            // mid layout-animation.
             return (
-              <motion.button
+              <Tooltip
                 key={tab.id}
+                side="bottom"
+                content={
+                  isActive
+                    ? ""
+                    : isLocked
+                      ? `${tab.label}: choose a store type in General first`
+                      : tab.label
+                }
+              >
+              <motion.button
                 layout
                 transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 onClick={() => !isLocked && setActiveTab(tab.id)}
-                disabled={isLocked}
+                // aria-disabled, not disabled: browsers don't reliably fire
+                // hover events on a disabled button, which hid its tooltip.
+                aria-disabled={isLocked}
                 className={`flex items-center gap-2 px-3.5 py-2.5 rounded-full font-medium text-sm transition-colors ${
                   isActive
                     ? "bg-black text-white shadow-lg"
@@ -755,6 +772,7 @@ export default function StoreSettingsPage() {
                 </AnimatePresence>
                 {isLocked && <Lock size={14} className="shrink-0" />}
               </motion.button>
+              </Tooltip>
             );
           })}
         </div>
