@@ -150,11 +150,23 @@ export default function CreateStoreWizard() {
   const [isLoginMode, setIsLoginMode] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  // Signed-in accounts only skip to the store step if they've already given
+  // ID (a vendor adding a store). Anyone else — e.g. a shopper account
+  // logging in here — still fills in Vendor Details first; this used to
+  // jump straight to step 2, opening a store with no KYC at all.
+  // firestore.rules enforces the same on store create.
+  const skipVendorStepIfVerified = async (uid: string) => {
+    const snap = await getDoc(doc(db, "users", uid));
+    const identity = snap.data()?.identity;
+    if (identity?.ghanaCard || identity?.companyDoc) setStep(2);
+  };
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
         setFormData((prev) => ({ ...prev, email: u.email || "" }));
+        skipVendorStepIfVerified(u.uid).catch(console.error);
       }
     });
     return () => unsub();
@@ -241,10 +253,14 @@ export default function CreateStoreWizard() {
       if (!formData.email || !formData.password) {
         throw new Error("Please enter email and password.");
       }
-      await import("firebase/auth").then(({ signInWithEmailAndPassword }) =>
-        signInWithEmailAndPassword(auth, formData.email, formData.password),
+      const { user: signedIn } = await import("firebase/auth").then(
+        ({ signInWithEmailAndPassword }) =>
+          signInWithEmailAndPassword(auth, formData.email, formData.password),
       );
-      setStep(2);
+      // Back to the Vendor Details form (email/password now hidden) unless
+      // this account already has ID on file.
+      setIsLoginMode(false);
+      await skipVendorStepIfVerified(signedIn.uid);
     } catch (err) {
       console.error(err);
       setError("Invalid email or password.");
@@ -786,8 +802,8 @@ export default function CreateStoreWizard() {
                     <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                       <Sparkles size={40} className="text-black" />
                     </div>
-                    <h4 className="font-black text-xs text-black uppercase tracking-widest mb-1">Starter Plan (Active)</h4>
-                    <p className="text-xs text-zinc-500 leading-relaxed">You are starting on the free plan (8% fee). You can upgrade to Growth later for lower fees and a verified badge.</p>
+                    <h4 className="font-black text-xs text-black uppercase tracking-widest mb-1">30-Day Growth Trial</h4>
+                    <p className="text-xs text-zinc-500 leading-relaxed">New vendors start with a free month of Growth: 2% fees and a verified badge once approved. After that you move to Starter (8% fees) unless you upgrade.</p>
                   </div>
 
                   <div className="space-y-3">

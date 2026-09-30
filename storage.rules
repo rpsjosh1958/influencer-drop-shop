@@ -1,0 +1,45 @@
+rules_version = '2';
+
+// Covers every path the web and mobile apps upload to (Cloud Functions
+// don't touch Storage). Nothing in the apps deletes or overwrites a stored
+// image — every upload gets a fresh timestamped name — so image paths are
+// create-only: nobody can replace another store's logo/product photo in
+// place, even though the flat web paths carry no owner to check.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function underMB(mb) {
+      return request.resource.size < mb * 1024 * 1024;
+    }
+
+    // KYC documents: Ghana Card photos / company certificate, uploaded at
+    // vendor signup (web create-store, mobile registration) and on
+    // resubmit. Owner-only. Read is owner-only too — getDownloadURL needs
+    // it right after upload; the super admin opens the token-bearing URL
+    // saved on users/{uid}, which firestore.rules keeps owner/admin-only.
+    match /verifications/{uid}/{file} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow write: if signedIn() && request.auth.uid == uid
+        && underMB(10)
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf');
+    }
+
+    // Public storefront images. No content-type check: older mobile builds
+    // upload a bare blob with no contentType set.
+    match /stores/{storeId}/{allPaths=**} {
+      allow read: if true;
+      allow create: if signedIn() && underMB(10);
+    }
+    match /products/{file} {
+      allow read: if true;
+      allow create: if signedIn() && underMB(10);
+    }
+    match /uploads/{file} {
+      allow read: if true;
+      allow create: if signedIn() && underMB(10);
+    }
+  }
+}

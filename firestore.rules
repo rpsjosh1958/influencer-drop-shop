@@ -31,6 +31,14 @@ service cloud.firestore {
         || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'growth';
     }
 
+    // Vendor KYC on file (users/{uid}.identity: Ghana Card number, or a
+    // company's registration document) — written by the signup form before
+    // the store is created (web create-store, mobile registration).
+    function hasVendorIdentity() {
+      let identity = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('identity', {});
+      return identity.get('ghanaCard', '') != '' || identity.get('companyDoc', '') != '';
+    }
+
     // --- Super Admins ---
     match /super_admins/{userId} {
       allow read: if true; // or restrictive 
@@ -84,6 +92,8 @@ service cloud.firestore {
       allow create: if isAuthenticated()
         && request.resource.data.ownerId == request.auth.uid
         && isOnGrowthOrHasNoStores()
+        // No KYC, no store — web's "login instead" path used to skip it.
+        && hasVendorIdentity()
         && request.resource.data.onboardingStatus == 'pending'
         && request.resource.data.get('status', 'closed') != 'live'
         && request.resource.data.get('isVerified', false) == false
