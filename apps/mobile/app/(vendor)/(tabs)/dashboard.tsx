@@ -35,6 +35,7 @@ import { VendorBookingDetails } from "@/components/vendor/vendor-booking-details
 import { AnalyticsModal } from "@/components/vendor/analytics-modal";
 import { VendorStoreSwitcher } from "@/components/vendor/vendor-store-switcher";
 import { VendorDrawerMenuButton } from "@/components/vendor/drawer-menu-button";
+import { OnboardingBanner } from "@/components/vendor/onboarding-banner";
 import { useRouter } from "expo-router";
 import { cn } from "@/lib/utils";
 import { getOrderStatusColor, getBookingStatusColor } from "@/lib/status-colors";
@@ -216,6 +217,9 @@ export default function VendorDashboard() {
 
   const isLive = store?.status === "live";
   const isVerified = store?.plan === "growth";
+  // firestore.rules won't let a store go live before approval, so don't
+  // offer the toggle until then (stores with no status predate review).
+  const awaitingApproval = (store?.onboardingStatus ?? "approved") !== "approved";
 
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
@@ -276,6 +280,9 @@ export default function VendorDashboard() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshStore} />}
         >
+          {store && (
+            <OnboardingBanner storeId={store.id} status={store.onboardingStatus} notes={store.onboardingNotes} />
+          )}
           <View className={cn("space-y-6", isLocked && "opacity-20")}>
             {/* Metric Cards */}
             <View className="flex-row flex-wrap gap-4 mb-8">
@@ -352,10 +359,11 @@ export default function VendorDashboard() {
 
                 <Pressable
                   onPress={handleToggleStatus}
-                  disabled={toggling || isLocked}
+                  disabled={toggling || isLocked || awaitingApproval}
                   className={cn(
                     "flex-1 p-5 rounded-3xl border shadow-sm justify-between",
-                    isLive ? "bg-green-50 border-green-200" : "bg-white border-zinc-100"
+                    isLive ? "bg-green-50 border-green-200" : "bg-white border-zinc-100",
+                    awaitingApproval && "opacity-50"
                   )}
                 >
                   <View className="flex-row justify-between w-full">
@@ -368,7 +376,7 @@ export default function VendorDashboard() {
                       {isLive ? "Store Open" : "Store Closed"}
                     </H1>
                     <P className={cn("text-xs font-bold uppercase mt-1", isLive ? "text-green-600" : "text-zinc-400")}>
-                      {toggling ? "Updating..." : "Tap to Toggle"}
+                      {toggling ? "Updating..." : awaitingApproval ? "After approval" : "Tap to Toggle"}
                     </P>
                   </View>
                 </Pressable>

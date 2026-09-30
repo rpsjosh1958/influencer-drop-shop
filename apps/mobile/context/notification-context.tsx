@@ -60,7 +60,10 @@ export interface Notification {
     | "vendor_order"
     | "vendor_booking"
     | "vendor_refund"
-    | "vendor_complaint";
+    | "vendor_complaint"
+    | "plan_gift"
+    | "referral_reward"
+    | "store_onboarding";
   title: string;
   message: string;
   read: boolean;
@@ -268,6 +271,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       "vendor_complaint",
       "booking_cancelled", // customer cancelled — this is vendor-facing
       "vendor_refund", // refund/dispute updates — also vendor-facing
+      // Account/store news (functions: grantGrowthDays, referrals.ts,
+      // onboarding.ts) — without these they landed in the shopper inbox.
+      "plan_gift",
+      "referral_reward",
+      "store_onboarding",
     ];
 
     let q = query(

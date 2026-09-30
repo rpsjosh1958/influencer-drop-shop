@@ -33,7 +33,6 @@ import {
   limit,
 } from "firebase/firestore";
 import { router, type Href } from "expo-router";
-import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Address } from "@/types";
 import { getErrorMessage, getErrorCode } from "@/lib/errors";
@@ -435,13 +434,10 @@ export default function ProfileScreen() {
         // 3. NOT VENDOR -> Prompt to Create
         showAlert({
           title: "Become a Seller",
-          message:
-            "You need a store to access the seller portal. Create one on our website!",
+          message: "You need a store to access the seller portal. Set one up in a few minutes.",
           type: "info",
           confirmLabel: "Create Store",
-          onConfirm: () => {
-            Linking.openURL("https://copdrop.io/create-store");
-          },
+          onConfirm: () => router.push("/become-vendor" as Href),
         });
       }
     } catch (e) {

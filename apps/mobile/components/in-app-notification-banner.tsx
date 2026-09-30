@@ -11,6 +11,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 
 const AUTO_HIDE_MS = 5000;
+const ACCOUNT_TYPES: Notification["type"][] = ["plan_gift", "referral_reward", "store_onboarding"];
 
 export function InAppNotificationBanner() {
   const { latestNotification, markAsRead, mode } = useNotifications();
@@ -55,6 +56,11 @@ export function InAppNotificationBanner() {
           ? "/(vendor)/(tabs)/notifications"
           : "/(tabs)") as Href,
       );
+    } else if (ACCOUNT_TYPES.includes(currentNotif.type) && currentNotif.data?.screen) {
+      // Plan gifts, referral rewards and store approval carry an app
+      // screen. Not a general `screen` fallback: store broadcasts send
+      // screen "store", which isn't a route.
+      router.push(currentNotif.data.screen as Href);
     } else {
       router.push((mode === "vendor" ? "/(vendor)/(tabs)" : "/(tabs)") as Href);
     }

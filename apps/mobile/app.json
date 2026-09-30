@@ -40,12 +40,20 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "Allow The Drop to access your photos so you can save store flyers.",
+          "photosPermission": "Allow The Drop to access your photos to upload images and documents, and to save store flyers.",
           "savePhotosPermission": "Allow The Drop to save store flyers to your photos.",
           "isAccessMediaLocationEnabled": false
         }
       ],
       "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow The Drop to use your camera to photograph your ID and products.",
+          "photosPermission": "Allow The Drop to access your photos to upload images and documents, and to save store flyers.",
+          "microphonePermission": false
+        }
+      ],
       "expo-image",
       "expo-sharing",
       "expo-status-bar"

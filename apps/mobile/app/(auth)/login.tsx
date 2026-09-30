@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable, Linking } from "react-native";
-import { Stack, useRouter, useLocalSearchParams } from "expo-router";
+import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable } from "react-native";
+import { Stack, useRouter, useLocalSearchParams, type Href } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { H1, P } from "@/components/ui/text";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ArrowLeft, ExternalLink } from "lucide-react-native";
+import { ArrowLeft } from "lucide-react-native";
 import { getErrorMessage, getErrorCode } from "@/lib/errors";
 
 const loginSchema = z.object({
@@ -145,15 +145,11 @@ export default function Login() {
             {isVendor ? (
               <View className="items-center pt-4">
                 <Pressable
-                  onPress={() => Linking.openURL("https://copdrop.io/create-store")}
+                  onPress={() => router.push("/become-vendor" as Href)}
                   className="flex-row items-center gap-2 bg-zinc-50 px-6 py-4 rounded-2xl border border-zinc-100 active:bg-zinc-100"
                 >
                   <P className="font-bold text-zinc-600 uppercase tracking-widest text-xs">Create Vendor Profile</P>
-                  <ExternalLink size={14} color="#52525b" />
                 </Pressable>
-                <P className="text-[10px] text-zinc-400 mt-4 text-center px-8 font-medium">
-                  Vendor account creation is only available on our web platform.
-                </P>
               </View>
             ) : (
               <View className="items-center pt-1">

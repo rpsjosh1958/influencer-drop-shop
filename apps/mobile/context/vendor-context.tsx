@@ -56,6 +56,9 @@ interface OwnedStore {
     hasPreorders: boolean;
   };
   payoutConfig?: StoreConfig["payoutConfig"];
+  // Missing on stores that predate review — treated as approved.
+  onboardingStatus?: "pending" | "approved" | "needs_more_info" | "rejected";
+  onboardingNotes?: string;
   pendingRefundDebt?: number;
 }
 
@@ -218,6 +221,19 @@ export function VendorProvider({ children }: { children: ReactNode }) {
 
   // 6. Data Lists (Queries tied to active store)
   const effectiveStoreId = store?.id;
+
+  // The owned-stores list above is a one-time fetch, so watch the active
+  // store's review status: approval (or a "needs more info") shows up on
+  // the dashboard without a manual refresh.
+  const onboardingStatus = store?.onboardingStatus;
+  useEffect(() => {
+    if (!effectiveStoreId) return;
+    return onSnapshot(doc(db, "stores", effectiveStoreId), (snap) => {
+      if (snap.data()?.onboardingStatus !== onboardingStatus) {
+        queryClient.invalidateQueries({ queryKey: ["vendor-owned-stores"] });
+      }
+    });
+  }, [effectiveStoreId, onboardingStatus, queryClient]);
 
   // Orders/bookings/complaints are the three things badge counts and the
   // dashboard's "Recent Activity" feed are built from, so they need to be

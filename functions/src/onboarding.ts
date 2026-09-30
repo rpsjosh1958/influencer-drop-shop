@@ -3,6 +3,7 @@ import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
 import { getEmailLayout } from "./email-layout";
+import { sendNotificationToUser } from "./notifications";
 import {
   ownerHasApprovedStore,
   rewardReferralOnApproval,
@@ -121,6 +122,21 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
         } catch (err) {
           logger.error(`Referral reward failed for ${after.ownerId}`, err);
         }
+      }
+
+      // Push as well as the email below — app-first vendors may never open
+      // it. Sent before the no-email early return for the same reason.
+      const push: Record<string, [string, string]> = {
+        approved: [`${after.name} is approved 🎉`, "Your store can go live. Open it to start selling."],
+        needs_more_info: ["Action needed on your store", `We need a bit more info before approving ${after.name}.`],
+        rejected: ["Store application update", `${after.name} wasn't approved. Open the app for details.`],
+      };
+      const message = push[after.onboardingStatus];
+      if (message) {
+        await sendNotificationToUser(after.ownerId, message[0], message[1], "store_onboarding", {
+          storeId: event.params.storeId,
+          screen: "/(vendor)/(tabs)/dashboard",
+        });
       }
 
       const db = admin.firestore();
