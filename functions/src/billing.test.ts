@@ -4,6 +4,7 @@ import * as assert from "node:assert/strict";
 import * as admin from "firebase-admin";
 import { extendGrowthExpiry } from "./billing";
 import { discountAmount } from "./discounts";
+import { secondaryStoreIds } from "./subscriptions";
 
 const DAY = 24 * 60 * 60;
 const now = new admin.firestore.Timestamp(1_800_000_000, 0);
@@ -37,4 +38,16 @@ test("discountAmount never drops the charge below GHS 1", () => {
   assert.equal(discountAmount("percent", 100, 20), 19);
   assert.equal(discountAmount("percent", 500, 20), 19); // >100% clamped
   assert.equal(discountAmount("fixed", 5, 0.5), 0); // nothing left to discount
+});
+
+test("secondaryStoreIds keeps only the oldest store open", () => {
+  const stores = [
+    { id: "newest", createdAt: at(5) },
+    { id: "oldest", createdAt: at(1) },
+    { id: "middle", createdAt: at(3) },
+  ];
+  assert.deepEqual(secondaryStoreIds(stores), ["middle", "newest"]);
+  // No createdAt sorts first, matching the clients' `|| 0`.
+  assert.deepEqual(secondaryStoreIds([...stores, { id: "legacy" }]), ["oldest", "middle", "newest"]);
+  assert.deepEqual(secondaryStoreIds([{ id: "only", createdAt: at(1) }]), []);
 });

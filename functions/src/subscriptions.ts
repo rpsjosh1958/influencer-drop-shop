@@ -3,6 +3,20 @@ import { onSchedule } from "firebase-functions/v2/scheduler";
 import * as logger from "firebase-functions/logger";
 
 /**
+ * Every store but the oldest (by createdAt, missing = oldest) — the ones a
+ * non-Growth account can't keep open. Same order the web and mobile store
+ * switchers use to decide which stores are locked.
+ */
+export function secondaryStoreIds(
+  stores: { id: string; createdAt?: { seconds: number } | null }[]
+): string[] {
+  return [...stores]
+    .sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    .slice(1)
+    .map((s) => s.id);
+}
+
+/**
  * Scheduled Job: Check for Expired Subscriptions
  * Frequency: Every hour
  * Action: Downgrades expired "growth" plans to "starter" and removes verification.

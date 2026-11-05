@@ -17,7 +17,7 @@ import {
   initializeTransaction,
 } from "./paystack";
 import { processOrderWallet, releasePendingFunds } from "./wallet";
-import { checkSubscriptionExpiry } from "./subscriptions";
+import { checkSubscriptionExpiry, secondaryStoreIds } from "./subscriptions";
 import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
@@ -247,6 +247,15 @@ export const onUserSubscriptionUpdated = onDocumentUpdated(
 
       if (storesSnapshot.empty) return;
 
+      // Losing Growth: only the oldest store stays open. The rest are closed
+      // here (hidden from customers) and locked in the admin UI; nothing is
+      // deleted, and the vendor reopens them after renewing.
+      const toClose = new Set(
+        planChanged && after.plan !== "growth"
+          ? secondaryStoreIds(storesSnapshot.docs.map((d) => ({ id: d.id, createdAt: d.data().createdAt })))
+          : []
+      );
+
       const batch = db.batch();
       storesSnapshot.forEach((doc) => {
         batch.update(doc.ref, {
@@ -254,6 +263,7 @@ export const onUserSubscriptionUpdated = onDocumentUpdated(
           planExpiresAt: after.planExpiresAt || null,
           isVerified: after.plan === "growth" && doc.data().onboardingStatus === "approved",
           isTrial: after.isTrial || false,
+          ...(toClose.has(doc.id) && { status: "closed" }),
         });
       });
 
