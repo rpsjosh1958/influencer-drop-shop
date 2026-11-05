@@ -23,13 +23,18 @@ export interface StoreConfig {
   reviewCount?: number;
   ratingDistribution?: Record<string, number>;
   theme?: {
-    primaryColor: string;
+    primaryColor: string; // text colour
     backgroundColor: string;
+    // Set by a web Style-tab template or picker; unset on older stores,
+    // which keep the original zinc cards and white buttons.
+    surfaceColor?: string; // card tiles
+    accentColor?: string; // card buttons
     fontFamily: string;
     cardSize: "small" | "medium" | "large";
     hero?: {
       enabled: boolean;
       layout: "left" | "center" | "right";
+      uppercase?: boolean; // unset = uppercase, the original look
       headline: string;
       subheadline: string;
       headlineColor: string;

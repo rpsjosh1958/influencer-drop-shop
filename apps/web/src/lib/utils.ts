@@ -141,6 +141,32 @@ export function getContrastTextColor(hex: string): "#000000" | "#ffffff" {
   return yiq >= 128 ? "#000000" : "#ffffff";
 }
 
+/**
+ * CSS variables the storefront cards read (shop/product-card.tsx,
+ * shop/service-card.tsx). Each pair is set only once the store has chosen that
+ * colour (a template or the Style tab), so stores from before templates keep
+ * their original look through the fallbacks in those components.
+ */
+export function storefrontColorVars(theme?: {
+  backgroundColor?: string;
+  primaryColor?: string;
+  surfaceColor?: string;
+  accentColor?: string;
+}): Record<string, string> {
+  const vars: Record<string, string> = {};
+  if (theme?.surfaceColor) {
+    const ink = theme.primaryColor || "#000000";
+    vars["--shop-surface"] = theme.surfaceColor;
+    vars["--shop-ink"] = ink;
+    vars["--shop-muted"] = `color-mix(in srgb, ${ink} 75%, ${theme.backgroundColor || "#ffffff"})`;
+  }
+  if (theme?.accentColor) {
+    vars["--shop-accent"] = theme.accentColor;
+    vars["--shop-accent-ink"] = getContrastTextColor(theme.accentColor);
+  }
+  return vars;
+}
+
 // Fixed-length mask ("d*****4@gmail.com") so on-screen prompts don't expose the address or its length.
 export function maskEmail(email: string | null | undefined): string {
   if (!email) return "your email";

@@ -4,6 +4,7 @@ import { P, H2 } from "@/components/ui/text";
 import { useStore } from "@/context/store-context";
 import { Ionicons } from "@expo/vector-icons";
 import { formatCurrency } from "@/lib/format";
+import { getContrastTextColor } from "@/lib/utils";
 import type { FirestoreTimestamp } from "@/types";
 
 export type ServiceItem = {
@@ -45,6 +46,8 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
 
   const { store } = useStore();
   const primaryColor = store?.theme?.primaryColor || "black";
+  const surfaceColor = store?.theme?.surfaceColor;
+  const accentColor = store?.theme?.accentColor;
   const isCompact =
     store?.theme?.cardSize === "medium" || store?.theme?.cardSize === "small";
 
@@ -58,7 +61,10 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
   return (
     <Animated.View style={{ opacity }}>
       <Pressable onPress={() => onPress(service)} className="active:opacity-95">
-        <View className="aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-3 relative shadow-sm">
+        <View
+          className="aspect-[4/5] rounded-3xl overflow-hidden mb-3 relative shadow-sm"
+          style={{ backgroundColor: surfaceColor || "#f4f4f5" }}
+        >
           {imageSource ? (
             <Image
               source={imageSource}
@@ -66,7 +72,7 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
               style={{ resizeMode: "cover" }}
             />
           ) : (
-            <View className="w-full h-full items-center justify-center bg-zinc-100">
+            <View className="w-full h-full items-center justify-center">
               <Ionicons name="briefcase-outline" size={48} color="#ccc" />
             </View>
           )}
@@ -90,8 +96,14 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
 
           {/* Book Now Button */}
           <View className="absolute bottom-4 left-4 right-4">
-            <View className="bg-white/90 rounded-xl py-3 items-center">
-              <P className="text-xs font-bold uppercase tracking-wide text-black">
+            <View
+              className="bg-white/90 rounded-xl py-3 items-center"
+              style={accentColor ? { backgroundColor: accentColor } : undefined}
+            >
+              <P
+                className="text-xs font-bold uppercase tracking-wide text-black"
+                style={accentColor ? { color: getContrastTextColor(accentColor) } : undefined}
+              >
                 {isCompact
                   ? formatCurrency(service.price)
                   : `Book Now — ${formatCurrency(service.price)}`}
@@ -115,6 +127,7 @@ export function ServiceCard({ service, index, onPress }: ServiceCardProps) {
             <P
               className="text-zinc-500 text-xs line-clamp-2 flex-1"
               numberOfLines={2}
+              style={surfaceColor ? { color: primaryColor, opacity: 0.75 } : undefined}
             >
               {service.description || ""}
             </P>

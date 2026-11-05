@@ -41,6 +41,11 @@ import { functions } from "@/lib/firebase";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImageUpload } from "@/components/admin/image-upload";
 import { FontPicker } from "@/components/admin/font-picker";
+import {
+  StorefrontPreview,
+  TemplatePicker,
+  type StoreTemplate,
+} from "@/components/admin/storefront-templates";
 import { ReferralCard } from "@/components/admin/referral-card";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -414,6 +419,29 @@ export default function StoreSettingsPage() {
       return deepCopy;
     });
   };
+
+  // A template sets colours, fonts and hero style; hero text and images stay.
+  const applyTemplate = (t: StoreTemplate) =>
+    setConfig((prev) => ({
+      ...prev,
+      theme: {
+        ...prev.theme,
+        backgroundColor: t.backgroundColor,
+        surfaceColor: t.surfaceColor,
+        primaryColor: t.primaryColor,
+        accentColor: t.accentColor,
+        fontFamily: t.fontFamily,
+        hero: {
+          ...prev.theme.hero,
+          layout: t.layout,
+          uppercase: t.uppercase,
+          headlineFont: t.headlineFont,
+          subheadlineFont: t.fontFamily,
+          // Over a hero photo the vendor already chose a colour that reads on it.
+          ...(!prev.theme.hero.backgroundImages?.length && { headlineColor: t.primaryColor }),
+        },
+      },
+    }));
 
   // --- PAYSTACK INTEGRATION ---
   // Same env var checkout uses — was previously a separate, likely-unset
@@ -1124,6 +1152,26 @@ export default function StoreSettingsPage() {
                   )}
 
                   <div data-tour="settings-style" className={`space-y-6 ${isFreePlan ? "opacity-50 pointer-events-none select-none" : ""}`}>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-bold text-zinc-900">Templates</p>
+                        <p className="text-sm text-zinc-500">
+                          Pick a look to start from. It sets the colours and fonts below, and you can still change any of them.
+                        </p>
+                      </div>
+                      <TemplatePicker theme={config.theme} onPick={applyTemplate} />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-bold text-zinc-900">Preview</p>
+                        <p className="text-sm text-zinc-500">
+                          How your store will look. Customers see changes once you save.
+                        </p>
+                      </div>
+                      <StorefrontPreview theme={config.theme} storeName={config.name || ""} storeId={storeId} />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-2">
                       <label className="text-sm font-bold text-zinc-900">
@@ -1150,7 +1198,7 @@ export default function StoreSettingsPage() {
 
                     <div className="space-y-2">
                       <label className="text-sm font-bold text-zinc-900">
-                        Primary Color
+                        Text Color
                       </label>
                       <div className="flex gap-2 items-center">
                         <input
@@ -1164,6 +1212,49 @@ export default function StoreSettingsPage() {
                         />
                         <code className="bg-zinc-100 px-2 py-1 rounded text-sm text-zinc-900">
                           {config.theme.primaryColor}
+                        </code>
+                      </div>
+                    </div>
+
+                    {/* Unset until the vendor picks one, so older stores keep their original cards (see storefrontColorVars). */}
+                    <div className="space-y-2">
+                      <label htmlFor="surfaceColor" className="text-sm font-bold text-zinc-900">
+                        Card Color
+                      </label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          id="surfaceColor"
+                          type="color"
+                          disabled={isFreePlan}
+                          value={config.theme.surfaceColor || "#f4f4f5"}
+                          onChange={(e) =>
+                            setNested(["theme", "surfaceColor"], e.target.value)
+                          }
+                          className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <code className="bg-zinc-100 px-2 py-1 rounded text-sm text-zinc-900">
+                          {config.theme.surfaceColor || "#f4f4f5"}
+                        </code>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="accentColor" className="text-sm font-bold text-zinc-900">
+                        Button Color
+                      </label>
+                      <div className="flex gap-2 items-center">
+                        <input
+                          id="accentColor"
+                          type="color"
+                          disabled={isFreePlan}
+                          value={config.theme.accentColor || "#ffffff"}
+                          onChange={(e) =>
+                            setNested(["theme", "accentColor"], e.target.value)
+                          }
+                          className="w-10 h-10 rounded-lg border border-zinc-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <code className="bg-zinc-100 px-2 py-1 rounded text-sm text-zinc-900">
+                          {config.theme.accentColor || "#ffffff"}
                         </code>
                       </div>
                     </div>
@@ -1359,6 +1450,18 @@ export default function StoreSettingsPage() {
                             }
                           />
                         </div>
+
+                        <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-zinc-900">
+                          <input
+                            type="checkbox"
+                            checked={config.theme.hero.uppercase !== false}
+                            onChange={(e) =>
+                              setNested(["theme", "hero", "uppercase"], e.target.checked)
+                            }
+                            className="w-5 h-5 accent-black"
+                          />
+                          Headline in capitals
+                        </label>
                       </div>
 
                       <div className="space-y-4">

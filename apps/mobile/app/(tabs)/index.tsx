@@ -840,7 +840,8 @@ export default function ShopHome() {
                         {!!store?.theme?.hero?.headline && (
                           <H1
                             className={cn(
-                              "text-3xl font-black tracking-tighter leading-none mb-4 uppercase",
+                              "text-3xl font-black tracking-tighter leading-none mb-4",
+                              store?.theme?.hero?.uppercase !== false && "uppercase",
                               store?.theme?.hero?.layout === "left"
                                 ? "text-left"
                                 : store?.theme?.hero?.layout === "right"

@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/components/shop/store-provider";
 import { useCart } from "@/components/shop/cart-provider";
 import { useAlert } from "@/context/alert-context";
+import { storefrontColorVars } from "@/lib/utils";
 
 // New Refactored Components
 import { ShopHeader } from "@/components/shop/shop-header";
@@ -258,6 +259,7 @@ export default function ShopClient({
         backgroundColor: bgColor,
         fontFamily: fontMap[fontFamily] || `'${fontFamily}', sans-serif`,
         color: primaryColor,
+        ...storefrontColorVars(theme),
       }}
       className="min-h-screen pb-20 transition-colors duration-500"
     >

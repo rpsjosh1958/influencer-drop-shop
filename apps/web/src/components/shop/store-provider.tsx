@@ -8,12 +8,15 @@ import { useParams } from "next/navigation";
 interface StoreTheme {
   backgroundColor?: string;
   primaryColor?: string;
+  surfaceColor?: string;
+  accentColor?: string;
   fontFamily?: string;
   cardSize?: "small" | "medium" | "large";
 
   hero?: {
     enabled?: boolean;
     layout?: "left" | "center" | "right";
+    uppercase?: boolean;
     headline?: string;
     subheadline?: string;
     headlineColor?: string;

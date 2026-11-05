@@ -198,8 +198,10 @@ export interface StoreConfig {
   createdAt: FirestoreTimestampLike;
   logo?: string;
   theme?: {
-    primaryColor: string;
+    primaryColor: string; // the storefront's text colour
     backgroundColor?: string;
+    surfaceColor?: string; // product/service card tiles
+    accentColor?: string; // card buttons
     heroText?: string;
     footerText?: string;
     logoUrl?: string;
@@ -210,6 +212,7 @@ export interface StoreConfig {
       headline?: string;
       subheadline?: string;
       layout?: string;
+      uppercase?: boolean; // unset = uppercase, the original look
       headlineColor?: string;
       headlineFont?: string;
       subheadlineFont?: string;

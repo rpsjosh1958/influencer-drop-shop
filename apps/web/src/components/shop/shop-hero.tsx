@@ -92,7 +92,9 @@ export function ShopHero({ theme, hasAnnouncement }: ShopHeroProps) {
         className={`relative z-20 max-w-5xl mx-auto w-full flex flex-col ${alignClass}`}
       >
         <h1
-          className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase"
+          className={`text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-8 ${
+            hero.uppercase === false ? "" : "uppercase"
+          }`}
           style={{
             color: headlineColor,
             fontFamily:

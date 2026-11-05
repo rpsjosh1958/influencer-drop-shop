@@ -41,7 +41,8 @@ export function ServiceCard({
         className="group cursor-pointer"
         onClick={() => setIsModalOpen(true)}
       >
-        <div className="relative aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-4 shadow-sm group-hover:shadow-2xl transition-all duration-500">
+        {/* --shop-* colours come from storefrontColorVars (lib/utils); the fallbacks are the pre-template look. */}
+        <div className="relative aspect-[4/5] bg-[color:var(--shop-surface,#f4f4f5)] rounded-3xl overflow-hidden mb-4 shadow-sm group-hover:shadow-2xl transition-all duration-500">
           {/* Loading Spinner */}
           {!isImageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -64,7 +65,7 @@ export function ServiceCard({
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-zinc-100">
+            <div className="absolute inset-0 flex items-center justify-center bg-[color:var(--shop-surface,#f4f4f5)]">
               <Briefcase className="text-zinc-300" size={48} />
             </div>
           )}
@@ -87,7 +88,7 @@ export function ServiceCard({
                 e.stopPropagation();
                 setIsModalOpen(true);
               }}
-              className="w-full py-3 rounded-xl font-bold uppercase tracking-wide text-xs shadow-lg backdrop-blur-md transition-transform active:scale-95 bg-white/90 text-black hover:bg-white"
+              className="w-full py-3 rounded-xl font-bold uppercase tracking-wide text-xs shadow-lg backdrop-blur-md transition-transform active:scale-95 bg-[color:var(--shop-accent,#ffffffe6)] text-[color:var(--shop-accent-ink,#000)] hover:opacity-90"
             >
               Book Now — {formatCurrency(service.price)}
             </button>
@@ -96,7 +97,7 @@ export function ServiceCard({
 
         <div className="space-y-1 px-2">
           <h3 className="text-lg font-bold tracking-tight">{service.name}</h3>
-          <p className="text-zinc-500 text-sm line-clamp-2">
+          <p className="text-[color:var(--shop-muted,#71717a)] text-sm line-clamp-2">
             {service.description}
           </p>
         </div>

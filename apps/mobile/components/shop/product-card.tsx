@@ -47,6 +47,7 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
 
   const { store } = useStore();
   const primaryColor = store?.theme?.primaryColor || "black";
+  const surfaceColor = store?.theme?.surfaceColor;
 
   // Logic from Web: images -> imageUrl -> fallback
   const images =
@@ -66,7 +67,10 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
   return (
     <Animated.View style={{ opacity }}>
       <Pressable onPress={() => onPress(product)} className="active:opacity-95">
-        <View className="aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-3 relative shadow-sm">
+        <View
+          className="aspect-[4/5] rounded-3xl overflow-hidden mb-3 relative shadow-sm"
+          style={{ backgroundColor: surfaceColor || "#f4f4f5" }}
+        >
           <Image
             source={imageSource}
             className={`w-full h-full ${
@@ -116,6 +120,8 @@ export function ProductCard({ product, index, onPress }: ProductCardProps) {
           <P
             className="text-zinc-500 text-xs line-clamp-1"
             numberOfLines={1}
+            // Templated stores: text colour at 75%, same as web's --shop-muted.
+            style={surfaceColor ? { color: primaryColor, opacity: 0.75 } : undefined}
           >
             {product.description || ""}
           </P>

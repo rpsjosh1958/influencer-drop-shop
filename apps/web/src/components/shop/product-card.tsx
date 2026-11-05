@@ -57,7 +57,8 @@ export function ProductCard({
         className="group cursor-pointer"
         onClick={() => onSelectProduct(product.id)}
       >
-        <div className="relative aspect-[4/5] bg-zinc-100 rounded-3xl overflow-hidden mb-4 shadow-sm group-hover:shadow-2xl transition-all duration-500">
+        {/* --shop-* colours come from storefrontColorVars (lib/utils); the fallbacks are the pre-template look. */}
+        <div className="relative aspect-[4/5] bg-[color:var(--shop-surface,#f4f4f5)] rounded-3xl overflow-hidden mb-4 shadow-sm group-hover:shadow-2xl transition-all duration-500">
           {/* Loading Spinner */}
           {!isImageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -133,7 +134,7 @@ export function ProductCard({
               disabled={product.stock <= 0 && !product.hasVariants} // If variants, technically stock might exist on some variants even if total is 0 (edge case, but handled)
               className={`w-full py-3 rounded-xl font-bold uppercase tracking-wide text-xs shadow-lg backdrop-blur-md transition-transform active:scale-95 ${
                 product.stock > 0 || product.hasVariants
-                  ? "bg-white/90 text-black hover:bg-white"
+                  ? "bg-[color:var(--shop-accent,#ffffffe6)] text-[color:var(--shop-accent-ink,#000)] hover:opacity-90"
                   : "bg-red-500/90 text-white cursor-not-allowed"
               }`}
             >
@@ -149,11 +150,11 @@ export function ProductCard({
         <div className="space-y-1 px-2">
           <h3 className="text-lg font-bold tracking-tight truncate">{product.name}</h3>
           <div className="flex items-center justify-between">
-            <p className="text-zinc-500 text-sm line-clamp-1">
+            <p className="text-[color:var(--shop-muted,#71717a)] text-sm line-clamp-1">
               {product.description}
             </p>
-            <div className="flex items-center gap-1 text-xs font-bold bg-zinc-100 px-2 py-1 rounded-md text-black">
-              <Star size={10} className="fill-black" />
+            <div className="flex items-center gap-1 text-xs font-bold bg-[color:var(--shop-surface,#f4f4f5)] px-2 py-1 rounded-md text-[color:var(--shop-ink,#000)]">
+              <Star size={10} className="fill-current" />
               5.0
             </div>
           </div>
