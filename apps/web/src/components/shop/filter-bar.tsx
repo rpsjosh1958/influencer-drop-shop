@@ -35,7 +35,7 @@ export function FilterBar({
       <div className="flex md:hidden">
         <button
           onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className="flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-bold bg-white"
+          className="flex items-center gap-2 px-4 py-2 border rounded-xl text-sm font-bold"
           style={{ borderColor: `${primaryColor}20`, color: primaryColor }}
         >
           <Filter size={14} />
@@ -51,16 +51,21 @@ export function FilterBar({
             Its own full-width row on mobile, each option sharing the
             width equally; reverts to auto/shrink-to-fit on desktop. */}
         {showTypeToggle && (
-          <div className="flex w-full md:w-auto bg-zinc-100 p-1 rounded-lg md:self-start">
+          <div
+            className="flex w-full md:w-auto p-1 rounded-lg md:self-start"
+            style={{ backgroundColor: `${primaryColor}10` }}
+          >
             {(["all", "product", "service"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setFilterType(t)}
                 className={`flex-1 md:flex-none px-4 py-1.5 rounded-md text-xs font-bold uppercase transition-all ${
-                  filterType === t
-                    ? "bg-white shadow text-black"
-                    : "text-zinc-400 hover:text-zinc-600"
+                  filterType === t ? "" : "opacity-60 hover:opacity-100"
                 }`}
+                style={{
+                  color: primaryColor,
+                  backgroundColor: filterType === t ? `${primaryColor}1F` : undefined,
+                }}
               >
                 {t === "all"
                   ? "All"
@@ -84,19 +89,19 @@ export function FilterBar({
               onChange={(e) =>
                 setPriceRange((p) => ({ ...p, min: e.target.value }))
               }
-              className="w-full md:w-20 px-3 py-1.5 rounded-lg border text-sm font-medium bg-white"
-              style={{ borderColor: `${primaryColor}20` }}
+              className="w-full md:w-20 px-3 py-1.5 rounded-lg border text-sm font-medium bg-transparent placeholder:text-current placeholder:opacity-65"
+              style={{ borderColor: `${primaryColor}33`, color: primaryColor }}
               type="number"
             />
-            <span className="text-zinc-300 shrink-0">-</span>
+            <span className="opacity-40 shrink-0">-</span>
             <input
               placeholder="Max"
               value={priceRange.max}
               onChange={(e) =>
                 setPriceRange((p) => ({ ...p, max: e.target.value }))
               }
-              className="w-full md:w-20 px-3 py-1.5 rounded-lg border text-sm font-medium bg-white"
-              style={{ borderColor: `${primaryColor}20` }}
+              className="w-full md:w-20 px-3 py-1.5 rounded-lg border text-sm font-medium bg-transparent placeholder:text-current placeholder:opacity-65"
+              style={{ borderColor: `${primaryColor}33`, color: primaryColor }}
               type="number"
             />
           </div>
@@ -104,18 +109,17 @@ export function FilterBar({
           {/* Sort Dropdown */}
           <div className="flex items-center gap-2 flex-1 md:flex-none md:ml-auto">
             <div
-              className="flex w-full md:w-auto bg-white border rounded-lg overflow-hidden"
-              style={{ borderColor: `${primaryColor}20` }}
+              className="flex w-full md:w-auto border rounded-lg overflow-hidden"
+              style={{ borderColor: `${primaryColor}33` }}
             >
               <button
                 onClick={() => setSortOrder("asc")}
-                className={`flex-1 md:flex-none px-3 py-2 flex items-center justify-center gap-1 hover:bg-zinc-50 ${sortOrder === "asc" ? "bg-zinc-50" : ""}`}
+                className={`flex-1 md:flex-none px-3 py-2 flex items-center justify-center gap-1 ${sortOrder === "asc" ? "" : "opacity-60 hover:opacity-100"}`}
+                style={{ backgroundColor: sortOrder === "asc" ? `${primaryColor}1F` : undefined }}
               >
                 <span
                   className="text-xs font-bold whitespace-nowrap"
-                  style={{
-                    color: sortOrder === "asc" ? primaryColor : "#a1a1aa",
-                  }}
+                  style={{ color: primaryColor }}
                 >
                   Price Low
                 </span>
@@ -123,16 +127,15 @@ export function FilterBar({
                   <Check size={12} color={primaryColor} />
                 )}
               </button>
-              <div className="w-px bg-zinc-100" />
+              <div className="w-px" style={{ backgroundColor: `${primaryColor}33` }} />
               <button
                 onClick={() => setSortOrder("desc")}
-                className={`flex-1 md:flex-none px-3 py-2 flex items-center justify-center gap-1 hover:bg-zinc-50 ${sortOrder === "desc" ? "bg-zinc-50" : ""}`}
+                className={`flex-1 md:flex-none px-3 py-2 flex items-center justify-center gap-1 ${sortOrder === "desc" ? "" : "opacity-60 hover:opacity-100"}`}
+                style={{ backgroundColor: sortOrder === "desc" ? `${primaryColor}1F` : undefined }}
               >
                 <span
                   className="text-xs font-bold whitespace-nowrap"
-                  style={{
-                    color: sortOrder === "desc" ? primaryColor : "#a1a1aa",
-                  }}
+                  style={{ color: primaryColor }}
                 >
                   Price High
                 </span>
