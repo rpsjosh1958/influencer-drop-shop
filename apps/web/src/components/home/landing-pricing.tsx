@@ -28,7 +28,7 @@ const STARTER_FEATURES = [
   "Unlimited products and services",
   "Basic customisation",
   "Automatic Paystack payouts",
-  "8% transaction fee",
+  "8% transaction fee + Paystack processing fee",
 ];
 
 const GROWTH_FEATURES = [
@@ -39,7 +39,7 @@ const GROWTH_FEATURES = [
   "Store assistant (beta)",
   "Broadcast messages to your customers",
   "Verified badge",
-  "2% transaction fee",
+  "2% transaction fee + Paystack processing fee",
 ];
 
 const CYCLES: { key: BillingCycle; label: string }[] = [

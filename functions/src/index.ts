@@ -373,7 +373,10 @@ export const onOrderCreated = onDocumentCreated(
       return;
     }
 
-    await processOrderWallet(orderId, order, storeId);
+    // A wallet failure shouldn't also skip the vendor's push and the emails.
+    await processOrderWallet(orderId, order, storeId).catch((err) =>
+      logger.error(`Wallet processing failed for order ${orderId}`, err)
+    );
 
     // --- NOTIFICATION LOGIC ---
     try {
@@ -938,6 +941,19 @@ export const verifyBankAccount = onCall(async (request) => {
   if (!accountNumber || !bankCode) {
     throw new HttpsError("invalid-argument", "Missing account details");
   }
+  // Vendors only (payout setup) — otherwise any shopper account could look
+  // up the name behind any MoMo number.
+  const ownsStore = !(
+    await admin
+      .firestore()
+      .collection("stores")
+      .where("ownerId", "==", request.auth.uid)
+      .limit(1)
+      .get()
+  ).empty;
+  if (!ownsStore) {
+    throw new HttpsError("permission-denied", "Only vendors can verify payout accounts");
+  }
   return await resolveAccount(accountNumber, bankCode);
 });
 
@@ -1138,6 +1154,10 @@ export const initializeOrderPayment = onCall(async (request) => {
       amount: expectedAmountPesewas,
       reference,
       subaccount: subaccountCode,
+      // The vendor's share pays Paystack's fee (decided 2026-11-26). Left on
+      // the platform, it ate the whole 2% Growth cut: GHS 5 sale -> vendor
+      // 4.90, Paystack 0.10, platform 0.00.
+      bearer: "subaccount",
     });
 
     return {

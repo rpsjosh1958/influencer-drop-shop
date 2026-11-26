@@ -3,6 +3,12 @@
     "name": "The Drop Shop",
     "slug": "mobile",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/9b5762a0-d615-4ddf-b2f5-d6605e175072"
+    },
     "orientation": "portrait",
     "icon": "./assets/images/drop_logo.jpg",
     "scheme": "mobile",

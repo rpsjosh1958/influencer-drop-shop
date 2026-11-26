@@ -9,6 +9,7 @@ import { buildResetLink } from "./auth";
 import { escapeHtml, orderItemRows } from "./email-layout";
 import { moveStock } from "./stock";
 import { addMinutesToTime, overlaps } from "./bookings";
+import { fairVendorNet, recoveryRateFor } from "./wallet";
 
 const DAY = 24 * 60 * 60;
 const now = new admin.firestore.Timestamp(1_800_000_000, 0);
@@ -83,6 +84,21 @@ test("moveStock adds up several lines for one product", () => {
   moveStock(q, { id: "y", quantity: 2 }, -2);
   moveStock(q, { id: "y", quantity: 1 }, -1);
   assert.equal(q.stock, 0);
+});
+
+test("refund-debt maths with the vendor paying Paystack's fee", () => {
+  // GHS 5 Growth sale, Paystack fee 0.10: normal vendor share is 4.80, so an
+  // ordinary order (vendorNet 4.80) counts as zero debt repaid.
+  assert.ok(Math.abs(fairVendorNet(5, "growth", 0.1) - 4.8) < 1e-9);
+  // During recovery (80% split): vendor gets 5*0.2 - 0.10 = 0.90, so 3.90 repaid.
+  assert.ok(Math.abs(fairVendorNet(5, "growth", 0.1) - 0.9 - 3.9) < 1e-9);
+  // Orders from before the change carry no fee.
+  assert.ok(Math.abs(fairVendorNet(10, "starter") - 9.2) < 1e-9);
+  // Split rate follows the debt's regime.
+  assert.equal(recoveryRateFor("growth", 0, 3.9), 80); // newly owed -> recover
+  assert.equal(recoveryRateFor("growth", 3.9, 1), undefined); // still recovering
+  assert.equal(recoveryRateFor("growth", 1, 0), 2); // settled -> plan rate
+  assert.equal(recoveryRateFor("growth", 1, -0.5), 0); // overshot -> pay back
 });
 
 test("booking overlap matches the modals' slot rule", () => {

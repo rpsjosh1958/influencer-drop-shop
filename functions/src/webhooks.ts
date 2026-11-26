@@ -51,13 +51,20 @@ export const paystackWebhook = onRequest(async (req, res) => {
     res.status(400).send("Missing signature or body");
     return;
   }
+  // Without the key an HMAC over "" is computable by anyone — refuse.
+  if (!PAYSTACK_SECRET_KEY) {
+    logger.error("PAYSTACK_SECRET_KEY is not set; rejecting webhook");
+    res.status(500).send("Not configured");
+    return;
+  }
 
-  const hash = crypto
-    .createHmac("sha512", PAYSTACK_SECRET_KEY)
-    .update(rawBody)
-    .digest("hex");
+  const hash = Buffer.from(
+    crypto.createHmac("sha512", PAYSTACK_SECRET_KEY).update(rawBody).digest("hex")
+  );
+  const given = Buffer.from(signature);
 
-  if (hash !== signature) {
+  // Constant-time, so response timing can't be used to guess the signature.
+  if (given.length !== hash.length || !crypto.timingSafeEqual(given, hash)) {
     logger.warn("Paystack webhook signature mismatch");
     res.status(401).send("Invalid signature");
     return;
@@ -114,19 +121,16 @@ export const paystackWebhook = onRequest(async (req, res) => {
 
         // Idempotency: Paystack retries a webhook delivery that didn't get
         // a 200 (every 3 min for 4 tries, then hourly for 72h), and could
-        // in principle redeliver the same refund.processed event twice.
-        // applyProcessedRefund clears pendingRefundAmount once it runs, so
-        // its absence means this exact in-flight refund was already
-        // applied — skip re-debiting the vendor for the same refund twice.
-        if (order.pendingRefundAmount === undefined) {
+        // redeliver the same refund.processed event. applyProcessedRefund
+        // checks and clears pendingRefundAmount in one transaction and
+        // returns false if this refund was already applied.
+        const refundedAmountGHS = Number(data.amount) / 100;
+        if (!(await applyProcessedRefund(orderRef, refundedAmountGHS))) {
           logger.info(
             `refund.processed: no pending refund on ${orderRef.id}, treating as already applied`
           );
           break;
         }
-
-        const refundedAmountGHS = Number(data.amount) / 100;
-        await applyProcessedRefund(orderRef, order, refundedAmountGHS);
 
         if (order.userId && order.userId !== "guest") {
           await sendNotificationToUser(

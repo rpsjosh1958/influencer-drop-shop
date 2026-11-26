@@ -18,7 +18,7 @@ export default function TermsPage() {
             Terms of Service
           </h1>
           <p className="text-zinc-500 mb-12 font-medium">
-            Last Updated: September 2026
+            Last Updated: November 2026
           </p>
 
           <div className="space-y-12">
@@ -102,6 +102,12 @@ export default function TermsPage() {
                     2% transaction fee
                   </span>{" "}
                   on sales.
+                </li>
+                <li>
+                  <strong className="text-black">Payment processing:</strong>{" "}
+                  Paystack&apos;s processing fee (currently about 2%, set by
+                  Paystack) is deducted from each sale&apos;s payout, in
+                  addition to the transaction fee above.
                 </li>
                 <li>
                   <strong className="text-black">Payouts:</strong>

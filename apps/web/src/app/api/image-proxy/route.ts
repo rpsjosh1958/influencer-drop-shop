@@ -11,6 +11,19 @@ const ALLOWED_HOSTS = [
   "images.unsplash.com",
 ];
 
+// The Google Storage hosts serve every bucket on Google Cloud — only ours
+// (every saved store/product image is in it), or anyone could pipe their
+// own files through this route.
+const OWN_BUCKET = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+const MAX_BYTES = 10 * 1024 * 1024;
+
+const bucketOf = (u: URL) =>
+  u.hostname === "firebasestorage.googleapis.com"
+    ? u.pathname.match(/^\/v0\/b\/([^/]+)\//)?.[1]
+    : u.hostname === "storage.googleapis.com"
+      ? u.pathname.split("/")[1]
+      : undefined;
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url");
@@ -33,6 +46,9 @@ export async function GET(req: NextRequest) {
   if (!ALLOWED_HOSTS.includes(parsed.hostname)) {
     return new NextResponse("URL host not allowed", { status: 403 });
   }
+  if (parsed.hostname.endsWith("googleapis.com") && bucketOf(parsed) !== OWN_BUCKET) {
+    return new NextResponse("Storage bucket not allowed", { status: 403 });
+  }
 
   try {
     const response = await fetch(url, { redirect: "manual" });
@@ -50,7 +66,13 @@ export async function GET(req: NextRequest) {
       return new NextResponse("Only image content types allowed", { status: 400 });
     }
 
+    if (Number(response.headers.get("Content-Length") || 0) > MAX_BYTES) {
+      return new NextResponse("Image too large", { status: 413 });
+    }
     const arrayBuffer = await response.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_BYTES) {
+      return new NextResponse("Image too large", { status: 413 });
+    }
     const buffer = Buffer.from(arrayBuffer);
 
     return new NextResponse(buffer, {

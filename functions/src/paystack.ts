@@ -113,6 +113,9 @@ export const initializeTransaction = async (data: {
   amount: number; // kobo/pesewas
   reference: string;
   subaccount?: string;
+  // Who pays Paystack's processing fee on a split payment (default: the
+  // main account, i.e. the platform).
+  bearer?: "account" | "subaccount";
   metadata?: Record<string, unknown>;
 }) => {
   try {

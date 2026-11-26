@@ -30,6 +30,7 @@ interface VerifiedPaystackCharge {
   // use, and which is always {} for a plain subaccount charge).
   fees_split?: {
     subaccount?: number;
+    paystack?: number;
   };
 }
 
@@ -90,6 +91,12 @@ export const createOrderFromVerifiedPayment = async (
       storeId: intent.storeId,
       storeName: intent.storeName,
       ...(vendorNetAmount !== undefined ? { vendorNetAmount } : {}),
+      // The vendor bears Paystack's fee (bearer "subaccount"), so it's
+      // already out of vendorNetAmount — wallet.ts needs it to tell the fee
+      // apart from refund-debt recovery.
+      ...(charge.fees_split?.paystack !== undefined
+        ? { paystackFee: charge.fees_split.paystack / 100 }
+        : {}),
       ...(intent.discount
         ? { subtotal: intent.subtotal, discount: intent.discount }
         : {}),

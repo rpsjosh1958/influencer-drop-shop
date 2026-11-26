@@ -40,8 +40,11 @@ service cloud.firestore {
     }
 
     // --- Super Admins ---
+    // Written only by /api/super-admin/init (Admin SDK). Rules' own
+    // exists() checks don't need read access, and no client reads it, so
+    // nobody gets to list who the admins are.
     match /super_admins/{userId} {
-      allow read: if true; // or restrictive 
+      allow read: if isOwner(userId);
     }
 
     // --- Users (SENSITIVE DATA) ---
@@ -151,7 +154,9 @@ service cloud.firestore {
         )
       );
 
-      allow delete: if isStoreOwner() || isSuperAdmin();
+      // No app deletes stores; an owner deleting one could also wipe any
+      // refund debt it carries. Account/store removal goes through support.
+      allow delete: if isSuperAdmin();
 
       // Helper for subcollections to check parent store ownership
       function isParentStoreOwner() {
@@ -245,8 +250,13 @@ service cloud.firestore {
       match /reviews/{reviewId} {
         // Anyone can read reviews
         allow read: if true;
-        // Only authenticated users can create reviews
-        allow create: if isAuthenticated();
+        // Only authenticated users can create reviews, with a 1–5 star
+        // rating (both review forms only send whole stars) — any other
+        // number would skew the store's average in onReviewCreated.
+        allow create: if isAuthenticated()
+          && request.resource.data.rating is int
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5;
         // Only Store Owner or Admin can update (moderation)
         allow update, delete: if isParentStoreOwner() || isSuperAdmin();
       }

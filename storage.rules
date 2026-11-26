@@ -15,6 +15,9 @@ service firebase.storage {
     function underMB(mb) {
       return request.resource.size < mb * 1024 * 1024;
     }
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
 
     // KYC documents: Ghana Card photos / company certificate, uploaded at
     // vendor signup (web create-store, mobile registration) and on
@@ -33,19 +36,27 @@ service firebase.storage {
     // token-bearing download URLs saved on products/stores, which bypass
     // these rules — the SDK only reads here for getDownloadURL right after
     // an upload. So: signed-in get, no list (nothing in the apps lists
-    // files; the old catch-all let any account enumerate every folder). No
-    // content-type check: older mobile builds upload a bare blob.
+    // files; the old catch-all let any account enumerate every folder).
+    // Images only, so the bucket can't host pages/scripts/files for
+    // anyone with an account.
+    //
+    // stores/ is mobile's path: app builds before 2026-11-26 upload a bare
+    // blob stored as application/octet-stream (browsers download that,
+    // never render it), so it's still accepted there until those builds
+    // are gone. Mobile compresses (quality 0.5) but has no hard cap: 5MB.
     match /stores/{storeId}/{allPaths=**} {
       allow get: if signedIn();
-      allow create: if signedIn() && underMB(10);
+      allow create: if signedIn() && underMB(5)
+        && (isImage() || request.resource.contentType == 'application/octet-stream');
     }
+    // Web paths — every web upload is an image the UI caps at 2MB.
     match /products/{file} {
       allow get: if signedIn();
-      allow create: if signedIn() && underMB(10);
+      allow create: if signedIn() && request.resource.size <= 2 * 1024 * 1024 && isImage();
     }
     match /uploads/{file} {
       allow get: if signedIn();
-      allow create: if signedIn() && underMB(10);
+      allow create: if signedIn() && request.resource.size <= 2 * 1024 * 1024 && isImage();
     }
   }
 }

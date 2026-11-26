@@ -281,7 +281,9 @@ export default function ProductFormScreen() {
       const blob = await response.blob();
       const filename = `stores/${store.id}/products/${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
-      await uploadBytes(storageRef, blob);
+      // A bare RN blob is stored as application/octet-stream; storage.rules
+      // only tolerates that for older builds.
+      await uploadBytes(storageRef, blob, { contentType: blob.type || "image/jpeg" });
       const downloadURL = await getDownloadURL(storageRef);
       setImages((prev) => [...prev, downloadURL]);
     } catch (e) {

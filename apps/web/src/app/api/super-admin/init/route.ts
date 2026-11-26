@@ -23,7 +23,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!decoded.email || !SUPER_ADMIN_EMAILS.includes(decoded.email)) {
+    // Verified only: otherwise anyone could sign up with a listed address
+    // that has no account yet and be made super admin.
+    if (
+      !decoded.email ||
+      decoded.email_verified !== true ||
+      !SUPER_ADMIN_EMAILS.includes(decoded.email)
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

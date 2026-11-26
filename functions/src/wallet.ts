@@ -24,8 +24,51 @@ interface OrderWalletData {
   paymentMethod?: string;
   status?: string;
   vendorNetAmount?: number;
+  paystackFee?: number;
   total?: number;
 }
+
+// Keeps a store's Paystack split rate in step with its refund debt after a
+// change from `prior` to `next` (positive = vendor owes the platform,
+// negative = platform owes the vendor): settled -> the plan's normal rate;
+// newly owing the vendor -> 0%; newly owed by the vendor -> the elevated
+// recovery rate. Staying in the same regime needs no API call.
+export const recoveryRateFor = (
+  plan: string | undefined,
+  prior: number,
+  next: number
+): number | undefined => {
+  if (Math.abs(next) <= 0.005) {
+    return Math.abs(prior) > 0.005 ? getPlatformFeePercentage(plan) : undefined;
+  }
+  if (next < 0 && prior >= 0) return 0;
+  if (next > 0 && prior <= 0) return REFUND_DEBT_RECOVERY_PERCENTAGE;
+  return undefined;
+};
+
+// What the vendor's split would be at their plan's normal rate. They bear
+// Paystack's fee, so it comes off too — otherwise every order's fee would
+// look like refund debt being repaid.
+export const fairVendorNet = (total: number, plan: string | undefined, paystackFee = 0) =>
+  total * (1 - getPlatformFeeRate(plan)) - paystackFee;
+
+export const syncRecoveryRate = async (
+  subaccountCode: string | undefined,
+  plan: string | undefined,
+  prior: number,
+  next: number
+) => {
+  if (!subaccountCode) return;
+  const percentage_charge = recoveryRateFor(plan, prior, next);
+  if (percentage_charge === undefined) return;
+  try {
+    await updateSubaccount(subaccountCode, { percentage_charge });
+  } catch (err) {
+    // Not fatal — the debt is recorded and is recovered at whatever rate is
+    // actually active; recovery just starts slower than intended.
+    console.error(`Failed to sync subaccount rate (${subaccountCode}) for refund debt`, err);
+  }
+};
 
 export const processOrderWallet = async (
   orderId: string,
@@ -49,6 +92,14 @@ export const processOrderWallet = async (
     // path below, from before subaccounts existed).
     if (typeof orderData.vendorNetAmount === "number") {
       const vendorNetAmount = orderData.vendorNetAmount;
+      const storeRef = db.collection("stores").doc(storeId);
+      const walletRef = storeRef.collection("wallet").doc("main");
+      // Keyed by order, so a re-delivered trigger (Firestore triggers are
+      // at-least-once) finds it and records nothing twice.
+      const txRef = storeRef.collection("wallet_transactions").doc(`order_${orderId}`);
+      const adjustmentTxRef = storeRef
+        .collection("wallet_transactions")
+        .doc(`order_${orderId}_debt`);
 
       // Refund-debt recovery — pendingRefundDebt is signed: positive means
       // the vendor still owes the platform (subaccount is running at the
@@ -61,48 +112,39 @@ export const processOrderWallet = async (
       // debt and not a cent more — so the subaccount rate gets dropped
       // below normal afterward to pay that overage back on the next order
       // instead of just absorbing it as platform revenue).
-      const storeSnap = await db.collection("stores").doc(storeId).get();
-      const store = storeSnap.data();
-      const pendingRefundDebt = store?.pendingRefundDebt || 0;
+      // One transaction for the earnings, the debt and the idempotency
+      // check: reading the debt outside it and writing back an absolute
+      // value let two orders landing together overwrite each other.
+      const result = await db.runTransaction(async (t) => {
+        const [txDoc, walletDoc, storeSnap] = await Promise.all([
+          t.get(txRef),
+          t.get(walletRef),
+          t.get(storeRef),
+        ]);
+        if (txDoc.exists) return null; // already recorded
 
-      let creditAmount = vendorNetAmount;
-      let shortfall = 0; // positive = vendor got less than fair this order; negative = vendor got more than fair
-      let newDebt = pendingRefundDebt;
+        const store = storeSnap.data();
+        const pendingRefundDebt = store?.pendingRefundDebt || 0;
+        let creditAmount = vendorNetAmount;
+        let shortfall = 0; // positive = vendor got less than fair this order; negative = vendor got more than fair
 
-      if (pendingRefundDebt !== 0 && typeof orderData.total === "number") {
-        const normalNet =
-          orderData.total * (1 - getPlatformFeeRate(store?.plan));
-        shortfall = normalNet - vendorNetAmount;
-        newDebt = pendingRefundDebt - shortfall;
-        // Recovering debt (shortfall > 0): still credit the FAIR amount to
-        // earnings history — what went toward the debt isn't "lost," it's
-        // legitimately owed. Repaying an overshoot (shortfall < 0): credit
-        // the full real vendorNetAmount, which is genuinely higher than
-        // normalNet this order (fair share + the make-whole top-up).
-        creditAmount = shortfall > 0.005 ? normalNet : vendorNetAmount;
-      }
+        if (pendingRefundDebt !== 0 && typeof orderData.total === "number") {
+          const normalNet = fairVendorNet(
+            orderData.total,
+            store?.plan,
+            orderData.paystackFee
+          );
+          shortfall = normalNet - vendorNetAmount;
+          // Recovering debt (shortfall > 0): still credit the FAIR amount to
+          // earnings history — what went toward the debt isn't "lost," it's
+          // legitimately owed. Repaying an overshoot (shortfall < 0): credit
+          // the full real vendorNetAmount, which is genuinely higher than
+          // normalNet this order (fair share + the make-whole top-up).
+          creditAmount = shortfall > 0.005 ? normalNet : vendorNetAmount;
+        }
+        const hasAdjustment = Math.abs(shortfall) > 0.005;
+        const newDebt = pendingRefundDebt - shortfall;
 
-      const hasAdjustment = Math.abs(shortfall) > 0.005;
-      const txRef = db
-        .collection("stores")
-        .doc(storeId)
-        .collection("wallet_transactions")
-        .doc();
-      const adjustmentTxRef = hasAdjustment
-        ? db
-            .collection("stores")
-            .doc(storeId)
-            .collection("wallet_transactions")
-            .doc()
-        : null;
-
-      await db.runTransaction(async (t) => {
-        const walletRef = db
-          .collection("stores")
-          .doc(storeId)
-          .collection("wallet")
-          .doc("main");
-        const walletDoc = await t.get(walletRef);
         const currentBalance = walletDoc.exists
           ? walletDoc.data()?.currentBalance || 0
           : 0;
@@ -134,7 +176,8 @@ export const processOrderWallet = async (
           source: "subaccount_split",
         });
 
-        if (adjustmentTxRef) {
+        if (hasAdjustment) {
+          t.update(storeRef, { pendingRefundDebt: newDebt });
           const isRecovery = shortfall > 0;
           t.set(adjustmentTxRef, {
             id: adjustmentTxRef.id,
@@ -150,48 +193,26 @@ export const processOrderWallet = async (
             source: "subaccount_split",
           });
         }
+        return { hasAdjustment, shortfall, pendingRefundDebt, newDebt, store };
       });
 
-      if (hasAdjustment) {
-        await db
-          .collection("stores")
-          .doc(storeId)
-          .update({ pendingRefundDebt: newDebt });
-
-        const subaccountCode = store?.payoutConfig?.subaccountCode;
-        if (subaccountCode) {
-          try {
-            if (Math.abs(newDebt) <= 0.005) {
-              // Settled — back to the plan's normal rate.
-              await updateSubaccount(subaccountCode, {
-                percentage_charge: getPlatformFeePercentage(store?.plan),
-              });
-            } else if (newDebt < 0 && pendingRefundDebt >= 0) {
-              // Just flipped into "platform owes vendor" — give them 100%
-              // of the split until the overage is paid back.
-              await updateSubaccount(subaccountCode, { percentage_charge: 0 });
-            } else if (newDebt > 0 && pendingRefundDebt <= 0) {
-              // Rare: flipped back into "vendor owes platform" (an
-              // overpayment-correction order itself overshot). Re-elevate.
-              await updateSubaccount(subaccountCode, {
-                percentage_charge: REFUND_DEBT_RECOVERY_PERCENTAGE,
-              });
-            }
-            // Otherwise still the same regime — rate is already correct,
-            // no API call needed.
-          } catch (err) {
-            console.error(
-              `Failed to sync subaccount rate for store ${storeId} during refund debt adjustment`,
-              err
-            );
-          }
-        }
+      if (!result) {
+        console.log(`Order ${orderId} earnings already recorded, skipping.`);
+        return;
+      }
+      if (result.hasAdjustment) {
+        await syncRecoveryRate(
+          result.store?.payoutConfig?.subaccountCode,
+          result.store?.plan,
+          result.pendingRefundDebt,
+          result.newDebt
+        );
       }
 
       console.log(
         `Recorded subaccount-split earnings for Order ${orderId}: Net=${vendorNetAmount}` +
-          (hasAdjustment
-            ? `, refund debt adjustment ${shortfall.toFixed(2)} (${newDebt.toFixed(2)} remaining)`
+          (result.hasAdjustment
+            ? `, refund debt adjustment ${result.shortfall.toFixed(2)} (${result.newDebt.toFixed(2)} remaining)`
             : "")
       );
       return;
@@ -228,8 +249,16 @@ export const processOrderWallet = async (
       .collection("wallet")
       .doc("main");
 
+    // Keyed by order: a re-delivered trigger finds it and credits nothing twice.
+    const txRef = db
+      .collection("stores")
+      .doc(storeId)
+      .collection("wallet_transactions")
+      .doc(`order_${orderId}`);
+
     await db.runTransaction(async (t) => {
-      const walletDoc = await t.get(walletRef);
+      const [walletDoc, txDoc] = await Promise.all([t.get(walletRef), t.get(txRef)]);
+      if (txDoc.exists) return;
 
       let currentBalance = 0;
       let pendingBalance = 0;
@@ -263,11 +292,6 @@ export const processOrderWallet = async (
       );
 
       // Create Transaction Record
-      const txRef = db
-        .collection("stores")
-        .doc(storeId)
-        .collection("wallet_transactions")
-        .doc();
       const txData: WalletTransaction = {
         id: txRef.id,
         type: "credit",

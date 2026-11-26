@@ -73,7 +73,9 @@ export default function EditStoreScreen() {
       const filename = `stores/${store.id}/logo_${Date.now()}.jpg`;
       const storageRef = ref(storage, filename);
       
-      await uploadBytes(storageRef, blob);
+      // A bare RN blob is stored as application/octet-stream; storage.rules
+      // only tolerates that for older builds.
+      await uploadBytes(storageRef, blob, { contentType: blob.type || "image/jpeg" });
       const downloadURL = await getDownloadURL(storageRef);
       
       setLogo(downloadURL);

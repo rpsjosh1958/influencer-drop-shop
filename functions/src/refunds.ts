@@ -1,12 +1,13 @@
 import * as admin from "firebase-admin";
 import { HttpsError } from "firebase-functions/v2/https";
-import { createRefund, updateSubaccount } from "./paystack";
-import { REFUND_DEBT_RECOVERY_PERCENTAGE } from "./fees";
+import { createRefund } from "./paystack";
+import { syncRecoveryRate } from "./wallet";
 
 interface OrderRefundData {
   total?: number;
   vendorNetAmount?: number;
   refundedAmount?: number;
+  pendingRefundAmount?: number;
   paymentMethod?: string;
   status?: string;
   deliveredAt?: admin.firestore.Timestamp;
@@ -65,6 +66,16 @@ export const initiateOrderRefund = async (
   }
   if (typeof order.total !== "number") {
     throw new HttpsError("failed-precondition", "Order has no total amount.");
+  }
+  // One refund in flight per order: the completion webhook is matched to
+  // the order via pendingRefundAmount, so a second refund started now would
+  // overwrite it and never be taken back from the vendor. Cleared when the
+  // refund completes or fails (webhooks.ts).
+  if (order.pendingRefundAmount !== undefined) {
+    throw new HttpsError(
+      "failed-precondition",
+      "A refund for this order is still processing. Wait for it to finish before starting another."
+    );
   }
 
   // The order's doc ID is sent to Paystack as the transaction to refund, so
@@ -148,45 +159,47 @@ export const initiateOrderRefund = async (
 // currentBalance/pendingBalance for a pre-migration internal-ledger order
 // is intentionally out of scope here — that whole legacy balance system
 // was already deliberately deprioritized elsewhere in this codebase.
+// Returns false if this refund was already applied (Paystack redelivers
+// webhooks) — the check, the order update, the earnings debit and the debt
+// change are one transaction, so a redelivery racing the first can't debit
+// twice and two refunds/orders can't overwrite each other's debt.
 export const applyProcessedRefund = async (
   orderRef: FirebaseFirestore.DocumentReference,
-  order: OrderRefundData,
   refundedAmountGHS: number
-): Promise<void> => {
+): Promise<boolean> => {
   const db = admin.firestore();
-  const total = order.total || 0;
-  const newRefundedTotal = (order.refundedAmount || 0) + refundedAmountGHS;
-  const newStatus = newRefundedTotal >= total - 0.005 ? "refunded" : "partially_refunded";
+  const storeRef = orderRef.parent.parent!;
+  const walletRef = storeRef.collection("wallet").doc("main");
+  const txRef = storeRef.collection("wallet_transactions").doc();
 
-  await orderRef.update({
-    status: newStatus,
-    refundedAmount: newRefundedTotal,
-    refundStatus: "processed",
-    pendingRefundAmount: admin.firestore.FieldValue.delete(),
-    pendingRefundReference: admin.firestore.FieldValue.delete(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  const result = await db.runTransaction(async (t) => {
+    const [orderSnap, walletDoc, storeSnap] = await Promise.all([
+      t.get(orderRef),
+      t.get(walletRef),
+      t.get(storeRef),
+    ]);
+    const order = orderSnap.data() as OrderRefundData | undefined;
+    // Cleared below once applied, so its absence means this exact refund
+    // was already handled.
+    if (!order || order.pendingRefundAmount === undefined) return null;
 
-  const vendorShareRatio =
-    typeof order.vendorNetAmount === "number" && total > 0
-      ? order.vendorNetAmount / total
-      : 1; // legacy orders (no vendorNetAmount) already stored the net amount as the credit — treat 1:1
-  const vendorDebit = refundedAmountGHS * vendorShareRatio;
+    const total = order.total || 0;
+    const newRefundedTotal = (order.refundedAmount || 0) + refundedAmountGHS;
+    const newStatus = newRefundedTotal >= total - 0.005 ? "refunded" : "partially_refunded";
+    t.update(orderRef, {
+      status: newStatus,
+      refundedAmount: newRefundedTotal,
+      refundStatus: "processed",
+      pendingRefundAmount: admin.firestore.FieldValue.delete(),
+      pendingRefundReference: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
-  const storeId = orderRef.parent.parent!.id;
-  const walletRef = db
-    .collection("stores")
-    .doc(storeId)
-    .collection("wallet")
-    .doc("main");
-  const txRef = db
-    .collection("stores")
-    .doc(storeId)
-    .collection("wallet_transactions")
-    .doc();
-
-  await db.runTransaction(async (t) => {
-    const walletDoc = await t.get(walletRef);
+    const vendorShareRatio =
+      typeof order.vendorNetAmount === "number" && total > 0
+        ? order.vendorNetAmount / total
+        : 1; // legacy orders (no vendorNetAmount) already stored the net amount as the credit — treat 1:1
+    const vendorDebit = refundedAmountGHS * vendorShareRatio;
     const currentBalance = walletDoc.exists
       ? walletDoc.data()?.currentBalance || 0
       : 0;
@@ -213,42 +226,30 @@ export const applyProcessedRefund = async (
           ? "subaccount_split"
           : "internal_ledger",
     });
-  });
 
-  // Refund-debt recovery — only meaningful for real subaccount-split
-  // orders (legacy internal-ledger orders have no live Paystack
-  // subaccount money flow to recover from this way). Paystack pulled this
-  // refund out of the platform's own main balance, not the vendor's
-  // subaccount, so `vendorDebit` above is a bookkeeping adjustment only —
-  // this is what actually goes after getting real money back, by taking
-  // a bigger share of the vendor's future order splits until it's repaid.
-  if (typeof order.vendorNetAmount === "number") {
-    const storeRef = db.collection("stores").doc(storeId);
-    const storeSnap = await storeRef.get();
+    // Refund-debt recovery — only meaningful for real subaccount-split
+    // orders (legacy internal-ledger orders have no live Paystack
+    // subaccount money flow to recover from this way). Paystack pulled this
+    // refund out of the platform's own main balance, not the vendor's
+    // subaccount, so `vendorDebit` above is a bookkeeping adjustment only —
+    // this is what actually goes after getting real money back, by taking
+    // a bigger share of the vendor's future order splits until it's repaid.
+    if (typeof order.vendorNetAmount !== "number") return { debt: null };
     const store = storeSnap.data();
-    const subaccountCode = store?.payoutConfig?.subaccountCode;
     const priorDebt = store?.pendingRefundDebt || 0;
     const newDebt = priorDebt + vendorDebit;
+    t.update(storeRef, { pendingRefundDebt: newDebt });
+    return { debt: { priorDebt, newDebt, store } };
+  });
 
-    await storeRef.update({ pendingRefundDebt: newDebt });
-
-    // Only elevate on the transition into debt — if already recovering a
-    // prior refund, the rate is already up; a second refund just adds to
-    // the amount being recovered at that same elevated rate.
-    if (priorDebt <= 0 && newDebt > 0 && subaccountCode) {
-      try {
-        await updateSubaccount(subaccountCode, {
-          percentage_charge: REFUND_DEBT_RECOVERY_PERCENTAGE,
-        });
-      } catch (err) {
-        // Not fatal — the debt is still recorded and will be recovered
-        // (at whatever rate is actually active) as future orders come in;
-        // this only means recovery starts slower than intended.
-        console.error(
-          `Failed to elevate subaccount rate for store ${storeId} after refund debt`,
-          err
-        );
-      }
-    }
+  if (!result) return false;
+  if (result.debt) {
+    await syncRecoveryRate(
+      result.debt.store?.payoutConfig?.subaccountCode,
+      result.debt.store?.plan,
+      result.debt.priorDebt,
+      result.debt.newDebt
+    );
   }
+  return true;
 };

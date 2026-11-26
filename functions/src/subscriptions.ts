@@ -33,6 +33,9 @@ export const checkSubscriptionExpiry = onSchedule(
         .collection("users")
         .where("plan", "==", "growth")
         .where("planExpiresAt", "<", now)
+        // A batch holds 500 writes; any more expired users are picked up by
+        // the next hourly run instead of failing every run.
+        .limit(500)
         .get();
 
       if (expiredUsersSnapshot.empty) {
