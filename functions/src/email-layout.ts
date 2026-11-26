@@ -24,8 +24,10 @@ export const getEmailLayout = (content: string, title: string = "Own The Hype.")
 
 // Anything a user typed (email, name, note, message) must go through this
 // before it's placed in email HTML, or they can inject their own markup.
-export const escapeHtml = (s: string) =>
-  s.replace(/[&<>"']/g, (c) =>
+// Takes any value: some fields (e.g. checkout shipping) are caller-supplied
+// and may not even be strings.
+export const escapeHtml = (s: unknown) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
   );
 
@@ -37,7 +39,34 @@ export const emailButton = (href: string, label: string) => `
   </a>
 `;
 
-export const emailCallout = (heading: string, body: string, accent: string = "#333") => `
+// Order line items as table rows (vendor new-order email + customer receipt).
+export const orderItemRows = (items: unknown) =>
+  ((Array.isArray(items) ? items : []) as Array<{
+    name?: string;
+    quantity?: number;
+    price?: number;
+    selectedVariant?: { name?: string } | null;
+  }>)
+    .map(
+      (item) => `<tr>
+        <td style="padding: 8px 0; color: #e4e4e7; text-align: left;">
+          ${escapeHtml(item.name || "Item")}${item.selectedVariant?.name ? ` (${escapeHtml(item.selectedVariant.name)})` : ""}
+          <span style="color: #a1a1aa;"> × ${item.quantity || 1}</span>
+        </td>
+        <td style="padding: 8px 0; color: #e4e4e7; text-align: right;">
+          GHS ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+        </td>
+      </tr>`
+    )
+    .join("");
+
+// Store logo + name header for customer-facing emails.
+export const storeIdentityHtml = (logo: unknown, name: string) => `
+  ${typeof logo === "string" && logo ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(name)}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;margin:0 auto 16px;display:block;" />` : ""}
+  <p style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 20px;">${escapeHtml(name)}</p>
+`;
+
+export const emailCallout =(heading: string, body: string, accent: string = "#333") => `
   <div style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 30px; margin-bottom: 40px; text-align: left; border: 1px solid ${accent};">
     <h3 style="margin-top: 0; margin-bottom: 15px; color: #ffffff;">${heading}</h3>
     <div style="color: #ccc;">${body}</div>

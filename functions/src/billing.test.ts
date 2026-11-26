@@ -6,7 +6,9 @@ import { extendGrowthExpiry } from "./billing";
 import { discountAmount } from "./discounts";
 import { secondaryStoreIds } from "./subscriptions";
 import { buildResetLink } from "./auth";
-import { escapeHtml } from "./email-layout";
+import { escapeHtml, orderItemRows } from "./email-layout";
+import { moveStock } from "./stock";
+import { addMinutesToTime, overlaps } from "./bookings";
 
 const DAY = 24 * 60 * 60;
 const now = new admin.firestore.Timestamp(1_800_000_000, 0);
@@ -67,4 +69,27 @@ test("password reset links only ever point at our own site", () => {
 
 test("escapeHtml neutralises markup in user text", () => {
   assert.equal(escapeHtml(`<a href="x">'&'</a>`), "&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
+  assert.ok(!orderItemRows([{ name: "<b>x</b>", quantity: 1, price: 5 }]).includes("<b>"));
+});
+
+test("moveStock adds up several lines for one product", () => {
+  // Two variants of the same product in one cart: both decrements land.
+  const p = { stock: 5, variants: [{ id: "s", stock: 2 }, { id: "m", stock: 3 }] };
+  moveStock(p, { id: "x", quantity: 1, selectedVariant: { id: "s" } }, -1);
+  moveStock(p, { id: "x", quantity: 2, selectedVariant: { id: "m" } }, -2);
+  assert.deepEqual(p, { stock: 2, variants: [{ id: "s", stock: 1 }, { id: "m", stock: 1 }] });
+  // Duplicate plain lines sum too.
+  const q = { stock: 3 };
+  moveStock(q, { id: "y", quantity: 2 }, -2);
+  moveStock(q, { id: "y", quantity: 1 }, -1);
+  assert.equal(q.stock, 0);
+});
+
+test("booking overlap matches the modals' slot rule", () => {
+  assert.equal(addMinutesToTime("09:30", 45), "10:15");
+  const b = { startTime: "10:00", endTime: "11:00" };
+  assert.equal(overlaps({ startTime: "10:30", endTime: "11:30" }, b, 0), true);
+  assert.equal(overlaps({ startTime: "11:00", endTime: "12:00" }, b, 0), false); // back to back
+  assert.equal(overlaps({ startTime: "11:00", endTime: "12:00" }, b, 15), true); // inside buffer
+  assert.equal(overlaps({ startTime: "09:00", endTime: "10:00" }, b, 0), false);
 });

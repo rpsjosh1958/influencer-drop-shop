@@ -22,17 +22,27 @@ import { createOrderFromVerifiedPayment } from "./orders";
 import { getPlatformFeePercentage } from "./fees";
 import { applySubscriptionPaymentIfVerified } from "./subscriptionPayments";
 import { BILLING_PLANS, extendGrowthExpiry, formatPlanDate } from "./billing";
-import { reserveStockAndPrice, releaseStock } from "./stock";
+import { reserveStockAndPrice, releaseStock, releaseIntent } from "./stock";
 import { initiateOrderRefund } from "./refunds";
 import { sendNotificationToUser } from "./notifications";
-import { getEmailLayout, emailButton, emailCallout } from "./email-layout";
+import {
+  getEmailLayout,
+  emailButton,
+  emailCallout,
+  escapeHtml,
+  orderItemRows,
+  storeIdentityHtml,
+} from "./email-layout";
 import { assertValidPayoutOtp } from "./otp";
 import { ownerHasApprovedStore } from "./referrals";
 import { computeDiscount } from "./discounts";
+import { checkNewBooking } from "./bookings";
 
 export { broadcastToStoreCustomers } from "./broadcast";
 export { getReferralCode, redeemReferralCode } from "./referrals";
 export { previewDiscount } from "./discounts";
+export { releaseAbandonedCheckouts } from "./stock";
+export { getBookedSlots } from "./bookings";
 
 admin.initializeApp();
 
@@ -277,6 +287,10 @@ export const onUserSubscriptionUpdated = onDocumentUpdated(
           isVerified: after.plan === "growth" && doc.data().onboardingStatus === "approved",
           isTrial: after.isTrial || false,
           ...(toClose.has(doc.id) && { status: "closed" }),
+          // Rules refuse status "live" while this is set, so a closed
+          // secondary store can't just be reopened on Starter. Cleared on
+          // any plan change that doesn't close it (e.g. renewing Growth).
+          ...(planChanged && { lockedByDowngrade: toClose.has(doc.id) }),
         });
       });
 
@@ -412,27 +426,6 @@ export const onOrderCreated = onDocumentCreated(
         const recipient = userDoc.data()?.email;
 
         if (recipient) {
-          const items = (order.items || []) as Array<{
-            name?: string;
-            quantity?: number;
-            price?: number;
-            selectedVariant?: { name?: string } | null;
-          }>;
-          const itemsList = items
-            .map(
-              (item) =>
-                `<tr>
-                  <td style="padding: 8px 0; color: #e4e4e7; text-align: left;">
-                    ${item.name || "Item"}${item.selectedVariant?.name ? ` (${item.selectedVariant.name})` : ""}
-                    <span style="color: #a1a1aa;"> × ${item.quantity || 1}</span>
-                  </td>
-                  <td style="padding: 8px 0; color: #e4e4e7; text-align: right;">
-                    GHS ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                  </td>
-                </tr>`
-            )
-            .join("");
-
           const shipping = order.shipping as
             | { fullName?: string; phone?: string; address?: string }
             | undefined;
@@ -440,17 +433,17 @@ export const onOrderCreated = onDocumentCreated(
           const orderContent = `
             <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 20px; text-align: left;">
               <strong>Order #${orderId.slice(0, 8).toUpperCase()}</strong><br/>
-              <strong>Customer:</strong> ${order.customerName || "Customer"}${shipping?.phone ? ` (${shipping.phone})` : ""}
-              ${shipping?.address ? `<br/><strong>Ships to:</strong> ${shipping.address}` : ""}
+              <strong>Customer:</strong> ${escapeHtml(order.customerName || "Customer")}${shipping?.phone ? ` (${escapeHtml(shipping.phone)})` : ""}
+              ${shipping?.address ? `<br/><strong>Ships to:</strong> ${escapeHtml(shipping.address)}` : ""}
             </p>
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-              ${itemsList}
+              ${orderItemRows(order.items)}
               <tr>
                 <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: left; border-top: 1px solid rgba(255,255,255,0.15);">Total</td>
                 <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: right; border-top: 1px solid rgba(255,255,255,0.15);">GHS ${order.total.toFixed(2)}</td>
               </tr>
             </table>
-            ${order.customerNote ? emailCallout("Customer Note", `<p style="margin: 0;">${order.customerNote}</p>`) : ""}
+            ${order.customerNote ? emailCallout("Customer Note", `<p style="margin: 0;">${escapeHtml(order.customerNote)}</p>`) : ""}
             ${emailButton("https://copdrop.io/admin/orders", "View Order")}
           `;
 
@@ -476,40 +469,14 @@ export const onOrderCreated = onDocumentCreated(
       // the vendor logged the sale by hand — but skips the manual-order
       // form's placeholder address (not a real customer-supplied email).
       if (order.customerEmail && order.customerEmail !== "manual@store.com") {
-        const items = (order.items || []) as Array<{
-          name?: string;
-          quantity?: number;
-          price?: number;
-          selectedVariant?: { name?: string } | null;
-        }>;
-        const itemsList = items
-          .map(
-            (item) =>
-              `<tr>
-                <td style="padding: 8px 0; color: #e4e4e7; text-align: left;">
-                  ${item.name || "Item"}${item.selectedVariant?.name ? ` (${item.selectedVariant.name})` : ""}
-                  <span style="color: #a1a1aa;"> × ${item.quantity || 1}</span>
-                </td>
-                <td style="padding: 8px 0; color: #e4e4e7; text-align: right;">
-                  GHS ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                </td>
-              </tr>`
-          )
-          .join("");
-
-        const storeIdentity = `
-          ${store.logo ? `<img src="${store.logo}" alt="${store.name || "Store"}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;margin:0 auto 16px;display:block;" />` : ""}
-          <p style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 20px;">${store.name || "Your Store"}</p>
-        `;
-
         const customerContent = `
-          ${storeIdentity}
+          ${storeIdentityHtml(store.logo, store.name || "Your Store")}
           <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 20px; text-align: left;">
-            Hi <strong>${order.customerName || "there"}</strong>,<br/><br/>
+            Hi <strong>${escapeHtml(order.customerName || "there")}</strong>,<br/><br/>
             Thanks for your order! Here's your receipt.
           </p>
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
-            ${itemsList}
+            ${orderItemRows(order.items)}
             <tr>
               <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: left; border-top: 1px solid rgba(255,255,255,0.15);">Total</td>
               <td style="padding: 16px 0 0; color: #ffffff; font-weight: 900; text-align: right; border-top: 1px solid rgba(255,255,255,0.15);">GHS ${order.total.toFixed(2)}</td>
@@ -598,16 +565,11 @@ export const onOrderStatusUpdated = onDocumentUpdated(
       // checkouts too (the one channel that can). Never existed before —
       // customers previously only found out by reopening the app.
       if (after.customerEmail) {
-        const storeIdentity = `
-          ${store?.logo ? `<img src="${store.logo}" alt="${storeName}" style="width:56px;height:56px;border-radius:14px;object-fit:cover;margin:0 auto 16px;display:block;" />` : ""}
-          <p style="font-size:12px;color:#999;text-transform:uppercase;letter-spacing:2px;margin:0 0 20px;">${storeName}</p>
-        `;
-
         const statusContent = `
-          ${storeIdentity}
+          ${storeIdentityHtml(store?.logo, storeName)}
           <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 30px; text-align: left;">
-            Hi <strong>${after.customerName || "there"}</strong>,<br/><br/>
-            ${body}
+            Hi <strong>${escapeHtml(after.customerName || "there")}</strong>,<br/><br/>
+            ${escapeHtml(body)}
           </p>
           ${emailButton(`https://copdrop.io/shop/${storeId}`, "Visit Store")}
         `;
@@ -650,6 +612,10 @@ export const onBookingCreated = onDocumentCreated(
         .get();
       const store = storeDoc.data();
       if (!store) return;
+
+      // Server-side price + clash check; a clashing booking is cancelled
+      // (customer told via onBookingStatusUpdated), so the vendor isn't.
+      if (!(await checkNewBooking(snapshot.ref, booking))) return;
 
       // const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -750,7 +716,10 @@ export const onBookingStatusUpdated = onDocumentUpdated(
             break;
           case "cancelled":
             title = "Booking Cancelled";
-            body = `Your appointment for ${after.serviceName || "your service"} has been cancelled. Contact the store if this was a mistake.`;
+            body =
+              after.cancelledBy === "system"
+                ? `That time for ${after.serviceName || "your service"} was just booked by someone else. Please pick another time.`
+                : `Your appointment for ${after.serviceName || "your service"} has been cancelled. Contact the store if this was a mistake.`;
             break;
           case "no-show":
             title = "Missed Appointment";
@@ -926,11 +895,11 @@ export const onComplaintCreated = onDocumentCreated(
         const resend = new Resend(process.env.RESEND_API_KEY);
         const complaintContent = `
           <p style="font-size: 18px; color: #cccccc; line-height: 1.6; margin-bottom: 30px; text-align: left;">
-            <strong>Store:</strong> ${store.name}<br/>
-            <strong>Customer:</strong> ${complaint.customerName} (${complaint.customerEmail})<br/>
-            <strong>Subject:</strong> ${complaint.subject}
+            <strong>Store:</strong> ${escapeHtml(store.name)}<br/>
+            <strong>Customer:</strong> ${escapeHtml(complaint.customerName)} (${escapeHtml(complaint.customerEmail)})<br/>
+            <strong>Subject:</strong> ${escapeHtml(complaint.subject)}
           </p>
-          ${emailCallout("Message", `<p style="white-space: pre-wrap; margin: 0;">${complaint.message}</p>`)}
+          ${emailCallout("Message", `<p style="white-space: pre-wrap; margin: 0;">${escapeHtml(complaint.message)}</p>`)}
           ${emailButton("https://copdrop.io/admin/complaints", "View in Dashboard")}
         `;
 
@@ -1099,6 +1068,15 @@ export const initializeOrderPayment = onCall(async (request) => {
       "This store is not yet approved to accept orders."
     );
   }
+  // Same storefront gate as the UI (shop-layout-wrapper): a closed store —
+  // the vendor's own toggle, or a secondary store closed when its owner lost
+  // Growth — doesn't take orders.
+  if (store.status !== "live") {
+    throw new HttpsError(
+      "failed-precondition",
+      "This store is closed right now."
+    );
+  }
 
   const subaccountCode = store.payoutConfig?.subaccountCode;
   if (!subaccountCode) {
@@ -1188,21 +1166,10 @@ export const cancelOrderPayment = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Missing reference");
   }
 
-  const db = admin.firestore();
-  const intentRef = db.collection("payment_intents").doc(reference);
-
-  const intentToRelease = await db.runTransaction(async (t) => {
-    const snap = await t.get(intentRef);
-    if (!snap.exists || snap.data()?.status !== "pending") {
-      return null;
-    }
-    t.update(intentRef, { status: "cancelled" });
-    return snap.data()!;
-  });
-
-  if (intentToRelease) {
-    await releaseStock(intentToRelease.storeId, intentToRelease.items);
-  }
+  await releaseIntent(
+    admin.firestore().collection("payment_intents").doc(reference),
+    "cancelled"
+  );
 
   return { success: true };
 });

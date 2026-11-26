@@ -2,7 +2,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
-import { getEmailLayout, emailButton } from "./email-layout";
+import { getEmailLayout, emailButton, escapeHtml } from "./email-layout";
 
 // Where you're actually alerted — real inboxes you check, independent of
 // whether you remember to open the Resend dashboard's Receiving tab.
@@ -149,11 +149,3 @@ export const resendWebhook = onRequest(async (req, res) => {
     res.status(500).send("Processing error");
   }
 });
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}

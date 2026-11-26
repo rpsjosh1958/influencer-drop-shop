@@ -1,10 +1,11 @@
 import * as admin from "firebase-admin";
 import * as logger from "firebase-functions/logger";
 import { getErrorCode, getErrorMessage } from "./errors";
+import { retakeStock, VerifiedItem } from "./stock";
 
 interface PaymentIntentData {
   storeId: string;
-  items: unknown[];
+  items: VerifiedItem[];
   shipping: Record<string, unknown>;
   customerNote?: string;
   userId: string;
@@ -15,7 +16,7 @@ interface PaymentIntentData {
   // Set only when a discount code was applied (initializeOrderPayment).
   subtotal?: number;
   discount?: { code: string; amount: number };
-  status: "pending" | "consumed";
+  status: "pending" | "consumed" | "cancelled" | "expired";
 }
 
 interface VerifiedPaystackCharge {
@@ -105,7 +106,19 @@ export const createOrderFromVerifiedPayment = async (
     throw err;
   }
 
-  await intentRef.update({ status: "consumed" });
+  // Claim the checkout. If cancelOrderPayment or releaseAbandonedCheckouts
+  // got there first, its stock was already released — take it again, since
+  // this order really was paid (stock.ts releaseIntent/retakeStock).
+  const previousStatus = await db.runTransaction(async (t) => {
+    const snap = await t.get(intentRef);
+    t.update(intentRef, { status: "consumed" });
+    return snap.data()?.status;
+  });
+  if (previousStatus === "cancelled" || previousStatus === "expired") {
+    await retakeStock(intent.storeId, intent.items).catch((err) =>
+      logger.error(`Couldn't retake stock for late-paid ${charge.reference}`, err)
+    );
+  }
 
   // Only the call that actually created the order gets here, so a code's
   // use is counted exactly once per paid order.

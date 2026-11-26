@@ -103,7 +103,7 @@ service cloud.firestore {
         && request.resource.data.get('isVerified', false) == false
         && request.resource.data.get('isSuspended', false) == false
         && request.resource.data.get('plan', 'starter') == 'starter'
-        && !request.resource.data.keys().hasAny(['planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'pendingRefundDebt', 'payoutConfig']);
+        && !request.resource.data.keys().hasAny(['planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'pendingRefundDebt', 'payoutConfig', 'lockedByDowngrade']);
 
       // Only the owner can edit their store settings (Name, Theme, etc.)
       // Super Admin can edit anything (Approval, Suspension, etc.)
@@ -123,7 +123,7 @@ service cloud.firestore {
         // writable, it could just be zeroed. payoutConfig.subaccountCode is
         // where checkout sends the vendor's share — only linkPayoutMethod
         // (behind the payout email code) may write it.
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'pendingRefundDebt', 'payoutConfig'])
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'pendingRefundDebt', 'payoutConfig', 'lockedByDowngrade'])
         && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
         // onboardingStatus was previously untouched by the blocklist above —
         // an owner could self-write straight to "approved", bypassing admin
@@ -142,6 +142,12 @@ service cloud.firestore {
         && (
           request.resource.data.status != 'live' ||
           resource.data.get('onboardingStatus', 'approved') == 'approved'
+        )
+        // A secondary store closed when its owner lost Growth stays closed
+        // until they renew (onUserSubscriptionUpdated sets/clears this).
+        && (
+          request.resource.data.status != 'live' ||
+          resource.data.get('lockedByDowngrade', false) != true
         )
       );
 

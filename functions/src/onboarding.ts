@@ -2,7 +2,7 @@ import { onDocumentCreated, onDocumentUpdated } from "firebase-functions/v2/fire
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { Resend } from "resend";
-import { getEmailLayout } from "./email-layout";
+import { getEmailLayout, escapeHtml } from "./email-layout";
 import { sendNotificationToUser } from "./notifications";
 import {
   ownerHasApprovedStore,
@@ -52,11 +52,11 @@ export const onStoreOnboardingCreated = onDocumentCreated(
         html: `
           <div style="font-family: sans-serif; padding: 20px;">
             <h2>New Store Review Required</h2>
-            <p><strong>Store Name:</strong> ${store.name}</p>
-            <p><strong>Store Slug:</strong> ${store.slug}</p>
-            <p><strong>Vendor Name:</strong> ${user.fullName || "N/A"}</p>
-            <p><strong>Vendor Type:</strong> ${user.vendorType || "individual"}</p>
-            <p><strong>Vendor Email:</strong> ${user.email}</p>
+            <p><strong>Store Name:</strong> ${escapeHtml(store.name)}</p>
+            <p><strong>Store Slug:</strong> ${escapeHtml(store.slug)}</p>
+            <p><strong>Vendor Name:</strong> ${escapeHtml(user.fullName || "N/A")}</p>
+            <p><strong>Vendor Type:</strong> ${escapeHtml(user.vendorType || "individual")}</p>
+            <p><strong>Vendor Email:</strong> ${escapeHtml(user.email)}</p>
             <hr />
             <a href="https://copdrop.io/super-admin/vendors?storeId=${storeId}" style="display: inline-block; background: #000; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Review Store</a>
           </div>
@@ -66,8 +66,8 @@ export const onStoreOnboardingCreated = onDocumentCreated(
       // 2. Email to Vendor (Pending Review) - Using the Welcome Style
       const reviewingContent = `
         <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
-          Hi <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
-          Your store <strong>${store.name}</strong> is currently under review by our compliance team.
+          Hi <strong>${escapeHtml(user.fullName || "Creator")}</strong>,<br/><br/>
+          Your store <strong>${escapeHtml(store.name)}</strong> is currently under review by our compliance team.
         </p>
         <p style="font-size: 16px; color: #999999; line-height: 1.6; margin-bottom: 30px;">
           We're checking your details and verification documents to ensure a smooth launch. You'll be notified as soon as your store is approved or if we need more information.
@@ -156,8 +156,8 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
         // Merged Welcome + Approved Content
         content = `
           <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
-            Hi <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
-            Great news! Your store <strong>${after.name}</strong> has been approved.
+            Hi <strong>${escapeHtml(user.fullName || "Creator")}</strong>,<br/><br/>
+            Great news! Your store <strong>${escapeHtml(after.name)}</strong> has been approved.
           </p>
 
           ${after.isTrial ? `
@@ -183,7 +183,7 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
             <ul style="color: #ccc; padding-left: 20px;">
               <li style="margin-bottom: 10px;">Login to your Dashboard: <strong>copdrop.io/admin</strong></li>
               <li style="margin-bottom: 10px;">Add your first Product</li>
-              <li style="margin-bottom: 10px;">Share your link: <strong>copdrop.io/shop/${after.slug}</strong></li>
+              <li style="margin-bottom: 10px;">Share your link: <strong>copdrop.io/shop/${escapeHtml(after.slug)}</strong></li>
             </ul>
           </div>
 
@@ -196,12 +196,12 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
         title = "Almost There.";
         content = `
           <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
-            Hi <strong>${user.fullName || "Creator"}</strong>,<br/><br/>
+            Hi <strong>${escapeHtml(user.fullName || "Creator")}</strong>,<br/><br/>
             Our team reviewed your store application and needs a bit more information before we can approve it.
           </p>
           <div style="background: rgba(255,191,0,0.1); border: 1px solid #FFBF00; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: left;">
               <p style="margin: 0; font-weight: bold; color: #FFBF00;">Admin Note:</p>
-              <p style="margin: 10px 0; color: #ffffff;">${after.onboardingNotes || "Please review your profile and documents."}</p>
+              <p style="margin: 10px 0; color: #ffffff;">${escapeHtml(after.onboardingNotes || "Please review your profile and documents.")}</p>
           </div>
           <p style="color: #999999; margin-bottom: 30px;">Please log in to your dashboard to update your information.</p>
           <a href="https://copdrop.io/admin/settings" style="display: inline-block; background-color: #ffffff; color: #000000; padding: 18px 40px; border-radius: 50px; text-decoration: none; font-weight: 900; font-size: 16px;">
@@ -213,12 +213,12 @@ export const onStoreOnboardingUpdated = onDocumentUpdated(
         title = "Application Update.";
         content = `
           <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 20px;">
-            Hi <strong>${user.fullName || "there"}</strong>,<br/><br/>
-            We regret to inform you that your application for <strong>${after.name}</strong> has been rejected at this time.
+            Hi <strong>${escapeHtml(user.fullName || "there")}</strong>,<br/><br/>
+            We regret to inform you that your application for <strong>${escapeHtml(after.name)}</strong> has been rejected at this time.
           </p>
           <div style="background: rgba(255,0,0,0.1); border: 1px solid #FF0000; padding: 20px; border-radius: 12px; margin: 20px 0; text-align: left;">
               <p style="margin: 0; font-weight: bold; color: #FF0000;">Reason:</p>
-              <p style="margin: 10px 0; color: #ffffff;">${after.onboardingNotes || "Your store does not meet our current requirements."}</p>
+              <p style="margin: 10px 0; color: #ffffff;">${escapeHtml(after.onboardingNotes || "Your store does not meet our current requirements.")}</p>
           </div>
           <p style="color: #999999; margin-bottom: 30px;">If you have questions, please contact our support team.</p>
         `;

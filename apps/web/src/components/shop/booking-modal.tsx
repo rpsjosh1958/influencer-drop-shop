@@ -22,17 +22,15 @@ import {
   Booking,
   DaySchedule,
 } from "@/types";
-import { db, auth } from "@/lib/firebase";
+import { db, auth, functions } from "@/lib/firebase";
 import {
   doc,
   getDoc,
   addDoc,
   collection,
-  query,
-  where,
-  getDocs,
   serverTimestamp,
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import {
   format,
   startOfMonth,
@@ -87,7 +85,9 @@ export function BookingModal({
   const [availability, setAvailability] = useState<AvailabilitySettings | null>(
     null,
   );
-  const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
+  const [existingBookings, setExistingBookings] = useState<
+    { startTime: string; endTime: string }[]
+  >([]);
 
   // Selection
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -136,21 +136,21 @@ export function BookingModal({
     setMounted(true);
   }, []);
 
-  // Fetch existing bookings for selected date
+  // Taken times for the selected date — via the server, since shoppers
+  // can't read other customers' bookings (that query was always denied,
+  // so every slot used to look free).
   useEffect(() => {
     if (!selectedDate || !storeId) return;
     const fetchBookings = async () => {
       try {
-        const dateKey = format(selectedDate, "yyyy-MM-dd");
-        const q = query(
-          collection(db, "stores", storeId, "bookings"),
-          where("date", "==", dateKey),
-          where("status", "in", ["pending", "confirmed"]),
-        );
-        const snap = await getDocs(q);
-        setExistingBookings(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Booking),
-        );
+        const { data } = await httpsCallable<
+          { storeId: string; date: string },
+          { slots: { startTime: string; endTime: string }[] }
+        >(functions, "getBookedSlots")({
+          storeId,
+          date: format(selectedDate, "yyyy-MM-dd"),
+        });
+        setExistingBookings(data.slots);
       } catch (err) {
         console.error("Failed to fetch bookings", err);
       }

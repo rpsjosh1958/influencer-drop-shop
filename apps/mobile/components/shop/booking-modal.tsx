@@ -32,7 +32,6 @@ import {
   ServiceItem,
   AvailabilitySettings,
   TimeSlot,
-  Booking,
 } from "../../../web/src/types";
 import {
   doc,
@@ -40,11 +39,9 @@ import {
   addDoc,
   collection,
   serverTimestamp,
-  query,
-  where,
-  getDocs,
 } from "firebase/firestore";
-import { db, auth } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, auth, functions } from "@/lib/firebase";
 import {
   format,
   addDays,
@@ -117,7 +114,9 @@ export function BookingModal({
   const [availability, setAvailability] = useState<AvailabilitySettings | null>(
     null
   );
-  const [existingBookings, setExistingBookings] = useState<Booking[]>([]);
+  const [existingBookings, setExistingBookings] = useState<
+    { startTime: string; endTime: string }[]
+  >([]);
 
   // Reset state on open
   useEffect(() => {
@@ -183,16 +182,16 @@ export function BookingModal({
 
     const fetchBookings = async () => {
       try {
-        const dateKey = format(selectedDate, "yyyy-MM-dd");
-        const q = query(
-          collection(db, "stores", store.id, "bookings"),
-          where("date", "==", dateKey),
-          where("status", "in", ["pending", "confirmed"])
-        );
-        const snap = await getDocs(q);
-        setExistingBookings(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as Booking))
-        );
+        // Via the server: shoppers can't read other customers' bookings, so
+        // the direct query was always denied and every slot looked free.
+        const { data } = await httpsCallable<
+          { storeId: string; date: string },
+          { slots: { startTime: string; endTime: string }[] }
+        >(functions, "getBookedSlots")({
+          storeId: store.id,
+          date: format(selectedDate, "yyyy-MM-dd"),
+        });
+        setExistingBookings(data.slots);
       } catch (e) {
         console.error("Failed to fetch bookings", e);
       }
