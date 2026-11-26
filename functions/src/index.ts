@@ -151,6 +151,14 @@ export const onStoreCreated = onDocumentCreated(
         return;
       }
 
+      // Recorded server-side, not just by the client right after creating
+      // the store: the "second store needs Growth" rule counts ownedStores,
+      // so a client that skipped this write could otherwise keep creating
+      // stores on Starter.
+      await userRef.update({
+        ownedStores: admin.firestore.FieldValue.arrayUnion(event.params.storeId),
+      });
+
       let plan = "starter";
       let expiresAt = null;
       let isTrial = false;
@@ -191,7 +199,12 @@ export const onStoreCreated = onDocumentCreated(
       // already been through review gets extra stores approved and live
       // straight away; anyone else waits for the super admin. The
       // pending -> approved flip sends the usual approval email.
-      const autoApprove = await ownerHasApprovedStore(ownerId, event.params.storeId);
+      // Growth only: a Starter owner can't have a second store (rules), so
+      // one that slipped through anyway (e.g. two creates racing before
+      // ownedStores is written above) waits for review instead of going live.
+      const autoApprove =
+        plan === "growth" &&
+        (await ownerHasApprovedStore(ownerId, event.params.storeId));
 
       // Sync Store with the Account Plan
       await snapshot.ref.update({
@@ -1022,7 +1035,23 @@ export const linkPayoutMethod = onCall(async (request) => {
     subaccountCode,
   };
 
-  await storeRef.update({ payoutConfig });
+  // Store docs are public (storefronts read them), so they only carry the
+  // masked number — every screen already shows ••••last3 — and no holder
+  // name. The full details, which the super admin needs, go in an
+  // owner/admin-only doc (firestore.rules: stores/{id}/private).
+  await storeRef.collection("private").doc("payout").set({
+    ...payoutConfig,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await storeRef.update({
+    payoutConfig: {
+      provider: payoutConfig.provider,
+      bankCode,
+      bankName: payoutConfig.bankName,
+      accountNumber: `••••${String(accountNumber).slice(-3)}`,
+      subaccountCode,
+    },
+  });
 
   return { subaccountCode };
 });

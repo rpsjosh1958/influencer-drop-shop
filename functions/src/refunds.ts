@@ -67,6 +67,25 @@ export const initiateOrderRefund = async (
     throw new HttpsError("failed-precondition", "Order has no total amount.");
   }
 
+  // The order's doc ID is sent to Paystack as the transaction to refund, so
+  // it must be a paid checkout of THIS store. Without this, a vendor could
+  // create an order doc named after any reference (their own Growth
+  // payment, a purchase at another store) and refund it from the
+  // platform's balance. payment_intents is server-only and becomes
+  // "consumed" only once a verified payment has created the order.
+  const intent = (
+    await admin.firestore().collection("payment_intents").doc(orderRef.id).get()
+  ).data();
+  if (
+    intent?.storeId !== orderRef.parent.parent?.id ||
+    intent?.status !== "consumed"
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This order has no verified checkout payment to refund. Contact support if you think this is wrong."
+    );
+  }
+
   const deliveredAtMs = getDeliveredAtMs(order);
   if (
     deliveredAtMs !== undefined &&

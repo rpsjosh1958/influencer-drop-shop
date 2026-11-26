@@ -22,6 +22,13 @@ export const getEmailLayout = (content: string, title: string = "Own The Hype.")
   </div>
 `;
 
+// Anything a user typed (email, name, note, message) must go through this
+// before it's placed in email HTML, or they can inject their own markup.
+export const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
+  );
+
 // Shared building blocks used across templates, so button/callout styling
 // stays identical everywhere instead of being retyped per email.
 export const emailButton = (href: string, label: string) => `

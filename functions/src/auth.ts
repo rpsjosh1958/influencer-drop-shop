@@ -1,54 +1,81 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 import { Resend } from "resend";
 import * as logger from "firebase-functions/logger";
-import { getErrorCode, getErrorMessage } from "./errors";
-import { getEmailLayout, emailButton } from "./email-layout";
+import { getErrorCode } from "./errors";
+import { getEmailLayout, emailButton, escapeHtml } from "./email-layout";
+
+// Sites a reset link may point at. The caller's `origin` is untrusted (this
+// callable needs no login): taken as-is, anyone could have us email a real
+// reset code from security@copdrop.io inside a link to their own site.
+const ALLOWED_ORIGINS = [
+  "https://copdrop.io",
+  "https://www.copdrop.io",
+  "http://localhost:3000",
+];
+const RESEND_COOLDOWN_MS = 60 * 1000;
+
+export const buildResetLink = (
+  oobCode: string,
+  origin: unknown,
+  userType: unknown,
+  storeId: unknown
+) => {
+  const base = ALLOWED_ORIGINS.includes(origin as string)
+    ? (origin as string)
+    : "https://copdrop.io";
+  const type = userType === "customer" ? "customer" : "vendor";
+  let link = `${base}/auth/action?mode=resetPassword&oobCode=${encodeURIComponent(oobCode)}&type=${type}`;
+  if (typeof storeId === "string" && storeId) {
+    link += `&storeId=${encodeURIComponent(storeId)}`;
+  }
+  return link;
+};
 
 export const sendPasswordReset = onCall(async (request) => {
   const { email, userType, storeId, origin } = request.data; // userType: 'vendor' | 'customer'
 
-  if (!email) {
+  if (typeof email !== "string" || !email.trim()) {
     throw new HttpsError("invalid-argument", "Email is required");
   }
 
+  // One email per address per minute — without a login gate, nothing else
+  // stops someone flooding an inbox with our security emails. Answers
+  // "sent" either way so it reveals nothing.
+  const limitRef = admin
+    .firestore()
+    .collection("password_reset_requests")
+    .doc(crypto.createHash("sha256").update(email.trim().toLowerCase()).digest("hex"));
+  const lastSentAtMs = (await limitRef.get()).data()?.lastSentAtMs;
+  if (lastSentAtMs && Date.now() - lastSentAtMs < RESEND_COOLDOWN_MS) {
+    return { success: true };
+  }
+  await limitRef.set({ lastSentAtMs: Date.now() });
+
   try {
-    // 1. Generate Reset Link (Firebase hosted)
+    // Firebase generates the one-time code; we send our own branded email
+    // with a link to our own /auth/action page instead of Firebase's.
     const firebaseLink = await admin.auth().generatePasswordResetLink(email);
-
-    // 2. Extract oobCode to build Custom Link
-    const urlObj = new URL(firebaseLink);
-    const oobCode = urlObj.searchParams.get("oobCode");
-
+    const oobCode = new URL(firebaseLink).searchParams.get("oobCode");
     if (!oobCode) {
       throw new Error("Failed to extract reset code");
     }
 
-    // 3. Construct Custom Action Link
-    // Fallback to prod URL if origin not provided (e.g. mobile app call?)
-    const baseUrl = origin || "https://copdrop.io";
-    let customLink = `${baseUrl}/auth/action?mode=resetPassword&oobCode=${oobCode}&type=${
-      userType || "vendor"
-    }`;
-    if (storeId) {
-      customLink += `&storeId=${storeId}`;
-    }
-
-    // 4. Send Email via Resend
-    const resend = new Resend(process.env.RESEND_API_KEY);
-
+    const accountType = userType === "customer" ? "customer" : "vendor";
     const resetContent = `
       <p style="font-size: 20px; color: #cccccc; line-height: 1.6; margin-bottom: 30px;">
-        We received a request to reset the password for your <strong>${userType || "vendor"}</strong> account associated with <strong>${email}</strong>.
+        We received a request to reset the password for your <strong>${accountType}</strong> account associated with <strong>${escapeHtml(email)}</strong>.
       </p>
 
-      ${emailButton(customLink, "Reset Password")}
+      ${emailButton(buildResetLink(oobCode, origin, userType, storeId), "Reset Password")}
 
       <p style="margin-top: 40px; font-size: 13px; color: #666666;">
         If you didn't ask for this, you can ignore this email — your password will not be changed.
       </p>
     `;
 
+    const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({
       from: "The Drop Security <security@copdrop.io>",
       to: [email],
@@ -63,12 +90,15 @@ export const sendPasswordReset = onCall(async (request) => {
 
     return { success: true };
   } catch (err) {
-    logger.error("Password reset failed", err);
-    // Return success to prevent email enumeration if user not found?
-    // User enumeration is a risk, but for now we might want detailed errors for debugging.
+    // Same answer whether or not the address has an account, so this
+    // can't be used to find out who's registered.
     if (getErrorCode(err) === "auth/user-not-found") {
-      throw new HttpsError("not-found", "No user found with this email.");
+      return { success: true };
     }
-    throw new HttpsError("internal", getErrorMessage(err));
+    if (getErrorCode(err) === "auth/invalid-email") {
+      throw new HttpsError("invalid-argument", "Enter a valid email address.");
+    }
+    logger.error("Password reset failed", err);
+    throw new HttpsError("internal", "Failed to send reset email. Try again shortly.");
   }
 });

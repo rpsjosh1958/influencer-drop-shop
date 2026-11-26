@@ -5,6 +5,8 @@ import * as admin from "firebase-admin";
 import { extendGrowthExpiry } from "./billing";
 import { discountAmount } from "./discounts";
 import { secondaryStoreIds } from "./subscriptions";
+import { buildResetLink } from "./auth";
+import { escapeHtml } from "./email-layout";
 
 const DAY = 24 * 60 * 60;
 const now = new admin.firestore.Timestamp(1_800_000_000, 0);
@@ -50,4 +52,19 @@ test("secondaryStoreIds keeps only the oldest store open", () => {
   // No createdAt sorts first, matching the clients' `|| 0`.
   assert.deepEqual(secondaryStoreIds([...stores, { id: "legacy" }]), ["oldest", "middle", "newest"]);
   assert.deepEqual(secondaryStoreIds([{ id: "only", createdAt: at(1) }]), []);
+});
+
+test("password reset links only ever point at our own site", () => {
+  assert.equal(
+    buildResetLink("abc", "https://evil.tld", "customer", "shop"),
+    "https://copdrop.io/auth/action?mode=resetPassword&oobCode=abc&type=customer&storeId=shop"
+  );
+  assert.ok(buildResetLink("abc", "http://localhost:3000", "vendor", undefined).startsWith("http://localhost:3000/auth/action"));
+  // Unknown types become vendor; injected params get encoded, not appended.
+  const link = buildResetLink("abc", undefined, "x\"><script>", "a&mode=evil\"");
+  assert.ok(link.includes("&type=vendor&storeId=a%26mode%3Devil%22"));
+});
+
+test("escapeHtml neutralises markup in user text", () => {
+  assert.equal(escapeHtml(`<a href="x">'&'</a>`), "&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
 });

@@ -77,6 +77,10 @@ export function VendorDetailsModal({
     planExpiresAt?: FirestoreTimestampLike | number;
     isTrial?: boolean;
   } | null>(null);
+  // Full payout details live in stores/{id}/private/payout — the public
+  // store doc only has the masked number (functions linkPayoutMethod).
+  const [privatePayout, setPrivatePayout] = useState<StoreConfig["payoutConfig"] | null>(null);
+  const payout = privatePayout ?? store?.payoutConfig;
   const [adminNotes, setAdminNotes] = useState("");
   const [updatingOnboarding, setUpdatingOnboarding] = useState(false);
   const [giftDays, setGiftDays] = useState("30");
@@ -86,12 +90,17 @@ export function VendorDetailsModal({
   const fetchDetails = useCallback(async () => {
     if (!store?.id) return;
     setLoading(true);
+    setPrivatePayout(null); // don't show the previous vendor's details while loading
     try {
       // 0. Get Owner Data
       const userSnap = await getDoc(doc(db, "users", store.ownerId));
       if (userSnap.exists()) {
         setOwnerData(userSnap.data());
       }
+      const payoutSnap = await getDoc(doc(db, "stores", store.id, "private", "payout"));
+      setPrivatePayout(
+        payoutSnap.exists() ? (payoutSnap.data() as StoreConfig["payoutConfig"]) : null
+      );
 
       // 1. Get Product Count
       const productsSnap = await getCountFromServer(
@@ -427,7 +436,7 @@ export function VendorDetailsModal({
                   {store.status}
                 </span>
               </div>
-              {store.payoutConfig && (
+              {payout && (
                 <div className="p-4 space-y-3">
                   <span className="text-zinc-500 text-xs font-black uppercase tracking-widest block">
                     Payout Destination
@@ -436,27 +445,27 @@ export function VendorDetailsModal({
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-400">Method</span>
                       <span className="text-white font-bold capitalize">
-                        {store.payoutConfig.provider}{" "}
-                        {store.payoutConfig.network &&
-                          `(${store.payoutConfig.network})`}
+                        {payout.provider}{" "}
+                        {payout.network &&
+                          `(${payout.network})`}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-400">Bank</span>
                       <span className="text-white font-bold">
-                        {store.payoutConfig.bankName || "Mobile Money"}
+                        {payout.bankName || "Mobile Money"}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-400">Account Name</span>
                       <span className="text-white font-bold">
-                        {store.payoutConfig.accountName}
+                        {payout.accountName}
                       </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-zinc-400">Account Number</span>
                       <span className="text-white font-mono">
-                        {store.payoutConfig.accountNumber}
+                        {payout.accountNumber}
                       </span>
                     </div>
                   </div>

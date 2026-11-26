@@ -112,20 +112,21 @@ export async function POST(req: Request) {
       return new Response("Unauthorized", { status: 401 });
     }
 
-    // Verify the caller owns the storeId they're operating on
-    const userDoc = await adminDb.collection("users").doc(decodedToken.uid).get();
-    const ownedStores: string[] = userDoc.data()?.ownedStores || [];
-    if (!ownedStores.includes(storeId)) {
+    // Verify the caller owns the storeId they're operating on — via the
+    // store's ownerId, never users/{uid}.ownedStores: that list is
+    // client-writable, so anyone could add another vendor's storeId to it
+    // and drive these Admin SDK tools (which bypass rules) on that store.
+    const storeDocForPlanCheck = await adminDb
+      .collection("stores")
+      .doc(storeId)
+      .get();
+    if (storeDocForPlanCheck.data()?.ownerId !== decodedToken.uid) {
       return new Response("Forbidden", { status: 403 });
     }
 
     // The AI Assistant is a Growth-plan feature — the UI hides it entirely
     // for other plans, but that's client-side only, and every call here
     // costs real OpenAI spend, so it needs its own server-side gate too.
-    const storeDocForPlanCheck = await adminDb
-      .collection("stores")
-      .doc(storeId)
-      .get();
     if (storeDocForPlanCheck.data()?.plan !== "growth") {
       return new Response("The AI Assistant requires the Growth plan.", {
         status: 403,

@@ -59,7 +59,11 @@ service cloud.firestore {
       allow read: if isOwner(userId) || isSuperAdmin();
       allow create: if isOwner(userId) && !touchesPlanFields(request.resource.data.keys());
       allow update: if isOwner(userId) &&
-        !touchesPlanFields(request.resource.data.diff(resource.data).affectedKeys());
+        !touchesPlanFields(request.resource.data.diff(resource.data).affectedKeys()) &&
+        // ownedStores can only grow (every client write is an arrayUnion).
+        // Setting it to [] used to pass isOnGrowthOrHasNoStores and allow
+        // unlimited stores on Starter. onStoreCreated also adds each store.
+        request.resource.data.get('ownedStores', []).hasAll(resource.data.get('ownedStores', []));
       // No client deletes user docs (account deletion goes through support
       // email), and deleting + recreating one would reset hasUsedTrial and
       // hand out a second free trial.
@@ -99,7 +103,7 @@ service cloud.firestore {
         && request.resource.data.get('isVerified', false) == false
         && request.resource.data.get('isSuspended', false) == false
         && request.resource.data.get('plan', 'starter') == 'starter'
-        && !request.resource.data.keys().hasAny(['planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'pendingRefundDebt']);
+        && !request.resource.data.keys().hasAny(['planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'pendingRefundDebt', 'payoutConfig']);
 
       // Only the owner can edit their store settings (Name, Theme, etc.)
       // Super Admin can edit anything (Approval, Suspension, etc.)
@@ -116,8 +120,10 @@ service cloud.firestore {
         // direct client write of plan:'growth' here would unlock every
         // Growth-gated feature on the store for free. pendingRefundDebt is
         // what the vendor owes back after a refund (wallet.ts/refunds.ts) —
-        // writable, it could just be zeroed.
-        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'pendingRefundDebt'])
+        // writable, it could just be zeroed. payoutConfig.subaccountCode is
+        // where checkout sends the vendor's share — only linkPayoutMethod
+        // (behind the payout email code) may write it.
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isVerified', 'isSuspended', 'onboardingNotes', 'onboardingUpdatedAt', 'onboardingReviewerId', 'plan', 'planExpiresAt', 'planChangedAt', 'isTrial', 'billingCycle', 'pendingRefundDebt', 'payoutConfig'])
         && (resource.data.plan == 'growth' || request.resource.data.theme == resource.data.theme)
         // onboardingStatus was previously untouched by the blocklist above —
         // an owner could self-write straight to "approved", bypassing admin
@@ -144,6 +150,12 @@ service cloud.firestore {
       // Helper for subcollections to check parent store ownership
       function isParentStoreOwner() {
         return isAuthenticated() && get(/databases/$(database)/documents/stores/$(storeId)).data.ownerId == request.auth.uid;
+      }
+
+      // -- Private (server-written only) -- full payout details; the
+      // public store doc only has the masked number (linkPayoutMethod).
+      match /private/{docId} {
+        allow read: if isParentStoreOwner() || isSuperAdmin();
       }
 
       // -- Products --
@@ -176,8 +188,13 @@ service cloud.firestore {
         // Functions verified-checkout flow (initializeOrderPayment /
         // confirmOrderPayment / the Paystack webhook), which use the Admin
         // SDK and bypass these rules entirely. The only client write left
-        // here is a vendor manually logging their own order (cash/DM sale).
-        allow create: if isParentStoreOwner();
+        // here is a vendor manually logging their own order (cash/DM sale),
+        // which both manual-order modals tag paymentMethod 'manual' — that
+        // keeps it out of wallet crediting and refunds, and it can't carry
+        // the server-written payment/refund fields.
+        allow create: if isParentStoreOwner()
+          && request.resource.data.get('paymentMethod', '') == 'manual'
+          && !request.resource.data.keys().hasAny(['vendorNetAmount', 'refundedAmount', 'pendingRefundAmount', 'pendingRefundReference', 'refundStatus', 'disputeStatus', 'paymentRef']);
 
         // Store Owner OR The Customer who placed it can read OR Super Admin
         allow read: if isParentStoreOwner() || 
@@ -192,6 +209,12 @@ service cloud.firestore {
         // Paystack webhook via the Admin SDK, which bypasses these rules.
         allow update: if isSuperAdmin() || (
           isParentStoreOwner()
+          // Vendors only move an order through fulfilment (status,
+          // updatedAt, deliveredAt). Money, customer and refund fields are
+          // written by checkout and the Paystack webhook: editable, a vendor
+          // could zero vendorNetAmount or delete pendingRefundAmount to dodge
+          // refund-debt recovery, or repoint userId/customerEmail.
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['total', 'subtotal', 'discount', 'items', 'vendorNetAmount', 'refundedAmount', 'pendingRefundAmount', 'pendingRefundReference', 'refundStatus', 'disputeStatus', 'paymentRef', 'paymentMethod', 'isManual', 'userId', 'customerEmail', 'storeId'])
           && (resource.data.get('status', '') != 'delivered'
               || request.resource.data.get('status', '') == 'delivered')
           && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['deliveredAt'])

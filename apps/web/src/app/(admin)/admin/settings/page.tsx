@@ -371,6 +371,7 @@ export default function StoreSettingsPage() {
       delete payload.planChangedAt;
       delete payload.isTrial;
       delete payload.pendingRefundDebt;
+      delete payload.payoutConfig; // only linkPayoutMethod writes it
 
       // Reset onboarding status if saving after requested info
       if (onboardingStatus === "needs_more_info") {
@@ -2027,9 +2028,11 @@ export default function StoreSettingsPage() {
                           {config.payoutConfig.bankName} •{" "}
                           {config.payoutConfig.accountNumber}
                         </p>
-                        <p className="text-green-700 text-sm font-bold uppercase mt-1">
-                          {config.payoutConfig.accountName}
-                        </p>
+                        {config.payoutConfig.accountName && (
+                          <p className="text-green-700 text-sm font-bold uppercase mt-1">
+                            {config.payoutConfig.accountName}
+                          </p>
+                        )}
                       </div>
                       <button
                         type="button"
