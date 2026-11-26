@@ -54,6 +54,11 @@ export const sendPasswordReset = onCall(async (request) => {
   await limitRef.set({ lastSentAtMs: Date.now() });
 
   try {
+    // Throws auth/user-not-found for an unknown address (handled below).
+    // Needed up front: generatePasswordResetLink can't tell us — with email
+    // enumeration protection on, it just fails with auth/internal-error.
+    await admin.auth().getUserByEmail(email);
+
     // Firebase generates the one-time code; we send our own branded email
     // with a link to our own /auth/action page instead of Firebase's.
     const firebaseLink = await admin.auth().generatePasswordResetLink(email);
@@ -92,10 +97,11 @@ export const sendPasswordReset = onCall(async (request) => {
   } catch (err) {
     // Same answer whether or not the address has an account, so this
     // can't be used to find out who's registered.
-    if (getErrorCode(err) === "auth/user-not-found") {
+    const code = getErrorCode(err);
+    if (code === "auth/user-not-found") {
       return { success: true };
     }
-    if (getErrorCode(err) === "auth/invalid-email") {
+    if (code === "auth/invalid-email") {
       throw new HttpsError("invalid-argument", "Enter a valid email address.");
     }
     logger.error("Password reset failed", err);
